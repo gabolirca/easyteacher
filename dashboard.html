@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AulaFácil - Panel Principal</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error-container": "#93000a",
+                      "on-primary-fixed-variant": "#911b00",
+                      "surface-dim": "#d9d9e2",
+                      "tertiary-fixed-dim": "#ffb694",
+                      "tertiary-fixed": "#ffdbcc",
+                      "on-primary": "#ffffff",
+                      "outline-variant": "#c2c6d4",
+                      "surface-container": "#ededf6",
+                      "primary-fixed-dim": "#ffc8ac",
+                      "primary": "#871a00",
+                      "inverse-primary": "#ffc8ac",
+                      "surface-container-low": "#f2f3fc",
+                      "outline": "#727784",
+                      "on-surface": "#191c21",
+                      "on-primary-container": "#ffd3bb",
+                      "surface": "#f9f9ff",
+                      "secondary-fixed": "#b1f0ce",
+                      "on-error": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "surface-container-lowest": "#ffffff",
+                      "primary-fixed": "#ffe6d7",
+                      "background": "#f9f9ff",
+                      "secondary": "#2c694e",
+                      "surface-bright": "#f9f9ff",
+                      "error": "#ba1a1a",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "primary-container": "#E83C17",
+                      "on-primary-fixed": "#401000",
+                      "surface-tint": "#b93411",
+                      "surface-container-highest": "#e1e2ea",
+                      "on-secondary-fixed": "#002114",
+                      "tertiary": "#722b00",
+                      "surface-container-high": "#e7e8f0",
+                      "on-surface-variant": "#424752",
+                      "secondary-container": "#aeeecb",
+                      "on-secondary-fixed-variant": "#0e5138",
+                      "on-tertiary-container": "#ffc2a7",
+                      "inverse-surface": "#2e3037",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "secondary-fixed-dim": "#95d4b3",
+                      "on-background": "#191c21",
+                      "on-tertiary-fixed": "#351000",
+                      "on-secondary-container": "#316e52",
+                      "surface-variant": "#e1e2ea",
+                      "inverse-on-surface": "#f0f0f9",
+                      "tertiary-container": "#983c00"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "stack-md": "24px",
+                      "margin-desktop": "48px",
+                      "stack-lg": "40px",
+                      "stack-sm": "12px",
+                      "margin-mobile": "16px",
+                      "base-unit": "8px"
+              },
+              "fontFamily": {
+                      "label-lg": ["Inter"],
+                      "headline-lg-mobile": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "button-text": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "label-lg": ["16px", {"lineHeight": "20px", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "display-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "button-text": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md flex">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-low dark:bg-surface-container-highest text-primary dark:text-primary-fixed-dim font-label-lg text-label-lg h-screen w-64 fixed left-0 top-0 border-r border-outline-variant hidden md:flex flex-col py-8 gap-stack-md z-40">
+<div class="px-gutter mb-4 flex items-center gap-4">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="A clean, professional avatar portrait of a modern educator smiling warmly. Bright lighting, soft blue background, confident yet approachable expression. The style is highly realistic but optimized for a digital interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAh4c-YCf7n16DM2uFJtU8QFRfRVNvzYPDhMB_U1GcSV4umCadhz8DZQyJ0syjYD1sX_p5TXHxMLc1y-7nPJvrrFha3CiluQmE6WH25scStvTS_DeaHVNVWisUBMuTcrcq39CpkLGkHgYpNbUwB1OrKjmXe9Shc7tR4sAmO7A4-IdIBa6UYBY7oDrcrYlM3N26ZVGnXO9yGebct91jGm6IQ7YIp1DRfcOdsDyEkZ0_m9BNkM-ZBv6JJlw"/>
+<div>
+<h2 class="font-label-lg text-label-lg text-on-surface" id="sidebar-nombre">Cargando...</h2>
+<p class="font-body-sm text-sm text-on-surface-variant">Ciclo Escolar 2024</p>
+</div>
+</div>
+<div class="flex-1 px-4 space-y-2 overflow-y-auto">
+<!-- Home (Active) -->
+<a class="flex items-center gap-4 px-4 py-3 bg-primary-container text-on-primary-container rounded-r-full font-bold transition-all duration-150 transform hover:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+                Home
+            </a>
+<!-- Groups -->
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<span class="material-symbols-outlined">group</span>
+                Groups
+            </a>
+<!-- Exams -->
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<span class="material-symbols-outlined">quiz</span>
+                Exams
+            </a>
+<!-- Tasks -->
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<span class="material-symbols-outlined">assignment</span>
+                Tasks
+            </a>
+<!-- Attendance -->
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<span class="material-symbols-outlined">rule</span>
+                Attendance
+            </a>
+<!-- Grades -->
+<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<span class="material-symbols-outlined">grade</span>
+                Grades
+            </a>
+</div>
+<div class="px-4 mt-auto">
+<button id="btn-nueva-clase-sidebar" class="w-full bg-primary-container text-on-primary-container py-3 px-4 rounded-full font-button-text flex items-center justify-center gap-2 hover:bg-primary hover:text-on-primary transition-colors">
+<span class="material-symbols-outlined">add</span>
+                Crear Nueva Clase
+            </button>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex-1 md:ml-64 flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<header class="bg-surface dark:bg-surface-container-low text-primary dark:text-primary-fixed-dim font-label-lg text-label-lg shadow-sm border-b border-outline-variant docked full-width top-0 z-50 flex justify-between items-center w-full px-margin-desktop py-4 sticky">
+<div class="flex items-center gap-4">
+<span class="font-headline-md text-headline-md text-primary font-bold">AulaFácil</span>
+</div>
+<div class="flex items-center gap-6">
+<button id="btn-logout" class="text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200 p-2 rounded-full flex items-center justify-center active:scale-95 transition-transform">
+<span class="material-symbols-outlined">logout</span>
+</button>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 p-margin-mobile md:p-margin-desktop overflow-y-auto">
+<!-- Welcome Header -->
+<div class="mb-stack-lg">
+<h1 class="font-display-lg text-display-lg text-on-surface mb-2" id="saludo-nombre">Buenos días</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Aquí está el resumen de tu día.</p>
+</div>
+<!-- Quick Access Section -->
+<section class="mb-stack-lg">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-stack-md">Acceso Rápido</h2>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-gutter">
+<!-- Quick Card 1 -->
+<button class="bg-primary-fixed text-on-primary-fixed p-6 rounded-DEFAULT border border-primary-fixed-dim hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<div class="p-3 bg-surface rounded-full text-primary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">edit_document</span>
+</div>
+<span class="font-button-text text-button-text">Crear examen</span>
+</button>
+<!-- Quick Card 2 -->
+<button class="bg-secondary-fixed text-on-secondary-fixed p-6 rounded-DEFAULT border border-secondary-fixed-dim hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<div class="p-3 bg-surface rounded-full text-secondary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">fact_check</span>
+</div>
+<span class="font-button-text text-button-text">Tomar asistencia</span>
+</button>
+<!-- Quick Card 3 -->
+<button class="bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<div class="p-3 bg-surface rounded-full text-on-surface-variant group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">assignment</span>
+</div>
+<span class="font-button-text text-button-text">Tareas</span>
+</button>
+<!-- Quick Card 4 -->
+<button class="bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<div class="p-3 bg-surface rounded-full text-on-surface-variant group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">grade</span>
+</div>
+<span class="font-button-text text-button-text">Calificaciones</span>
+</button>
+</div>
+</section>
+<!-- My Groups Section -->
+<section>
+<div class="flex justify-between items-center mb-stack-md border-b border-outline-variant pb-4">
+<h2 class="font-headline-md text-headline-md text-on-surface">Mis Grupos</h2>
+<button id="btn-nuevo-grupo" class="bg-primary text-on-primary px-6 py-2 rounded-full font-button-text text-button-text hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm">
+                        + Nuevo grupo
+                    </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter" id="grupos-container">
+<p class="col-span-full text-on-surface-variant">Cargando tus grupos...</p>
+</div>
+</section>
+</main>
+</div>
+<script type="module" src="assets/js/dashboard.js"></script>
+</body></html>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AulaFácil</title>
+</head>
+<body>
+<script type="module">
+  import { supabase } from './assets/js/supabase-client.js';
+  const { data: { session } } = await supabase.auth.getSession();
+  window.location.href = session ? 'dashboard.html' : 'login.html';
+</script>
+</body>
+</html>
+
