@@ -105,43 +105,48 @@
 <body class="bg-background text-on-background min-h-screen font-body-md flex">
 <!-- SideNavBar -->
 <nav class="bg-surface-container-low dark:bg-surface-container-highest text-primary dark:text-primary-fixed-dim font-label-lg text-label-lg h-screen w-64 fixed left-0 top-0 border-r border-outline-variant hidden md:flex flex-col py-8 gap-stack-md z-40">
-<div class="px-gutter mb-4 flex items-center gap-4">
-<img class="w-12 h-12 rounded-full object-cover" data-alt="A clean, professional avatar portrait of a modern educator smiling warmly. Bright lighting, soft blue background, confident yet approachable expression. The style is highly realistic but optimized for a digital interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAh4c-YCf7n16DM2uFJtU8QFRfRVNvzYPDhMB_U1GcSV4umCadhz8DZQyJ0syjYD1sX_p5TXHxMLc1y-7nPJvrrFha3CiluQmE6WH25scStvTS_DeaHVNVWisUBMuTcrcq39CpkLGkHgYpNbUwB1OrKjmXe9Shc7tR4sAmO7A4-IdIBa6UYBY7oDrcrYlM3N26ZVGnXO9yGebct91jGm6IQ7YIp1DRfcOdsDyEkZ0_m9BNkM-ZBv6JJlw"/>
+<a href="perfil.html" class="px-gutter mb-4 flex items-center gap-4 hover:bg-surface-container-high rounded-lg py-2 transition-colors" title="Editar perfil">
+<img id="sidebar-avatar" class="w-12 h-12 rounded-full object-cover bg-surface-container-high" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAh4c-YCf7n16DM2uFJtU8QFRfRVNvzYPDhMB_U1GcSV4umCadhz8DZQyJ0syjYD1sX_p5TXHxMLc1y-7nPJvrrFha3CiluQmE6WH25scStvTS_DeaHVNVWisUBMuTcrcq39CpkLGkHgYpNbUwB1OrKjmXe9Shc7tR4sAmO7A4-IdIBa6UYBY7oDrcrYlM3N26ZVGnXO9yGebct91jGm6IQ7YIp1DRfcOdsDyEkZ0_m9BNkM-ZBv6JJlw"/>
 <div>
 <h2 class="font-label-lg text-label-lg text-on-surface" id="sidebar-nombre">Cargando...</h2>
 <p class="font-body-sm text-sm text-on-surface-variant">Ciclo Escolar 2024</p>
 </div>
-</div>
+</a>
 <div class="flex-1 px-4 space-y-2 overflow-y-auto">
 <!-- Home (Active) -->
-<a class="flex items-center gap-4 px-4 py-3 bg-primary-container text-on-primary-container rounded-r-full font-bold transition-all duration-150 transform hover:scale-[0.98]" href="#">
+<a class="flex items-center gap-4 px-4 py-3 bg-primary-container text-on-primary-container rounded-r-full font-bold transition-all duration-150 transform hover:scale-[0.98]" href="dashboard.html">
 <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
-                Home
+                Inicio
             </a>
 <!-- Groups -->
-<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<a id="nav-groups" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#mis-grupos">
 <span class="material-symbols-outlined">group</span>
-                Groups
+                Grupos
             </a>
+<a id="nav-alumnos" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="alumnos-global.html">
+<span class="material-symbols-outlined">groups</span>
+                Alumnos
+            </a>
+
 <!-- Exams -->
-<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<a id="nav-exams" data-quick="crear-examen" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
 <span class="material-symbols-outlined">quiz</span>
-                Exams
+                Examenes
             </a>
 <!-- Tasks -->
-<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<a id="nav-tasks" data-quick="tareas" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
 <span class="material-symbols-outlined">assignment</span>
-                Tasks
+                Tareas
             </a>
 <!-- Attendance -->
-<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<a id="nav-attendance" data-quick="asistencia" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
 <span class="material-symbols-outlined">rule</span>
-                Attendance
+                Asistencia
             </a>
 <!-- Grades -->
-<a class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
+<a id="nav-grades" data-quick="calificaciones" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
 <span class="material-symbols-outlined">grade</span>
-                Grades
+                Calificaciones
             </a>
 </div>
 <div class="px-4 mt-auto">
@@ -156,7 +161,7 @@
 <!-- TopNavBar -->
 <header class="bg-surface dark:bg-surface-container-low text-primary dark:text-primary-fixed-dim font-label-lg text-label-lg shadow-sm border-b border-outline-variant docked full-width top-0 z-50 flex justify-between items-center w-full px-margin-desktop py-4 sticky">
 <div class="flex items-center gap-4">
-<span class="font-headline-md text-headline-md text-primary font-bold">AulaFácil</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">EasyTeacher</span>
 </div>
 <div class="flex items-center gap-6">
 <button id="btn-logout" class="text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200 p-2 rounded-full flex items-center justify-center active:scale-95 transition-transform">
@@ -176,28 +181,28 @@
 <h2 class="font-headline-md text-headline-md text-on-surface mb-stack-md">Acceso Rápido</h2>
 <div class="grid grid-cols-2 md:grid-cols-4 gap-gutter">
 <!-- Quick Card 1 -->
-<button class="bg-primary-fixed text-on-primary-fixed p-6 rounded-DEFAULT border border-primary-fixed-dim hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<button data-quick="crear-examen" class="bg-primary-fixed text-on-primary-fixed p-6 rounded-DEFAULT border border-primary-fixed-dim hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
 <div class="p-3 bg-surface rounded-full text-primary group-hover:scale-110 transition-transform">
 <span class="material-symbols-outlined text-3xl">edit_document</span>
 </div>
 <span class="font-button-text text-button-text">Crear examen</span>
 </button>
 <!-- Quick Card 2 -->
-<button class="bg-secondary-fixed text-on-secondary-fixed p-6 rounded-DEFAULT border border-secondary-fixed-dim hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<button data-quick="asistencia" class="bg-secondary-fixed text-on-secondary-fixed p-6 rounded-DEFAULT border border-secondary-fixed-dim hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
 <div class="p-3 bg-surface rounded-full text-secondary group-hover:scale-110 transition-transform">
 <span class="material-symbols-outlined text-3xl">fact_check</span>
 </div>
 <span class="font-button-text text-button-text">Tomar asistencia</span>
 </button>
 <!-- Quick Card 3 -->
-<button class="bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<button data-quick="tareas" class="bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
 <div class="p-3 bg-surface rounded-full text-on-surface-variant group-hover:scale-110 transition-transform">
 <span class="material-symbols-outlined text-3xl">assignment</span>
 </div>
 <span class="font-button-text text-button-text">Tareas</span>
 </button>
 <!-- Quick Card 4 -->
-<button class="bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<button data-quick="calificaciones" class="bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
 <div class="p-3 bg-surface rounded-full text-on-surface-variant group-hover:scale-110 transition-transform">
 <span class="material-symbols-outlined text-3xl">grade</span>
 </div>
@@ -206,7 +211,7 @@
 </div>
 </section>
 <!-- My Groups Section -->
-<section>
+<section id="mis-grupos">
 <div class="flex justify-between items-center mb-stack-md border-b border-outline-variant pb-4">
 <h2 class="font-headline-md text-headline-md text-on-surface">Mis Grupos</h2>
 <button id="btn-nuevo-grupo" class="bg-primary text-on-primary px-6 py-2 rounded-full font-button-text text-button-text hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm">
@@ -216,6 +221,11 @@
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter" id="grupos-container">
 <p class="col-span-full text-on-surface-variant">Cargando tus grupos...</p>
 </div>
+
+<button id="btn-toggle-grupos-archivados" class="text-on-surface-variant font-label-lg text-label-lg hover:text-primary flex items-center gap-1 mt-stack-md">
+<span class="material-symbols-outlined text-lg">archive</span> Ver grupos archivados
+</button>
+<div id="grupos-archivados-container" class="hidden grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-gutter mt-stack-md"></div>
 </section>
 </main>
 </div>

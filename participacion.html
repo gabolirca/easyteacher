@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title id="page-title">AulaFácil - Participación</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error-container": "#93000a",
+                      "on-primary-fixed-variant": "#911b00",
+                      "surface-dim": "#d9d9e2",
+                      "tertiary-fixed-dim": "#ffb694",
+                      "tertiary-fixed": "#ffdbcc",
+                      "on-primary": "#ffffff",
+                      "outline-variant": "#c2c6d4",
+                      "surface-container": "#ededf6",
+                      "primary-fixed-dim": "#ffc8ac",
+                      "primary": "#871a00",
+                      "inverse-primary": "#ffc8ac",
+                      "surface-container-low": "#f2f3fc",
+                      "outline": "#727784",
+                      "on-surface": "#191c21",
+                      "on-primary-container": "#ffd3bb",
+                      "surface": "#f9f9ff",
+                      "secondary-fixed": "#b1f0ce",
+                      "on-error": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "surface-container-lowest": "#ffffff",
+                      "primary-fixed": "#ffe6d7",
+                      "background": "#f9f9ff",
+                      "secondary": "#2c694e",
+                      "surface-bright": "#f9f9ff",
+                      "error": "#ba1a1a",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "primary-container": "#E83C17",
+                      "on-primary-fixed": "#401000",
+                      "surface-tint": "#b93411",
+                      "surface-container-highest": "#e1e2ea",
+                      "on-secondary-fixed": "#002114",
+                      "tertiary": "#722b00",
+                      "surface-container-high": "#e7e8f0",
+                      "on-surface-variant": "#424752",
+                      "secondary-container": "#aeeecb",
+                      "on-secondary-fixed-variant": "#0e5138",
+                      "on-tertiary-container": "#ffc2a7",
+                      "inverse-surface": "#2e3037",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "secondary-fixed-dim": "#95d4b3",
+                      "on-background": "#191c21",
+                      "on-tertiary-fixed": "#351000",
+                      "on-secondary-container": "#316e52",
+                      "surface-variant": "#e1e2ea",
+                      "inverse-on-surface": "#f0f0f9",
+                      "tertiary-container": "#983c00"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "stack-md": "24px",
+                      "margin-desktop": "48px",
+                      "stack-lg": "40px",
+                      "stack-sm": "12px",
+                      "margin-mobile": "16px",
+                      "base-unit": "8px"
+              },
+              "fontFamily": {
+                      "label-lg": ["Inter"],
+                      "headline-lg-mobile": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "button-text": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "label-lg": ["16px", {"lineHeight": "20px", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "display-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "button-text": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md">
+<header class="bg-surface border-b border-outline-variant sticky top-0 z-40">
+<div class="max-w-3xl mx-auto px-6 py-4 flex items-center gap-4">
+<a id="link-volver" href="dashboard.html" class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</a>
+<a href="dashboard.html" class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center transition-colors" title="Ir al inicio" aria-label="Ir al inicio">
+<span class="material-symbols-outlined">home</span>
+</a>
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface">Participación</h1>
+<p id="grupo-nombre" class="font-body-md text-body-md text-on-surface-variant"></p>
+</div>
+</div>
+</header>
+
+<main class="max-w-3xl mx-auto px-6 py-8 pb-32">
+<div id="error-box" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
+<div id="ok-box" class="hidden bg-secondary-container text-on-secondary-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
+
+<!-- ============ MODO SIMPLE (una nota 0-10, como Tareas) ============ -->
+<div id="vista-simple" class="hidden">
+<div id="campo-periodo-simple" class="hidden flex flex-col mb-stack-md max-w-xs">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="simple-periodo">Periodo</label>
+<select id="simple-periodo" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors">
+<option value="">Sin periodo (todo el ciclo)</option>
+</select>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden">
+<table class="w-full">
+<thead class="bg-surface-container-high">
+<tr>
+<th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Alumno</th>
+<th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Calificación (0-10)</th>
+</tr>
+</thead>
+<tbody id="tabla-simple-body">
+<tr><td colspan="2" class="py-6 px-6 text-center text-on-surface-variant">Cargando...</td></tr>
+</tbody>
+</table>
+</div>
+<div class="flex justify-end mt-stack-md">
+<button id="btn-guardar-simple" class="bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-3 px-8 hover:bg-primary hover:text-on-primary transition-colors">Guardar calificaciones</button>
+</div>
+</div>
+
+<!-- ============ MODO FICHAS ============ -->
+<div id="vista-fichas" class="hidden">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-stack-md">
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="fecha-participacion">Fecha</label>
+<input id="fecha-participacion" type="date" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors"/>
+</div>
+<div id="leyenda-fichas" class="flex gap-3 text-sm font-label-lg text-label-lg text-on-surface-variant flex-wrap"></div>
+</div>
+
+<div id="lista-alumnos" class="flex flex-col gap-2 mb-stack-lg">
+<p class="text-on-surface-variant">Cargando alumnos...</p>
+</div>
+
+<div class="flex flex-wrap gap-4 mb-stack-md">
+<button id="btn-toggle-registro" class="text-on-surface-variant font-label-lg text-label-lg hover:text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">history</span> Ver registro de esta fecha
+</button>
+<button id="btn-toggle-valores" class="text-on-surface-variant font-label-lg text-label-lg hover:text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">tune</span> Editar valores de las fichas
+</button>
+<button id="btn-toggle-corte" class="text-primary font-label-lg text-label-lg hover:underline flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">leaderboard</span> Hacer corte
+</button>
+</div>
+
+<div id="registro-container" class="hidden flex-col gap-2 mb-stack-lg"></div>
+
+<!-- Editor de valores de fichas -->
+<div id="valores-container" class="hidden bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 mb-stack-lg">
+<h2 class="font-headline-md text-headline-md text-primary mb-stack-md">Valor de cada ficha</h2>
+<div id="valores-lista" class="grid grid-cols-2 md:grid-cols-4 gap-gutter mb-stack-md"></div>
+<button id="btn-guardar-valores" class="bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-3 px-8 hover:bg-primary hover:text-on-primary transition-colors">Guardar valores</button>
+</div>
+
+<!-- Corte -->
+<div id="corte-container" class="hidden bg-surface-container-lowest border-2 border-primary-fixed rounded-DEFAULT p-6 mb-stack-lg">
+<h2 class="font-headline-md text-headline-md text-primary mb-stack-md">Ranking y corte</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">De mayor a menor. Elige un valor de referencia — quien lo alcance o supere saca 10; los demás se califican en proporción.</p>
+<div id="ranking-lista" class="flex flex-col gap-2 mb-stack-md"></div>
+<div id="campo-periodo-corte" class="hidden flex flex-col mb-stack-md max-w-xs">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="corte-periodo">Periodo</label>
+<select id="corte-periodo" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors">
+<option value="">Sin periodo (todo el ciclo)</option>
+</select>
+</div>
+<div class="flex flex-col md:flex-row gap-4 items-end">
+<div class="flex-1 flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="corte-media">Valor de referencia</label>
+<input id="corte-media" type="number" min="0" step="1" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors"/>
+</div>
+<button id="btn-aplicar-corte" class="bg-primary text-on-primary font-button-text text-button-text rounded-full py-3 px-8 hover:opacity-90 transition-opacity whitespace-nowrap">Aplicar corte</button>
+</div>
+<p id="ultimo-corte-info" class="font-body-md text-body-md text-on-surface-variant mt-stack-md"></p>
+</div>
+</div>
+</main>
+<script type="module" src="assets/js/participacion.js"></script>
+</body></html>

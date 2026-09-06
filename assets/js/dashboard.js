@@ -20,6 +20,7 @@ async function cargarGrupos() {
   const { data: grupos, error } = await supabase
     .from('grupos')
     .select('id, nombre, materia, grupo_alumnos(count)')
+    .eq('archivado', false)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -41,8 +42,19 @@ async function cargarGrupos() {
     const icono = ICONOS[i % ICONOS.length];
     const color = COLORES[i % COLORES.length];
     return `
-      <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] flex flex-col gap-6">
-        <div class="flex items-start justify-between">
+      <div class="relative bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] flex flex-col gap-6">
+        <button class="btn-menu-grupo absolute top-4 right-4 text-on-surface-variant hover:bg-surface-container-high p-1 rounded-full transition-colors" data-grupo-id="${g.id}" aria-label="Más opciones">
+          <span class="material-symbols-outlined">more_vert</span>
+        </button>
+        <div class="menu-grupo hidden absolute top-12 right-4 bg-surface-container-lowest border border-outline-variant rounded-DEFAULT shadow-lg z-10 overflow-hidden" data-grupo-id="${g.id}">
+          <button class="btn-archivar-grupo w-full text-left px-4 py-3 text-on-surface hover:bg-surface-container-high font-body-md text-body-md flex items-center gap-2" data-grupo-id="${g.id}">
+            <span class="material-symbols-outlined text-lg">archive</span> Archivar
+          </button>
+          <button class="btn-eliminar-grupo w-full text-left px-4 py-3 text-error hover:bg-error-container font-body-md text-body-md flex items-center gap-2" data-grupo-id="${g.id}">
+            <span class="material-symbols-outlined text-lg">delete</span> Eliminar
+          </button>
+        </div>
+        <div class="flex items-start justify-between pr-6">
           <div>
             <h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">${escapeHtml(g.nombre)}</h3>
             <p class="font-body-md text-body-md text-on-surface-variant mt-1 flex items-center gap-2">
@@ -60,6 +72,55 @@ async function cargarGrupos() {
   }).join('');
 }
 
+function cerrarMenusAbiertos() {
+  document.querySelectorAll('.menu-grupo').forEach((m) => m.classList.add('hidden'));
+}
+
+document.getElementById('grupos-container').addEventListener('click', async (e) => {
+  const btnMenu = e.target.closest('.btn-menu-grupo');
+  if (btnMenu) {
+    const id = btnMenu.dataset.grupoId;
+    const menu = document.querySelector(`.menu-grupo[data-grupo-id="${id}"]`);
+    const yaAbierto = !menu.classList.contains('hidden');
+    cerrarMenusAbiertos();
+    if (!yaAbierto) menu.classList.remove('hidden');
+    return;
+  }
+
+  const btnArchivar = e.target.closest('.btn-archivar-grupo');
+  if (btnArchivar) {
+    const id = btnArchivar.dataset.grupoId;
+    cerrarMenusAbiertos();
+    const { error } = await supabase.from('grupos').update({ archivado: true }).eq('id', id);
+    if (error) {
+      alert(`No se pudo archivar el grupo: ${error.message}`);
+      return;
+    }
+    await cargarGrupos();
+    return;
+  }
+
+  const btnEliminar = e.target.closest('.btn-eliminar-grupo');
+  if (btnEliminar) {
+    const id = btnEliminar.dataset.grupoId;
+    cerrarMenusAbiertos();
+    const confirmado = window.confirm(
+      'Esto borra el grupo y TODO lo relacionado (alumnos inscritos, exámenes, tareas, calificaciones, asistencia) de forma permanente. ¿Seguro que quieres eliminarlo? Si solo quieres dejar de verlo por ahora, usa "Archivar" en vez de esto.'
+    );
+    if (!confirmado) return;
+    const { error } = await supabase.from('grupos').delete().eq('id', id);
+    if (error) {
+      alert(`No se pudo eliminar el grupo: ${error.message}`);
+      return;
+    }
+    await cargarGrupos();
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.btn-menu-grupo')) cerrarMenusAbiertos();
+});
+
 async function init() {
   const profesor = await requireProfesor();
   if (!profesor) return;
@@ -67,6 +128,7 @@ async function init() {
   const primerNombre = (profesor.nombre || profesor.correo || '').split(' ')[0];
   document.getElementById('sidebar-nombre').textContent = profesor.nombre || profesor.correo;
   document.getElementById('saludo-nombre').textContent = `Buenos días, ${primerNombre}`;
+  if (profesor.avatar_url) document.getElementById('sidebar-avatar').src = profesor.avatar_url;
 
   await cargarGrupos();
 }
@@ -84,5 +146,93 @@ document.getElementById('btn-nueva-clase-sidebar').addEventListener('click', () 
   window.location.href = 'crear-grupo.html';
 });
 
-init();
+// Botones "Entrar" de cada tarjeta de grupo (se generan dinámicamente en cargarGrupos)
+document.getElementById('grupos-container').addEventListener('click', (e) => {
+  const btnEntrar = e.target.closest('button:not(.btn-menu-grupo):not(.btn-archivar-grupo):not(.btn-eliminar-grupo)[data-grupo-id]');
+  if (btnEntrar) {
+    window.location.href = `grupo.html?id=${btnEntrar.dataset.grupoId}`;
+  }
+});
 
+document.getElementById('btn-toggle-grupos-archivados').addEventListener('click', async () => {
+  const cont = document.getElementById('grupos-archivados-container');
+  const oculto = cont.classList.contains('hidden');
+
+  if (oculto) {
+    await cargarGruposArchivados();
+    cont.classList.remove('hidden');
+    cont.classList.add('grid');
+    document.getElementById('btn-toggle-grupos-archivados').innerHTML = '<span class="material-symbols-outlined text-lg">unarchive</span> Ocultar archivados';
+  } else {
+    cont.classList.add('hidden');
+    cont.classList.remove('grid');
+    document.getElementById('btn-toggle-grupos-archivados').innerHTML = '<span class="material-symbols-outlined text-lg">archive</span> Ver grupos archivados';
+  }
+});
+
+async function cargarGruposArchivados() {
+  const cont = document.getElementById('grupos-archivados-container');
+  cont.innerHTML = '<p class="col-span-full text-on-surface-variant">Cargando...</p>';
+
+  const { data: grupos, error } = await supabase
+    .from('grupos')
+    .select('id, nombre, materia')
+    .eq('archivado', true)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    cont.innerHTML = `<p class="col-span-full text-error">No se pudieron cargar: ${escapeHtml(error.message)}</p>`;
+    return;
+  }
+
+  if (!grupos || grupos.length === 0) {
+    cont.innerHTML = '<p class="col-span-full text-on-surface-variant">No tienes grupos archivados.</p>';
+    return;
+  }
+
+  cont.innerHTML = grupos.map((g) => `
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 flex flex-col gap-4 opacity-80">
+      <h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">${escapeHtml(g.nombre)}</h3>
+      <button class="btn-restaurar-grupo w-full border-2 border-primary text-primary font-button-text text-button-text py-3 rounded-full hover:bg-primary hover:text-on-primary transition-colors" data-grupo-id="${g.id}">
+        Restaurar
+      </button>
+    </div>`).join('');
+
+  cont.querySelectorAll('.btn-restaurar-grupo').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const { error: errorRestaurar } = await supabase.from('grupos').update({ archivado: false }).eq('id', btn.dataset.grupoId);
+      if (errorRestaurar) {
+        alert(`No se pudo restaurar: ${errorRestaurar.message}`);
+        return;
+      }
+      await cargarGruposArchivados();
+      await cargarGrupos();
+    });
+  });
+}
+
+// Accesos rápidos: se usan tanto en las tarjetas de "Acceso Rápido" como en los
+// links del sidebar (Exams/Tasks/Attendance) — mismo comportamiento en ambos.
+const PAGINA_POR_ACCESO = {
+  'crear-examen': 'grupo.html',
+  asistencia: 'asistencia.html',
+  tareas: 'tareas.html',
+  calificaciones: 'calificaciones.html',
+};
+
+document.querySelectorAll('[data-quick]').forEach((btn) => {
+  btn.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const pagina = PAGINA_POR_ACCESO[btn.dataset.quick];
+    if (!pagina) return;
+
+    const { data: grupos } = await supabase.from('grupos').select('id').eq('archivado', false).limit(2);
+    if (grupos && grupos.length === 1) {
+      window.location.href = `${pagina}?id=${grupos[0].id}`;
+    } else {
+      document.getElementById('mis-grupos').scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+});
+
+init();

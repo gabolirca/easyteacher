@@ -1,0 +1,480 @@
+import { supabase } from './supabase-client.js';
+import { requireProfesor } from './auth-guard.js';
+
+const params = new URLSearchParams(window.location.search);
+const grupoId = params.get('id');
+
+const ETIQUETAS_FICHA = { verde: 'Verde', azul: 'Azul', roja: 'Roja', blanca: 'Blanca', negra: 'Negra' };
+const COLORES_FICHA = { verde: '#2c694e', azul: '#0b5fae', roja: '#ba1a1a', blanca: '#ffffff', negra: '#191c21' };
+
+let modoParticipacion = 'simple';
+let valoresFicha = { verde: 1, azul: 2, roja: 5, blanca: 10 };
+let alumnos = []; // [{id, nombre}]
+let totales = {}; // { alumno_id: suma de participaciones }
+let periodos = []; // [{id, nombre}]
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function mostrarError(msg) {
+  const box = document.getElementById('error-box');
+  box.textContent = msg;
+  box.classList.remove('hidden');
+  document.getElementById('ok-box').classList.add('hidden');
+}
+
+function mostrarOk(msg) {
+  const box = document.getElementById('ok-box');
+  box.textContent = msg;
+  box.classList.remove('hidden');
+  document.getElementById('error-box').classList.add('hidden');
+}
+
+function hoyLocal() {
+  const d = new Date();
+  const offset = d.getTimezoneOffset();
+  return new Date(d.getTime() - offset * 60000).toISOString().slice(0, 10);
+}
+
+// ================= MODO SIMPLE =================
+
+async function cargarModoSimple() {
+  const { data: alumnosData, error: errorAlumnos } = await supabase
+    .from('grupo_alumnos')
+    .select('alumnos(id, nombre)')
+    .eq('grupo_id', grupoId);
+
+  if (errorAlumnos) {
+    mostrarError(`No se pudieron cargar los alumnos: ${errorAlumnos.message}`);
+    return;
+  }
+
+  alumnos = (alumnosData || []).map((row) => row.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const periodoId = document.getElementById('simple-periodo').value || null;
+  let consulta = supabase.from('participacion_simple').select('alumno_id, calificacion').eq('grupo_id', grupoId);
+  consulta = periodoId ? consulta.eq('periodo_id', periodoId) : consulta.is('periodo_id', null);
+  const { data: calificaciones, error: errorCalif } = await consulta;
+
+  if (errorCalif) {
+    mostrarError(`No se pudieron cargar las calificaciones: ${errorCalif.message}`);
+    return;
+  }
+
+  const calificacionPorAlumno = {};
+  (calificaciones || []).forEach((c) => { calificacionPorAlumno[c.alumno_id] = c.calificacion ?? ''; });
+
+  const tbody = document.getElementById('tabla-simple-body');
+  if (alumnos.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="2" class="py-6 px-6 text-center text-on-surface-variant">Este grupo todavía no tiene alumnos inscritos.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = alumnos.map((a) => `
+    <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors">
+      <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</td>
+      <td class="py-3 px-6">
+        <input type="number" min="0" max="10" step="0.1" class="input-simple w-24 px-3 py-2 rounded-DEFAULT border border-outline-variant" data-alumno="${a.id}" value="${calificacionPorAlumno[a.id] ?? ''}" placeholder="—"/>
+      </td>
+    </tr>`).join('');
+}
+
+document.getElementById('simple-periodo').addEventListener('change', cargarModoSimple);
+
+document.getElementById('btn-guardar-simple').addEventListener('click', async () => {
+  const periodoId = document.getElementById('simple-periodo').value || null;
+  const filas = [...document.querySelectorAll('.input-simple')].map((el) => ({
+    grupo_id: grupoId,
+    alumno_id: el.dataset.alumno,
+    periodo_id: periodoId,
+    calificacion: el.value === '' ? null : parseFloat(el.value),
+  }));
+
+  const btn = document.getElementById('btn-guardar-simple');
+  btn.disabled = true;
+
+  const { error } = await supabase.from('participacion_simple').upsert(filas, { onConflict: 'grupo_id,alumno_id,periodo_id' });
+
+  btn.disabled = false;
+
+  if (error) {
+    mostrarError(`No se pudo guardar: ${error.message}`);
+    return;
+  }
+
+  mostrarOk('Calificaciones de participación guardadas.');
+});
+
+// ================= MODO FICHAS =================
+
+function renderLeyenda() {
+  const cont = document.getElementById('leyenda-fichas');
+  const orden = ['verde', 'azul', 'roja', 'blanca', 'negra'];
+  cont.innerHTML = orden.map((t) => {
+    const valorTexto = t === 'negra' ? 'x2 (tú decides)' : `= ${valoresFicha[t]}`;
+    return `<span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full inline-block border border-outline-variant" style="background:${COLORES_FICHA[t]}"></span> ${ETIQUETAS_FICHA[t]} ${valorTexto}</span>`;
+  }).join('');
+}
+
+function botonFicha(tipo, alumnoId) {
+  const esBlanca = tipo === 'blanca';
+  const estiloTexto = esBlanca ? 'color:#191c21;border:1px solid #c2c6d4;' : 'color:#ffffff;';
+  const etiquetaValor = tipo === 'negra' ? '' : ` +${valoresFicha[tipo]}`;
+  return `
+    <button class="btn-ficha rounded-full px-3 py-2 text-sm font-label-lg text-label-lg transition-transform hover:scale-105 active:scale-95" data-tipo="${tipo}" data-alumno="${alumnoId}" style="background:${COLORES_FICHA[tipo]};${estiloTexto}">
+      ${ETIQUETAS_FICHA[tipo]}${etiquetaValor}
+    </button>`;
+}
+
+async function cargarAlumnosYTotales() {
+  const { data: alumnosData, error: errorAlumnos } = await supabase
+    .from('grupo_alumnos')
+    .select('alumnos(id, nombre)')
+    .eq('grupo_id', grupoId);
+
+  if (errorAlumnos) {
+    mostrarError(`No se pudieron cargar los alumnos: ${errorAlumnos.message}`);
+    return;
+  }
+
+  alumnos = (alumnosData || []).map((row) => row.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const { data: participaciones, error: errorPart } = await supabase
+    .from('participaciones')
+    .select('alumno_id, valor')
+    .eq('grupo_id', grupoId);
+
+  if (errorPart) {
+    mostrarError(`No se pudieron cargar los totales: ${errorPart.message}`);
+    return;
+  }
+
+  totales = {};
+  (participaciones || []).forEach((p) => {
+    totales[p.alumno_id] = (totales[p.alumno_id] || 0) + Number(p.valor);
+  });
+
+  renderLista();
+}
+
+function renderLista() {
+  const cont = document.getElementById('lista-alumnos');
+
+  if (alumnos.length === 0) {
+    cont.innerHTML = '<p class="text-on-surface-variant">Este grupo todavía no tiene alumnos inscritos.</p>';
+    return;
+  }
+
+  cont.innerHTML = alumnos.map((a) => `
+    <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 flex items-center justify-between gap-4 flex-wrap">
+      <div class="flex items-center gap-3">
+        <span class="font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</span>
+        <span class="bg-surface-container-high text-on-surface-variant text-sm px-3 py-1 rounded-full">${totales[a.id] || 0} pts</span>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        ${['verde', 'azul', 'roja', 'blanca', 'negra'].map((t) => botonFicha(t, a.id)).join('')}
+      </div>
+    </div>`).join('');
+
+  cont.querySelectorAll('.btn-ficha').forEach((btn) => {
+    btn.addEventListener('click', () => otorgarFicha(btn.dataset.alumno, btn.dataset.tipo));
+  });
+}
+
+async function otorgarFicha(alumnoId, tipo) {
+  const fecha = document.getElementById('fecha-participacion').value;
+  let valor = valoresFicha[tipo];
+  let nota = null;
+
+  if (tipo === 'negra') {
+    const respuesta = window.prompt('Ficha negra — multiplicador fijo x2. Escribe cuántos puntos otorgar en total (tú decides cómo aplicarlo):');
+    if (respuesta === null) return;
+    valor = parseFloat(respuesta);
+    if (isNaN(valor)) {
+      alert('Escribe un número válido');
+      return;
+    }
+    nota = 'Multiplicador x2 aplicado manualmente';
+  }
+
+  const { error } = await supabase.from('participaciones').insert({
+    grupo_id: grupoId, alumno_id: alumnoId, fecha, tipo_ficha: tipo, valor, nota,
+  });
+
+  if (error) {
+    mostrarError(`No se pudo registrar: ${error.message}`);
+    return;
+  }
+
+  totales[alumnoId] = (totales[alumnoId] || 0) + valor;
+  renderLista();
+  mostrarOk(`Ficha ${ETIQUETAS_FICHA[tipo].toLowerCase()} registrada.`);
+
+  if (!document.getElementById('registro-container').classList.contains('hidden')) await cargarRegistro();
+}
+
+async function cargarRegistro() {
+  const cont = document.getElementById('registro-container');
+  const fecha = document.getElementById('fecha-participacion').value;
+  cont.innerHTML = '<p class="text-on-surface-variant">Cargando...</p>';
+
+  const { data, error } = await supabase
+    .from('participaciones')
+    .select('id, alumno_id, tipo_ficha, valor, nota, alumnos(nombre)')
+    .eq('grupo_id', grupoId)
+    .eq('fecha', fecha)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    cont.innerHTML = `<p class="text-error">No se pudo cargar el registro: ${escapeHtml(error.message)}</p>`;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    cont.innerHTML = '<p class="text-on-surface-variant">Sin registros en esta fecha.</p>';
+    return;
+  }
+
+  cont.innerHTML = data.map((p) => `
+    <div class="flex items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-3">
+      <div class="flex items-center gap-3">
+        <span class="w-3 h-3 rounded-full inline-block border border-outline-variant" style="background:${COLORES_FICHA[p.tipo_ficha]}"></span>
+        <span class="font-body-md text-body-md text-on-surface">${escapeHtml(p.alumnos?.nombre || '')}</span>
+        <span class="text-on-surface-variant text-sm">${ETIQUETAS_FICHA[p.tipo_ficha]} · +${p.valor}${p.nota ? ` · ${escapeHtml(p.nota)}` : ''}</span>
+      </div>
+      <button class="btn-deshacer text-error hover:bg-error-container p-2 rounded-full transition-colors" data-id="${p.id}" data-alumno="${p.alumno_id}" data-valor="${p.valor}" aria-label="Deshacer">
+        <span class="material-symbols-outlined text-lg">undo</span>
+      </button>
+    </div>`).join('');
+
+  cont.querySelectorAll('.btn-deshacer').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const { error: errorBorrar } = await supabase.from('participaciones').delete().eq('id', btn.dataset.id);
+      if (errorBorrar) { alert(`No se pudo deshacer: ${errorBorrar.message}`); return; }
+      totales[btn.dataset.alumno] = (totales[btn.dataset.alumno] || 0) - Number(btn.dataset.valor);
+      renderLista();
+      await cargarRegistro();
+    });
+  });
+}
+
+document.getElementById('btn-toggle-registro').addEventListener('click', async () => {
+  const cont = document.getElementById('registro-container');
+  const oculto = cont.classList.contains('hidden');
+  document.getElementById('valores-container').classList.add('hidden');
+  document.getElementById('corte-container').classList.add('hidden');
+
+  if (oculto) {
+    await cargarRegistro();
+    cont.classList.remove('hidden');
+    cont.classList.add('flex');
+  } else {
+    cont.classList.add('hidden');
+    cont.classList.remove('flex');
+  }
+});
+
+// -------- Editar valores de las fichas --------
+
+document.getElementById('btn-toggle-valores').addEventListener('click', () => {
+  const cont = document.getElementById('valores-container');
+  document.getElementById('registro-container').classList.add('hidden');
+  document.getElementById('corte-container').classList.add('hidden');
+
+  const oculto = cont.classList.contains('hidden');
+  if (oculto) {
+    renderEditorValores();
+    cont.classList.remove('hidden');
+  } else {
+    cont.classList.add('hidden');
+  }
+});
+
+function renderEditorValores() {
+  const cont = document.getElementById('valores-lista');
+  cont.innerHTML = ['verde', 'azul', 'roja', 'blanca'].map((t) => `
+    <div class="flex flex-col">
+      <label class="font-label-lg text-label-lg text-on-surface mb-2">${ETIQUETAS_FICHA[t]}</label>
+      <input type="number" min="0" step="0.5" class="input-valor-ficha px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" data-tipo="${t}" value="${valoresFicha[t]}"/>
+    </div>`).join('');
+}
+
+document.getElementById('btn-guardar-valores').addEventListener('click', async () => {
+  const nuevos = { ...valoresFicha };
+  document.querySelectorAll('.input-valor-ficha').forEach((el) => {
+    nuevos[el.dataset.tipo] = parseFloat(el.value) || 0;
+  });
+
+  const { error } = await supabase.from('grupos').update({ valores_fichas: nuevos }).eq('id', grupoId);
+
+  if (error) {
+    mostrarError(`No se pudo guardar: ${error.message}`);
+    return;
+  }
+
+  valoresFicha = nuevos;
+  renderLeyenda();
+  renderLista();
+  mostrarOk('Valores de las fichas actualizados (aplica a partir de ahora, no cambia lo ya registrado).');
+});
+
+// -------- Corte --------
+
+document.getElementById('btn-toggle-corte').addEventListener('click', async () => {
+  const cont = document.getElementById('corte-container');
+  document.getElementById('registro-container').classList.add('hidden');
+  document.getElementById('valores-container').classList.add('hidden');
+
+  const oculto = cont.classList.contains('hidden');
+  if (oculto) {
+    await abrirCorte();
+    cont.classList.remove('hidden');
+  } else {
+    cont.classList.add('hidden');
+  }
+});
+
+async function abrirCorte() {
+  const ranking = alumnos
+    .map((a) => ({ nombre: a.nombre, puntos: totales[a.id] || 0 }))
+    .sort((a, b) => b.puntos - a.puntos);
+
+  document.getElementById('ranking-lista').innerHTML = ranking.map((r, i) => `
+    <div class="flex items-center justify-between px-4 py-2 rounded-DEFAULT ${i === 0 ? 'bg-primary-fixed' : 'bg-surface-container-high'}">
+      <span class="font-body-md text-body-md text-on-surface">${i + 1}. ${escapeHtml(r.nombre)}</span>
+      <span class="font-label-lg text-label-lg text-on-surface">${r.puntos} pts</span>
+    </div>`).join('') || '<p class="text-on-surface-variant">Sin alumnos.</p>';
+
+  const sugerido = ranking.length ? (ranking[Math.floor(ranking.length / 2)] || ranking[0]).puntos : 0;
+  document.getElementById('corte-media').value = sugerido;
+
+  await mostrarUltimoCorte();
+}
+
+async function mostrarUltimoCorte() {
+  const periodoId = document.getElementById('corte-periodo').value || null;
+  let consulta = supabase.from('cortes_participacion').select('fecha, media, created_at').eq('grupo_id', grupoId);
+  consulta = periodoId ? consulta.eq('periodo_id', periodoId) : consulta.is('periodo_id', null);
+  const { data: ultimoCorte } = await consulta.order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+  document.getElementById('ultimo-corte-info').textContent = ultimoCorte
+    ? `Último corte de este periodo: ${ultimoCorte.fecha} con referencia de ${ultimoCorte.media} pts.`
+    : 'Aún no se ha hecho corte para este periodo.';
+}
+
+document.getElementById('corte-periodo')?.addEventListener('change', mostrarUltimoCorte);
+
+document.getElementById('btn-aplicar-corte').addEventListener('click', async () => {
+  const media = parseFloat(document.getElementById('corte-media').value);
+  const periodoId = document.getElementById('corte-periodo').value || null;
+  if (!media || media <= 0) {
+    mostrarError('Escribe un valor de referencia mayor a cero');
+    return;
+  }
+
+  const confirmado = window.confirm(`¿Aplicar corte con referencia de ${media} puntos? Esto guarda la calificación de participación de todos como una foto fija de este momento.`);
+  if (!confirmado) return;
+
+  const btn = document.getElementById('btn-aplicar-corte');
+  btn.disabled = true;
+
+  try {
+    const { data: corte, error: errorCorte } = await supabase
+      .from('cortes_participacion')
+      .insert({ grupo_id: grupoId, media, periodo_id: periodoId })
+      .select()
+      .single();
+
+    if (errorCorte) throw errorCorte;
+
+    const filas = alumnos.map((a) => {
+      const puntos = totales[a.id] || 0;
+      const calificacion = Math.min(10, Math.round((puntos / media) * 10 * 10) / 10);
+      return { corte_id: corte.id, alumno_id: a.id, puntos_al_momento: puntos, calificacion };
+    });
+
+    if (filas.length > 0) {
+      const { error: errorFilas } = await supabase.from('calificaciones_corte_participacion').insert(filas);
+      if (errorFilas) throw errorFilas;
+    }
+
+    mostrarOk('Corte aplicado. Las calificaciones finales ya usan este resultado para participación.');
+    await abrirCorte();
+  } catch (err) {
+    mostrarError(err.message || 'No se pudo aplicar el corte');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('fecha-participacion').addEventListener('change', async () => {
+  if (!document.getElementById('registro-container').classList.contains('hidden')) await cargarRegistro();
+});
+
+// ================= INICIO =================
+
+async function cargarPeriodosParticipacion() {
+  const { data } = await supabase.from('periodos').select('id, nombre').eq('grupo_id', grupoId).order('orden', { ascending: true });
+  periodos = data || [];
+  if (periodos.length === 0) return;
+
+  const opciones = '<option value="">Sin periodo (todo el ciclo)</option>' +
+    periodos.map((p) => `<option value="${p.id}">${escapeHtml(p.nombre)}</option>`).join('');
+
+  const selectSimple = document.getElementById('simple-periodo');
+  if (selectSimple) {
+    selectSimple.innerHTML = opciones;
+    document.getElementById('campo-periodo-simple').classList.remove('hidden');
+  }
+
+  const selectCorte = document.getElementById('corte-periodo');
+  if (selectCorte) {
+    selectCorte.innerHTML = opciones;
+    document.getElementById('campo-periodo-corte').classList.remove('hidden');
+  }
+}
+
+async function init() {
+  const profesor = await requireProfesor();
+  if (!profesor) return;
+
+  if (!grupoId) {
+    mostrarError('Falta el id del grupo en la URL');
+    return;
+  }
+
+  const { data: grupo, error } = await supabase
+    .from('grupos')
+    .select('id, nombre, valores_fichas')
+    .eq('id', grupoId)
+    .maybeSingle();
+
+  if (error || !grupo) {
+    mostrarError('No se pudo cargar este grupo (o no tienes permiso sobre él)');
+    return;
+  }
+
+  document.getElementById('grupo-nombre').textContent = grupo.nombre;
+  const tituloEl = document.getElementById('page-title');
+  if (tituloEl) tituloEl.textContent = `AulaFácil - Participación - ${grupo.nombre}`;
+
+  modoParticipacion = profesor.modo_participacion || 'simple';
+  valoresFicha = grupo.valores_fichas || valoresFicha;
+
+  await cargarPeriodosParticipacion();
+
+  if (modoParticipacion === 'fichas') {
+    document.getElementById('vista-fichas').classList.remove('hidden');
+    document.getElementById('fecha-participacion').value = hoyLocal();
+    renderLeyenda();
+    await cargarAlumnosYTotales();
+  } else {
+    document.getElementById('vista-simple').classList.remove('hidden');
+    await cargarModoSimple();
+  }
+}
+
+init();

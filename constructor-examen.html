@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AulaFácil - Constructor de Examen</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error-container": "#93000a",
+                      "on-primary-fixed-variant": "#911b00",
+                      "surface-dim": "#d9d9e2",
+                      "tertiary-fixed-dim": "#ffb694",
+                      "tertiary-fixed": "#ffdbcc",
+                      "on-primary": "#ffffff",
+                      "outline-variant": "#c2c6d4",
+                      "surface-container": "#ededf6",
+                      "primary-fixed-dim": "#ffc8ac",
+                      "primary": "#871a00",
+                      "inverse-primary": "#ffc8ac",
+                      "surface-container-low": "#f2f3fc",
+                      "outline": "#727784",
+                      "on-surface": "#191c21",
+                      "on-primary-container": "#ffd3bb",
+                      "surface": "#f9f9ff",
+                      "secondary-fixed": "#b1f0ce",
+                      "on-error": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "surface-container-lowest": "#ffffff",
+                      "primary-fixed": "#ffe6d7",
+                      "background": "#f9f9ff",
+                      "secondary": "#2c694e",
+                      "surface-bright": "#f9f9ff",
+                      "error": "#ba1a1a",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "primary-container": "#E83C17",
+                      "on-primary-fixed": "#401000",
+                      "surface-tint": "#b93411",
+                      "surface-container-highest": "#e1e2ea",
+                      "on-secondary-fixed": "#002114",
+                      "tertiary": "#722b00",
+                      "surface-container-high": "#e7e8f0",
+                      "on-surface-variant": "#424752",
+                      "secondary-container": "#aeeecb",
+                      "on-secondary-fixed-variant": "#0e5138",
+                      "on-tertiary-container": "#ffc2a7",
+                      "inverse-surface": "#2e3037",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "secondary-fixed-dim": "#95d4b3",
+                      "on-background": "#191c21",
+                      "on-tertiary-fixed": "#351000",
+                      "on-secondary-container": "#316e52",
+                      "surface-variant": "#e1e2ea",
+                      "inverse-on-surface": "#f0f0f9",
+                      "tertiary-container": "#983c00"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "stack-md": "24px",
+                      "margin-desktop": "48px",
+                      "stack-lg": "40px",
+                      "stack-sm": "12px",
+                      "margin-mobile": "16px",
+                      "base-unit": "8px"
+              },
+              "fontFamily": {
+                      "label-lg": ["Inter"],
+                      "headline-lg-mobile": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "button-text": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "label-lg": ["16px", {"lineHeight": "20px", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "display-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "button-text": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md">
+<header class="bg-surface border-b border-outline-variant sticky top-0 z-40">
+<div class="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
+<a id="link-volver" href="dashboard.html" class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</a>
+<a href="dashboard.html" class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center transition-colors" title="Ir al inicio" aria-label="Ir al inicio">
+<span class="material-symbols-outlined">home</span>
+</a>
+<h1 class="font-headline-md text-headline-md text-on-surface">Constructor de examen</h1>
+</div>
+</header>
+
+<main class="max-w-4xl mx-auto px-6 py-8 pb-32">
+<div id="error-box" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
+<div id="ok-box" class="hidden bg-secondary-container text-on-secondary-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
+
+<!-- Datos del examen -->
+<section class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 mb-stack-lg">
+<h2 class="font-headline-md text-headline-md text-primary mb-stack-md">Datos del examen</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<div class="flex flex-col md:col-span-2">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="titulo">Título del examen</label>
+<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="titulo" placeholder="Ej: Examen parcial - Unidad 3" type="text"/>
+</div>
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="fecha-apertura">Apertura</label>
+<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="fecha-apertura" type="datetime-local"/>
+</div>
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="fecha-cierre">Cierre</label>
+<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="fecha-cierre" type="datetime-local"/>
+</div>
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="duracion">Duración (minutos)</label>
+<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="duracion" min="1" placeholder="45" type="number"/>
+</div>
+<div id="campo-periodo" class="hidden flex flex-col md:col-span-2">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="examen-periodo">Periodo</label>
+<select id="examen-periodo" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors">
+<option value="">Sin periodo (todo el ciclo)</option>
+</select>
+</div>
+</div>
+</section>
+
+<!-- Preguntas -->
+<section class="mb-stack-lg">
+<div class="flex justify-between items-center mb-stack-md">
+<h2 class="font-headline-md text-headline-md text-on-surface">Preguntas (<span id="contador-preguntas">0</span>)</h2>
+</div>
+
+<div id="preguntas-lista" class="flex flex-col gap-4 mb-stack-md"></div>
+
+<!-- Selector de tipo -->
+<div id="selector-tipo" class="grid grid-cols-2 md:grid-cols-4 gap-gutter">
+<button data-tipo="opcion_multiple" class="btn-tipo-pregunta bg-surface-container-high hover:bg-primary-fixed text-on-surface p-4 rounded-DEFAULT border border-outline-variant flex flex-col items-center gap-2 transition-colors">
+<span class="material-symbols-outlined">radio_button_checked</span>
+<span class="font-label-lg text-label-lg text-center">Opción múltiple</span>
+</button>
+<button data-tipo="verdadero_falso" class="btn-tipo-pregunta bg-surface-container-high hover:bg-primary-fixed text-on-surface p-4 rounded-DEFAULT border border-outline-variant flex flex-col items-center gap-2 transition-colors">
+<span class="material-symbols-outlined">rule</span>
+<span class="font-label-lg text-label-lg text-center">Verdadero / Falso</span>
+</button>
+<button data-tipo="relacionar" class="btn-tipo-pregunta bg-surface-container-high hover:bg-primary-fixed text-on-surface p-4 rounded-DEFAULT border border-outline-variant flex flex-col items-center gap-2 transition-colors">
+<span class="material-symbols-outlined">compare_arrows</span>
+<span class="font-label-lg text-label-lg text-center">Relacionar columnas</span>
+</button>
+<button data-tipo="completar" class="btn-tipo-pregunta bg-surface-container-high hover:bg-primary-fixed text-on-surface p-4 rounded-DEFAULT border border-outline-variant flex flex-col items-center gap-2 transition-colors">
+<span class="material-symbols-outlined">edit_note</span>
+<span class="font-label-lg text-label-lg text-center">Completar</span>
+</button>
+</div>
+
+<!-- Panel de edición de pregunta (se llena dinámicamente según el tipo elegido) -->
+<div id="panel-pregunta" class="hidden bg-surface-container-lowest border-2 border-primary-fixed rounded-DEFAULT p-6 mt-stack-md"></div>
+</section>
+
+<!-- Link generado -->
+<section id="seccion-link" class="hidden bg-secondary-fixed text-on-secondary-fixed border border-secondary-fixed-dim rounded-DEFAULT p-6 mb-stack-lg">
+<h2 class="font-headline-md text-headline-md mb-2">Link del examen</h2>
+<div class="flex items-center gap-2 bg-surface rounded-DEFAULT p-3">
+<code id="link-examen" class="flex-1 text-on-surface font-body-md text-body-md break-all"></code>
+<button id="btn-copiar-link" class="text-primary hover:bg-surface-container-high p-2 rounded-full transition-colors" aria-label="Copiar link">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+</div>
+</section>
+</main>
+
+<!-- Barra inferior fija -->
+<div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant py-4 px-6 flex justify-end gap-4">
+<button id="btn-guardar-examen" class="bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-3 px-8 hover:bg-primary hover:text-on-primary transition-colors">Guardar examen</button>
+<button id="btn-generar-link" class="bg-primary text-on-primary font-button-text text-button-text rounded-full py-3 px-8 hover:opacity-90 transition-opacity" disabled>Generar link del examen</button>
+</div>
+
+<script type="module" src="assets/js/constructor-examen.js"></script>
+</body></html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title id="page-title">AulaFácil - Examen</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error-container": "#93000a",
+                      "on-primary-fixed-variant": "#911b00",
+                      "surface-dim": "#d9d9e2",
+                      "tertiary-fixed-dim": "#ffb694",
+                      "tertiary-fixed": "#ffdbcc",
+                      "on-primary": "#ffffff",
+                      "outline-variant": "#c2c6d4",
+                      "surface-container": "#ededf6",
+                      "primary-fixed-dim": "#ffc8ac",
+                      "primary": "#871a00",
+                      "inverse-primary": "#ffc8ac",
+                      "surface-container-low": "#f2f3fc",
+                      "outline": "#727784",
+                      "on-surface": "#191c21",
+                      "on-primary-container": "#ffd3bb",
+                      "surface": "#f9f9ff",
+                      "secondary-fixed": "#b1f0ce",
+                      "on-error": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "surface-container-lowest": "#ffffff",
+                      "primary-fixed": "#ffe6d7",
+                      "background": "#f9f9ff",
+                      "secondary": "#2c694e",
+                      "surface-bright": "#f9f9ff",
+                      "error": "#ba1a1a",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary": "#ffffff",
+                      "primary-container": "#E83C17",
+                      "on-primary-fixed": "#401000",
+                      "surface-tint": "#b93411",
+                      "surface-container-highest": "#e1e2ea",
+                      "on-secondary-fixed": "#002114",
+                      "tertiary": "#722b00",
+                      "surface-container-high": "#e7e8f0",
+                      "on-surface-variant": "#424752",
+                      "secondary-container": "#aeeecb",
+                      "on-secondary-fixed-variant": "#0e5138",
+                      "on-tertiary-container": "#ffc2a7",
+                      "inverse-surface": "#2e3037",
+                      "on-tertiary-fixed-variant": "#7b2f00",
+                      "secondary-fixed-dim": "#95d4b3",
+                      "on-background": "#191c21",
+                      "on-tertiary-fixed": "#351000",
+                      "on-secondary-container": "#316e52",
+                      "surface-variant": "#e1e2ea",
+                      "inverse-on-surface": "#f0f0f9",
+                      "tertiary-container": "#983c00"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "stack-md": "24px",
+                      "margin-desktop": "48px",
+                      "stack-lg": "40px",
+                      "stack-sm": "12px",
+                      "margin-mobile": "16px",
+                      "base-unit": "8px"
+              },
+              "fontFamily": {
+                      "label-lg": ["Inter"],
+                      "headline-lg-mobile": ["Inter"],
+                      "body-lg": ["Inter"],
+                      "display-lg": ["Inter"],
+                      "headline-lg": ["Inter"],
+                      "headline-md": ["Inter"],
+                      "button-text": ["Inter"],
+                      "body-md": ["Inter"]
+              },
+              "fontSize": {
+                      "label-lg": ["16px", {"lineHeight": "20px", "fontWeight": "600"}],
+                      "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "600"}],
+                      "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                      "display-lg": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "button-text": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                      "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}]
+              }
+            }
+          }
+        }
+    </script>
+</head>
+
+<body class="bg-background text-on-background min-h-screen font-body-md">
+
+<!-- Vista: login del alumno -->
+<div id="vista-login" class="hidden min-h-screen flex items-center justify-center px-4">
+<div class="w-full max-w-md">
+<div class="text-center mb-stack-lg">
+<h1 class="text-primary font-bold" style="font-size:32px;">AulaFácil</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">Acceso de alumno</p>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
+<div id="login-error" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
+<form id="form-login-alumno" class="flex flex-col gap-4">
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="alumno-usuario">Matrícula o correo</label>
+<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="alumno-usuario" placeholder="Ej: 2330774" required type="text"/>
+</div>
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="alumno-password">Contraseña</label>
+<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="alumno-password" placeholder="Tu matrícula (o la que te dio tu profesor)" required type="password"/>
+</div>
+<button class="mt-2 bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-3 hover:bg-primary hover:text-on-primary transition-colors" id="btn-login-alumno" type="submit">Entrar</button>
+</form>
+</div>
+</div>
+</div>
+
+<!-- Vista: pantalla de entrada -->
+<div id="vista-entrada" class="hidden min-h-screen flex items-center justify-center px-4">
+<div class="w-full max-w-lg bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)] text-center">
+<span class="material-symbols-outlined text-primary" style="font-size:48px;">edit_document</span>
+<h1 id="entrada-titulo" class="font-headline-md text-headline-md text-on-surface mt-4 mb-2">Examen</h1>
+<p id="entrada-info" class="font-body-md text-body-md text-on-surface-variant mb-stack-md"></p>
+<div class="bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md text-left flex gap-3 items-start">
+<span class="material-symbols-outlined shrink-0">warning</span>
+<p class="font-body-md text-body-md">Este examen se cerrará automáticamente si sales de la pantalla completa o cambias de aplicación/pestaña. Ciérralo solo hasta terminar.</p>
+</div>
+<button id="btn-comenzar" class="w-full bg-primary text-on-primary font-button-text text-button-text rounded-full py-4 hover:opacity-90 transition-opacity">Comenzar examen (pantalla completa)</button>
+</div>
+</div>
+
+<!-- Vista: examen en progreso -->
+<div id="vista-examen" class="hidden min-h-screen flex flex-col">
+<div class="bg-surface border-b border-outline-variant px-4 py-3 sticky top-0 z-40">
+<div class="max-w-2xl mx-auto flex items-center justify-between mb-2">
+<span id="contador-pregunta" class="font-label-lg text-label-lg text-on-surface">Pregunta 1 de 1</span>
+<span id="cronometro" class="font-label-lg text-label-lg text-primary flex items-center gap-1"><span class="material-symbols-outlined text-lg">timer</span> --:--</span>
+</div>
+<div class="max-w-2xl mx-auto w-full bg-surface-container-high rounded-full h-2 overflow-hidden">
+<div id="barra-progreso" class="bg-primary h-full transition-all" style="width:0%"></div>
+</div>
+</div>
+
+<div class="flex-1 max-w-2xl mx-auto w-full px-4 py-6 pb-28">
+<div id="pregunta-contenedor" class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6"></div>
+</div>
+
+<div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant py-4 px-4 flex justify-between gap-4 max-w-2xl mx-auto md:left-1/2 md:-translate-x-1/2 md:right-auto md:w-full">
+<button id="btn-anterior" class="border-2 border-outline-variant text-on-surface font-button-text text-button-text py-3 px-6 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined">arrow_back</span> Anterior
+</button>
+<button id="btn-siguiente" class="bg-primary text-on-primary font-button-text text-button-text py-3 px-6 rounded-full flex items-center gap-1">
+Siguiente <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+
+<!-- Vista: bloqueo -->
+<div id="vista-bloqueo" class="hidden min-h-screen flex items-center justify-center px-4 bg-background">
+<div class="w-full max-w-md text-center">
+<span class="material-symbols-outlined text-error" style="font-size:64px;">lock</span>
+<h1 class="font-headline-md text-headline-md text-on-surface mt-4 mb-2">Examen bloqueado</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mb-2">Tu examen fue bloqueado y enviado automáticamente porque saliste de la pantalla del examen.</p>
+<p id="bloqueo-resumen" class="font-body-md text-body-md text-on-surface-variant mb-stack-md"></p>
+<p class="font-body-md text-body-md text-on-surface-variant">Contacta a tu profesor si crees que esto fue un error.</p>
+</div>
+</div>
+
+<!-- Vista: entregado -->
+<div id="vista-entregado" class="hidden min-h-screen flex items-center justify-center px-4">
+<div class="w-full max-w-md text-center">
+<span class="material-symbols-outlined text-secondary" style="font-size:64px;">check_circle</span>
+<h1 class="font-headline-md text-headline-md text-on-surface mt-4 mb-2">¡Examen entregado!</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Tu profesor verá tu calificación. Ya puedes cerrar esta pantalla.</p>
+</div>
+</div>
+
+<!-- Vista: error genérico -->
+<div id="vista-error" class="hidden min-h-screen flex items-center justify-center px-4">
+<div class="w-full max-w-md text-center">
+<span class="material-symbols-outlined text-error" style="font-size:64px;">error</span>
+<h1 class="font-headline-md text-headline-md text-on-surface mt-4 mb-2">No se pudo abrir el examen</h1>
+<p id="error-mensaje" class="font-body-md text-body-md text-on-surface-variant"></p>
+</div>
+</div>
+
+<script type="module" src="assets/js/examen.js"></script>
+</body></html>
