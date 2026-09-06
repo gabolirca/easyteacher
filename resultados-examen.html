@@ -3,7 +3,7 @@
 <html class="light" lang="es"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title id="page-title">AulaFácil - Calificar Rubro</title>
+<title id="page-title">AulaFácil - Resultados</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
@@ -105,29 +105,35 @@
 <style>
   :root { --cpg-red: #d02b2f; --cpg-red-dark: #97262c; --cpg-gray: #3a3b3e; }
 
-  @keyframes popIn {
-    from { opacity: 0; transform: translateY(18px) scale(0.96); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-  }
   @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-12px); }
     to   { opacity: 1; transform: translateY(0); }
   }
-  .anim-pop { animation: popIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .anim-fade { animation: fadeIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-  .icono-rubro-grande {
-    width: 52px;
-    height: 52px;
-    border-radius: 9999px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    background: #fbe1db;
-    color: var(--cpg-red);
+  .card-hover {
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-3px) scale(1.008);
+    box-shadow: 0 12px 24px rgba(208, 43, 47, 0.1);
   }
 
-  .input-calificacion:focus, .buscador-cpg:focus {
+  .avatar-inicial {
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fbe1db;
+    color: var(--cpg-red);
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  .buscador-cpg:focus {
     border-color: var(--cpg-red) !important;
     box-shadow: 0 0 0 3px rgba(208, 43, 47, 0.15);
   }
@@ -135,50 +141,29 @@
 </head>
 <body class="bg-background text-on-background min-h-screen font-body-md">
 <header class="bg-surface border-b border-outline-variant sticky top-0 z-40">
-<div class="max-w-3xl mx-auto px-6 py-4 flex items-center gap-4">
+<div class="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
 <a id="link-volver" href="dashboard.html" class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center transition-colors">
 <span class="material-symbols-outlined">arrow_back</span>
 </a>
 <a href="dashboard.html" class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center transition-colors" title="Ir al inicio" aria-label="Ir al inicio">
 <span class="material-symbols-outlined">home</span>
 </a>
-<div class="icono-rubro-grande">
-<span id="icono-rubro" class="material-symbols-outlined text-2xl">star</span>
-</div>
 <div>
-<h1 id="rubro-titulo" class="font-headline-md text-headline-md text-on-surface">Cargando...</h1>
-<p id="rubro-info" class="font-body-md text-body-md text-on-surface-variant"></p>
+<h1 id="examen-titulo" class="anim-fade font-headline-md text-headline-md text-on-surface">Cargando...</h1>
+<p id="examen-info" class="font-body-md text-body-md text-on-surface-variant"></p>
 </div>
 </div>
 </header>
 
-<main class="max-w-3xl mx-auto px-6 py-8 pb-32">
+<main class="max-w-4xl mx-auto px-6 py-8">
 <div id="error-box" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 <div id="ok-box" class="hidden bg-secondary-container text-on-secondary-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 
-<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-stack-md">
-<input id="buscador-alumnos" type="text" placeholder="Buscar alumno..." class="buscador-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors w-full md:max-w-sm"/>
-<span id="contador-calificados" class="font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap"></span>
-</div>
+<input id="buscador-alumnos" type="text" placeholder="Buscar alumno..." class="buscador-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors w-full max-w-sm mb-stack-md"/>
 
-<div class="anim-pop bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden">
-<table class="w-full">
-<thead class="bg-surface-container-high">
-<tr>
-<th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Alumno</th>
-<th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Calificación (0-10)</th>
-</tr>
-</thead>
-<tbody id="tabla-alumnos-body">
-<tr><td colspan="2" class="py-6 px-6 text-center text-on-surface-variant">Cargando...</td></tr>
-</tbody>
-</table>
+<div id="lista-resultados" class="flex flex-col gap-2">
+<p class="text-on-surface-variant">Cargando resultados...</p>
 </div>
 </main>
-
-<div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant py-4 px-6 flex justify-end">
-<button id="btn-guardar-calificaciones" class="bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-3 px-8 hover:bg-primary hover:text-on-primary transition-colors">Guardar calificaciones</button>
-</div>
-
-<script type="module" src="assets/js/calificar-rubro.js"></script>
+<script type="module" src="assets/js/resultados-examen.js"></script>
 </body></html>

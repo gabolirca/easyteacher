@@ -69,6 +69,9 @@ async function cargarExamenes() {
           <button class="btn-duplicar-examen text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" data-examen-id="${ex.id}" aria-label="Duplicar">
             <span class="material-symbols-outlined">content_copy</span>
           </button>
+          <a class="btn-ver-resultados text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" href="resultados-examen.html?examen_id=${ex.id}" aria-label="Ver resultados">
+            <span class="material-symbols-outlined">assessment</span>
+          </a>
           <a class="border-2 border-primary text-primary font-button-text text-button-text py-2 px-6 rounded-full hover:bg-primary hover:text-on-primary transition-colors" href="constructor-examen.html?examen_id=${ex.id}">
             Editar
           </a>
