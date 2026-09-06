@@ -12,6 +12,8 @@ let valoresFicha = { verde: 1, azul: 2, roja: 5, blanca: 10 };
 let alumnos = []; // [{id, nombre}]
 let totales = {}; // { alumno_id: suma de participaciones }
 let periodos = []; // [{id, nombre}]
+let fichasHoyPorAlumno = {}; // { alumno_id: [{id, tipo_ficha, valor}] } — de la fecha seleccionada
+let terminoBusqueda = '';
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -73,11 +75,11 @@ async function cargarModoSimple() {
     return;
   }
 
-  tbody.innerHTML = alumnos.map((a) => `
-    <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors">
+  tbody.innerHTML = alumnos.map((a, i) => `
+    <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
       <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</td>
       <td class="py-3 px-6">
-        <input type="number" min="0" max="10" step="0.1" class="input-simple w-24 px-3 py-2 rounded-DEFAULT border border-outline-variant" data-alumno="${a.id}" value="${calificacionPorAlumno[a.id] ?? ''}" placeholder="—"/>
+        <input type="number" min="0" max="10" step="0.1" class="input-simple w-24 px-3 py-2 rounded-DEFAULT border border-outline-variant focus:border-2 transition-colors" style="border-color:#c2c6d4;" onfocus="this.style.borderColor='#d02b2f'" onblur="this.style.borderColor='#c2c6d4'" data-alumno="${a.id}" value="${calificacionPorAlumno[a.id] ?? ''}" placeholder="—"/>
       </td>
     </tr>`).join('');
 }
@@ -121,12 +123,16 @@ function renderLeyenda() {
 
 function botonFicha(tipo, alumnoId) {
   const esBlanca = tipo === 'blanca';
-  const estiloTexto = esBlanca ? 'color:#191c21;border:1px solid #c2c6d4;' : 'color:#ffffff;';
-  const etiquetaValor = tipo === 'negra' ? '' : ` +${valoresFicha[tipo]}`;
+  const esNegra = tipo === 'negra';
+  const contenido = esNegra ? '×2' : valoresFicha[tipo];
+  const bg = esBlanca ? '#ffffff' : COLORES_FICHA[tipo];
   return `
-    <button class="btn-ficha rounded-full px-3 py-2 text-sm font-label-lg text-label-lg transition-transform hover:scale-105 active:scale-95" data-tipo="${tipo}" data-alumno="${alumnoId}" style="background:${COLORES_FICHA[tipo]};${estiloTexto}">
-      ${ETIQUETAS_FICHA[tipo]}${etiquetaValor}
-    </button>`;
+    <div class="flex flex-col items-center">
+      <button class="btn-ficha ficha-chip ${esBlanca ? 'ficha-chip--blanca' : ''}" data-tipo="${tipo}" data-alumno="${alumnoId}" style="background:${bg};" title="${ETIQUETAS_FICHA[tipo]}${esNegra ? ' (multiplicador)' : ''}">
+        <span>${contenido}</span>
+      </button>
+      <span class="ficha-caption">${ETIQUETAS_FICHA[tipo]}</span>
+    </div>`;
 }
 
 async function cargarAlumnosYTotales() {
@@ -157,7 +163,28 @@ async function cargarAlumnosYTotales() {
     totales[p.alumno_id] = (totales[p.alumno_id] || 0) + Number(p.valor);
   });
 
+  await cargarFichasHoy();
   renderLista();
+}
+
+async function cargarFichasHoy() {
+  const fecha = document.getElementById('fecha-participacion').value;
+  const { data, error } = await supabase
+    .from('participaciones')
+    .select('id, alumno_id, tipo_ficha, valor')
+    .eq('grupo_id', grupoId)
+    .eq('fecha', fecha)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    mostrarError(`No se pudo cargar el detalle del día: ${error.message}`);
+    return;
+  }
+
+  fichasHoyPorAlumno = {};
+  (data || []).forEach((p) => {
+    (fichasHoyPorAlumno[p.alumno_id] ||= []).push(p);
+  });
 }
 
 function renderLista() {
@@ -168,21 +195,67 @@ function renderLista() {
     return;
   }
 
-  cont.innerHTML = alumnos.map((a) => `
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 flex items-center justify-between gap-4 flex-wrap">
-      <div class="flex items-center gap-3">
-        <span class="font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</span>
-        <span class="bg-surface-container-high text-on-surface-variant text-sm px-3 py-1 rounded-full">${totales[a.id] || 0} pts</span>
+  const filtro = terminoBusqueda.trim().toLowerCase();
+  const visibles = filtro ? alumnos.filter((a) => a.nombre.toLowerCase().includes(filtro)) : alumnos;
+
+  if (visibles.length === 0) {
+    cont.innerHTML = '<p class="text-on-surface-variant">Ningún alumno coincide con la búsqueda.</p>';
+    return;
+  }
+
+  cont.innerHTML = visibles.map((a, i) => {
+    const fichasHoy = fichasHoyPorAlumno[a.id] || [];
+    const tagsHoy = fichasHoy.length ? `
+      <div class="flex flex-wrap gap-1.5 mt-2 w-full">
+        ${fichasHoy.map((f) => `
+          <span class="inline-flex items-center gap-1 text-xs pl-2 pr-1 py-1 rounded-full border border-outline-variant bg-surface" style="color:${f.tipo_ficha === 'blanca' ? '#3a3b3e' : COLORES_FICHA[f.tipo_ficha]};">
+            <span class="w-2 h-2 rounded-full inline-block" style="background:${COLORES_FICHA[f.tipo_ficha]}; border:1px solid #c2c6d4;"></span>
+            +${f.valor}
+            <button class="btn-quitar-ficha-hoy hover:bg-error-container rounded-full p-0.5 transition-colors" data-id="${f.id}" data-alumno="${a.id}" data-valor="${f.valor}" title="Quitar esta ficha" aria-label="Quitar">
+              <span class="material-symbols-outlined text-sm" style="font-size:14px;">close</span>
+            </button>
+          </span>`).join('')}
+      </div>` : '';
+
+    return `
+    <div class="card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 flex items-center justify-between gap-4 flex-wrap" style="animation: popIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.05}s both;">
+      <div class="flex flex-col flex-1 min-w-[160px]">
+        <div class="flex items-center gap-3">
+          <span class="font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</span>
+          <span class="bg-surface-container-high text-on-surface-variant text-sm px-3 py-1 rounded-full">${totales[a.id] || 0} pts</span>
+        </div>
+        ${tagsHoy}
       </div>
-      <div class="flex gap-2 flex-wrap">
+      <div class="flex gap-3 flex-wrap items-start">
         ${['verde', 'azul', 'roja', 'blanca', 'negra'].map((t) => botonFicha(t, a.id)).join('')}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 
   cont.querySelectorAll('.btn-ficha').forEach((btn) => {
     btn.addEventListener('click', () => otorgarFicha(btn.dataset.alumno, btn.dataset.tipo));
   });
+
+  cont.querySelectorAll('.btn-quitar-ficha-hoy').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const { error } = await supabase.from('participaciones').delete().eq('id', btn.dataset.id);
+      if (error) {
+        alert(`No se pudo quitar: ${error.message}`);
+        return;
+      }
+      const alumnoId = btn.dataset.alumno;
+      totales[alumnoId] = (totales[alumnoId] || 0) - Number(btn.dataset.valor);
+      fichasHoyPorAlumno[alumnoId] = (fichasHoyPorAlumno[alumnoId] || []).filter((f) => f.id !== btn.dataset.id);
+      renderLista();
+    });
+  });
 }
+
+document.getElementById('buscador-alumnos').addEventListener('input', (e) => {
+  terminoBusqueda = e.target.value;
+  renderLista();
+});
 
 async function otorgarFicha(alumnoId, tipo) {
   const fecha = document.getElementById('fecha-participacion').value;
@@ -200,9 +273,11 @@ async function otorgarFicha(alumnoId, tipo) {
     nota = 'Multiplicador x2 aplicado manualmente';
   }
 
-  const { error } = await supabase.from('participaciones').insert({
-    grupo_id: grupoId, alumno_id: alumnoId, fecha, tipo_ficha: tipo, valor, nota,
-  });
+  const { data: nuevaFicha, error } = await supabase
+    .from('participaciones')
+    .insert({ grupo_id: grupoId, alumno_id: alumnoId, fecha, tipo_ficha: tipo, valor, nota })
+    .select()
+    .single();
 
   if (error) {
     mostrarError(`No se pudo registrar: ${error.message}`);
@@ -210,6 +285,7 @@ async function otorgarFicha(alumnoId, tipo) {
   }
 
   totales[alumnoId] = (totales[alumnoId] || 0) + valor;
+  (fichasHoyPorAlumno[alumnoId] ||= []).push(nuevaFicha);
   renderLista();
   mostrarOk(`Ficha ${ETIQUETAS_FICHA[tipo].toLowerCase()} registrada.`);
 
@@ -411,6 +487,8 @@ document.getElementById('btn-aplicar-corte').addEventListener('click', async () 
 });
 
 document.getElementById('fecha-participacion').addEventListener('change', async () => {
+  await cargarFichasHoy();
+  renderLista();
   if (!document.getElementById('registro-container').classList.contains('hidden')) await cargarRegistro();
 });
 

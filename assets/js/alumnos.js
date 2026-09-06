@@ -6,6 +6,7 @@ const grupoId = params.get('id');
 
 let profesorActual = null;
 let alumnos = []; // [{id, nombre, matricula}]
+let terminoBusqueda = '';
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -35,13 +36,24 @@ function renderTabla() {
     return;
   }
 
-  tbody.innerHTML = alumnos.map((a) => `
-    <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" data-alumno-id="${a.id}">
+  const filtro = terminoBusqueda.trim().toLowerCase();
+  const visibles = filtro ? alumnos.filter((a) => a.nombre.toLowerCase().includes(filtro)) : alumnos;
+
+  if (visibles.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="py-6 px-6 text-center text-on-surface-variant">Ningún alumno coincide con la búsqueda.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = visibles.map((a, i) => `
+    <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" data-alumno-id="${a.id}" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
       <td class="py-3 px-6">
-        <input type="text" class="input-nombre w-full px-2 py-1 rounded border border-transparent hover:border-outline-variant focus:border-primary outline-none bg-transparent" value="${escapeHtml(a.nombre)}"/>
+        <div class="flex items-center gap-3">
+          <span class="avatar-inicial">${escapeHtml((a.nombre || '?').trim().charAt(0).toUpperCase())}</span>
+          <input type="text" class="input-nombre input-cpg flex-1 px-2 py-1 rounded border border-transparent hover:border-outline-variant outline-none bg-transparent" value="${escapeHtml(a.nombre)}"/>
+        </div>
       </td>
       <td class="py-3 px-6">
-        <input type="text" class="input-matricula w-32 px-2 py-1 rounded border border-transparent hover:border-outline-variant focus:border-primary outline-none bg-transparent" value="${escapeHtml(a.matricula || '')}"/>
+        <input type="text" class="input-matricula input-cpg w-32 px-2 py-1 rounded border border-transparent hover:border-outline-variant outline-none bg-transparent" value="${escapeHtml(a.matricula || '')}"/>
       </td>
       <td class="py-3 px-6 text-right whitespace-nowrap">
         <button class="btn-guardar-alumno text-primary hover:bg-primary-fixed p-2 rounded-full transition-colors" aria-label="Guardar">
@@ -92,6 +104,11 @@ function renderTabla() {
     });
   });
 }
+
+document.getElementById('buscador-alumnos').addEventListener('input', (e) => {
+  terminoBusqueda = e.target.value;
+  renderTabla();
+});
 
 async function cargarAlumnos() {
   const { data, error } = await supabase

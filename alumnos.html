@@ -3,7 +3,7 @@
 <html class="light" lang="es"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>AulaFácil - Alumnos</title>
+<title id="page-title">AulaFácil - Alumnos</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
@@ -15,35 +15,35 @@
             extend: {
               "colors": {
                       "on-error-container": "#93000a",
-                      "on-primary-fixed-variant": "#911b00",
+                      "on-primary-fixed-variant": "#830e10",
                       "surface-dim": "#d9d9e2",
                       "tertiary-fixed-dim": "#ffb694",
                       "tertiary-fixed": "#ffdbcc",
                       "on-primary": "#ffffff",
                       "outline-variant": "#c2c6d4",
                       "surface-container": "#ededf6",
-                      "primary-fixed-dim": "#ffc8ac",
-                      "primary": "#871a00",
-                      "inverse-primary": "#ffc8ac",
+                      "primary-fixed-dim": "#f7bdb4",
+                      "primary": "#7a0d0e",
+                      "inverse-primary": "#f7bdb4",
                       "surface-container-low": "#f2f3fc",
                       "outline": "#727784",
                       "on-surface": "#191c21",
-                      "on-primary-container": "#ffd3bb",
+                      "on-primary-container": "#f8cac2",
                       "surface": "#f9f9ff",
                       "secondary-fixed": "#b1f0ce",
                       "on-error": "#ffffff",
                       "error-container": "#ffdad6",
                       "surface-container-lowest": "#ffffff",
-                      "primary-fixed": "#ffe6d7",
+                      "primary-fixed": "#fbe1db",
                       "background": "#f9f9ff",
                       "secondary": "#2c694e",
                       "surface-bright": "#f9f9ff",
                       "error": "#ba1a1a",
                       "on-secondary": "#ffffff",
                       "on-tertiary": "#ffffff",
-                      "primary-container": "#E83C17",
-                      "on-primary-fixed": "#401000",
-                      "surface-tint": "#b93411",
+                      "primary-container": "#d02b2f",
+                      "on-primary-fixed": "#3a0906",
+                      "surface-tint": "#a82322",
                       "surface-container-highest": "#e1e2ea",
                       "on-secondary-fixed": "#002114",
                       "tertiary": "#722b00",
@@ -101,6 +101,48 @@
           }
         }
     </script>
+
+<style>
+  :root { --cpg-red: #d02b2f; --cpg-red-dark: #97262c; --cpg-gray: #3a3b3e; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: translateY(18px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .anim-fade { animation: fadeIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .anim-pop { animation: popIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+  .card-hover {
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-3px) scale(1.006);
+    box-shadow: 0 12px 24px rgba(208, 43, 47, 0.1);
+  }
+
+  .avatar-inicial {
+    width: 36px;
+    height: 36px;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fbe1db;
+    color: var(--cpg-red);
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+
+  .input-cpg:focus, .buscador-cpg:focus {
+    border-color: var(--cpg-red) !important;
+    box-shadow: 0 0 0 3px rgba(208, 43, 47, 0.15);
+  }
+</style>
 </head>
 <body class="bg-background text-on-background min-h-screen font-body-md">
 <header class="bg-surface border-b border-outline-variant sticky top-0 z-40">
@@ -112,7 +154,7 @@
 <span class="material-symbols-outlined">home</span>
 </a>
 <div>
-<h1 class="font-headline-md text-headline-md text-on-surface">Alumnos</h1>
+<h1 class="anim-fade font-headline-md text-headline-md text-on-surface">Alumnos</h1>
 <p id="grupo-nombre" class="font-body-md text-body-md text-on-surface-variant"></p>
 </div>
 </div>
@@ -123,26 +165,28 @@
 <div id="ok-box" class="hidden bg-secondary-container text-on-secondary-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 
 <!-- Agregar alumno -->
-<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 mb-stack-lg">
+<div class="anim-pop card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 mb-stack-lg">
 <h2 class="font-headline-md text-headline-md text-primary mb-stack-md">Agregar alumno a este grupo</h2>
 <div class="flex flex-col md:flex-row gap-4 items-end">
 <div class="flex-1 flex flex-col">
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="nuevo-nombre">Nombre</label>
-<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="nuevo-nombre" placeholder="Ej: Ana González" type="text"/>
+<input class="input-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors" id="nuevo-nombre" placeholder="Ej: Ana González" type="text"/>
 </div>
 <div class="flex-1 flex flex-col">
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="nuevo-id">Matrícula/Correo</label>
-<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="nuevo-id" placeholder="Ej: 2330774" type="text"/>
+<input class="input-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors" id="nuevo-id" placeholder="Ej: 2330774" type="text"/>
 </div>
-<button id="btn-agregar-alumno" class="h-[50px] px-6 bg-secondary text-on-secondary font-button-text text-button-text rounded-DEFAULT hover:opacity-90 transition-colors flex items-center gap-2 whitespace-nowrap">
+<button id="btn-agregar-alumno" class="card-hover h-[50px] px-6 bg-secondary text-on-secondary font-button-text text-button-text rounded-DEFAULT hover:opacity-90 transition-colors flex items-center gap-2 whitespace-nowrap">
 <span class="material-symbols-outlined">add</span> Agregar
 </button>
 </div>
 <p class="font-body-md text-body-md text-on-surface-variant mt-3">Si la matrícula ya existe (el alumno ya tiene cuenta en otro grupo), solo se inscribe aquí — no se crea una cuenta duplicada.</p>
 </div>
 
+<input id="buscador-alumnos" type="text" placeholder="Buscar alumno..." class="buscador-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors w-full max-w-sm mb-stack-md"/>
+
 <!-- Lista -->
-<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden">
+<div class="anim-pop bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden">
 <table class="w-full">
 <thead class="bg-surface-container-high">
 <tr>

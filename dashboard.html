@@ -15,35 +15,35 @@
             extend: {
               "colors": {
                       "on-error-container": "#93000a",
-                      "on-primary-fixed-variant": "#911b00",
+                      "on-primary-fixed-variant": "#830e10",
                       "surface-dim": "#d9d9e2",
                       "tertiary-fixed-dim": "#ffb694",
                       "tertiary-fixed": "#ffdbcc",
                       "on-primary": "#ffffff",
                       "outline-variant": "#c2c6d4",
                       "surface-container": "#ededf6",
-                      "primary-fixed-dim": "#ffc8ac",
-                      "primary": "#871a00",
-                      "inverse-primary": "#ffc8ac",
+                      "primary-fixed-dim": "#f7bdb4",
+                      "primary": "#7a0d0e",
+                      "inverse-primary": "#f7bdb4",
                       "surface-container-low": "#f2f3fc",
                       "outline": "#727784",
                       "on-surface": "#191c21",
-                      "on-primary-container": "#ffd3bb",
+                      "on-primary-container": "#f8cac2",
                       "surface": "#f9f9ff",
                       "secondary-fixed": "#b1f0ce",
                       "on-error": "#ffffff",
                       "error-container": "#ffdad6",
                       "surface-container-lowest": "#ffffff",
-                      "primary-fixed": "#ffe6d7",
+                      "primary-fixed": "#fbe1db",
                       "background": "#f9f9ff",
                       "secondary": "#2c694e",
                       "surface-bright": "#f9f9ff",
                       "error": "#ba1a1a",
                       "on-secondary": "#ffffff",
                       "on-tertiary": "#ffffff",
-                      "primary-container": "#E83C17",
-                      "on-primary-fixed": "#401000",
-                      "surface-tint": "#b93411",
+                      "primary-container": "#d02b2f",
+                      "on-primary-fixed": "#3a0906",
+                      "surface-tint": "#a82322",
                       "surface-container-highest": "#e1e2ea",
                       "on-secondary-fixed": "#002114",
                       "tertiary": "#722b00",
@@ -101,6 +101,36 @@
           }
         }
     </script>
+
+<style>
+  :root { --cpg-red: #d02b2f; --cpg-red-dark: #97262c; --cpg-gray: #3a3b3e; }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: translateY(26px) scale(0.93); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .anim-fade { animation: fadeIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .anim-fade-delay { animation: fadeIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both; }
+
+  .anim-pop { animation: popIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .anim-pop:nth-child(1) { animation-delay: 0.05s; }
+  .anim-pop:nth-child(2) { animation-delay: 0.14s; }
+  .anim-pop:nth-child(3) { animation-delay: 0.23s; }
+  .anim-pop:nth-child(4) { animation-delay: 0.32s; }
+
+  .card-hover {
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-6px) scale(1.03);
+    box-shadow: 0 16px 32px rgba(208, 43, 47, 0.22);
+  }
+</style>
 </head>
 <body class="bg-background text-on-background min-h-screen font-body-md flex">
 <!-- SideNavBar -->
@@ -116,18 +146,18 @@
 <!-- Home (Active) -->
 <a class="flex items-center gap-4 px-4 py-3 bg-primary-container text-on-primary-container rounded-r-full font-bold transition-all duration-150 transform hover:scale-[0.98]" href="dashboard.html">
 <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
-                Inicio
+                Casa
             </a>
 <!-- Groups -->
 <a id="nav-groups" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#mis-grupos">
 <span class="material-symbols-outlined">group</span>
                 Grupos
             </a>
+<!-- Alumnos (todos los grupos) -->
 <a id="nav-alumnos" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="alumnos-global.html">
 <span class="material-symbols-outlined">groups</span>
                 Alumnos
             </a>
-
 <!-- Exams -->
 <a id="nav-exams" data-quick="crear-examen" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
 <span class="material-symbols-outlined">quiz</span>
@@ -160,8 +190,9 @@
 <div class="flex-1 md:ml-64 flex flex-col min-h-screen">
 <!-- TopNavBar -->
 <header class="bg-surface dark:bg-surface-container-low text-primary dark:text-primary-fixed-dim font-label-lg text-label-lg shadow-sm border-b border-outline-variant docked full-width top-0 z-50 flex justify-between items-center w-full px-margin-desktop py-4 sticky">
-<div class="flex items-center gap-4">
-<span class="font-headline-md text-headline-md text-primary font-bold">EasyTeacher</span>
+<div class="flex items-center gap-3">
+<img src="assets/img/logo-pdg.png" alt="Colegio Pedro de Gante" class="h-9 w-auto object-contain"/>
+<span class="font-headline-md text-headline-md text-primary font-bold">AulaFácil</span>
 </div>
 <div class="flex items-center gap-6">
 <button id="btn-logout" class="text-on-surface-variant hover:bg-surface-container-high transition-colors duration-200 p-2 rounded-full flex items-center justify-center active:scale-95 transition-transform">
@@ -173,36 +204,36 @@
 <main class="flex-1 p-margin-mobile md:p-margin-desktop overflow-y-auto">
 <!-- Welcome Header -->
 <div class="mb-stack-lg">
-<h1 class="font-display-lg text-display-lg text-on-surface mb-2" id="saludo-nombre">Buenos días</h1>
-<p class="font-body-lg text-body-lg text-on-surface-variant">Aquí está el resumen de tu día.</p>
+<h1 class="anim-fade font-display-lg text-display-lg text-on-surface mb-2" id="saludo-nombre">Bienvenido</h1>
+<p class="anim-fade-delay font-body-lg text-body-lg text-on-surface-variant">Aquí está el resumen de tu día.</p>
 </div>
 <!-- Quick Access Section -->
 <section class="mb-stack-lg">
 <h2 class="font-headline-md text-headline-md text-on-surface mb-stack-md">Acceso Rápido</h2>
 <div class="grid grid-cols-2 md:grid-cols-4 gap-gutter">
 <!-- Quick Card 1 -->
-<button data-quick="crear-examen" class="bg-primary-fixed text-on-primary-fixed p-6 rounded-DEFAULT border border-primary-fixed-dim hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<button data-quick="crear-examen" class="anim-pop card-hover bg-primary-fixed text-on-primary-fixed p-6 rounded-DEFAULT border border-primary-fixed-dim flex flex-col items-start gap-4 text-left group">
 <div class="p-3 bg-surface rounded-full text-primary group-hover:scale-110 transition-transform">
 <span class="material-symbols-outlined text-3xl">edit_document</span>
 </div>
 <span class="font-button-text text-button-text">Crear examen</span>
 </button>
 <!-- Quick Card 2 -->
-<button data-quick="asistencia" class="bg-secondary-fixed text-on-secondary-fixed p-6 rounded-DEFAULT border border-secondary-fixed-dim hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<button data-quick="asistencia" class="anim-pop card-hover bg-secondary-fixed text-on-secondary-fixed p-6 rounded-DEFAULT border border-secondary-fixed-dim flex flex-col items-start gap-4 text-left group">
 <div class="p-3 bg-surface rounded-full text-secondary group-hover:scale-110 transition-transform">
 <span class="material-symbols-outlined text-3xl">fact_check</span>
 </div>
 <span class="font-button-text text-button-text">Tomar asistencia</span>
 </button>
 <!-- Quick Card 3 -->
-<button data-quick="tareas" class="bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<button data-quick="tareas" class="anim-pop card-hover bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant flex flex-col items-start gap-4 text-left group">
 <div class="p-3 bg-surface rounded-full text-on-surface-variant group-hover:scale-110 transition-transform">
 <span class="material-symbols-outlined text-3xl">assignment</span>
 </div>
 <span class="font-button-text text-button-text">Tareas</span>
 </button>
 <!-- Quick Card 4 -->
-<button data-quick="calificaciones" class="bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant hover:shadow-md transition-shadow flex flex-col items-start gap-4 text-left group">
+<button data-quick="calificaciones" class="anim-pop card-hover bg-surface-container-high text-on-surface p-6 rounded-DEFAULT border border-outline-variant flex flex-col items-start gap-4 text-left group">
 <div class="p-3 bg-surface rounded-full text-on-surface-variant group-hover:scale-110 transition-transform">
 <span class="material-symbols-outlined text-3xl">grade</span>
 </div>
@@ -213,7 +244,7 @@
 <!-- My Groups Section -->
 <section id="mis-grupos">
 <div class="flex justify-between items-center mb-stack-md border-b border-outline-variant pb-4">
-<h2 class="font-headline-md text-headline-md text-on-surface">Mis Grupos</h2>
+<h2 class="anim-fade font-headline-md text-headline-md text-on-surface">Mis Grupos</h2>
 <button id="btn-nuevo-grupo" class="bg-primary text-on-primary px-6 py-2 rounded-full font-button-text text-button-text hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm">
                         + Nuevo grupo
                     </button>

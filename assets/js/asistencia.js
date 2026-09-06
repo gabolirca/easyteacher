@@ -6,12 +6,14 @@ const grupoId = params.get('id');
 
 let alumnos = []; // [{id, nombre}]
 let estadoPorAlumno = {}; // { alumno_id: 'presente' | 'falta' | 'retardo' | null }
+let terminoBusqueda = '';
 
 const ESTILOS = {
-  presente: 'bg-secondary text-on-secondary border-secondary',
-  falta: 'bg-error text-on-error border-error',
-  retardo: 'bg-tertiary text-on-tertiary border-tertiary',
+  presente: 'bg-secondary text-on-secondary border-secondary activo',
+  falta: 'bg-error text-on-error border-error activo',
+  retardo: 'bg-tertiary text-on-tertiary border-tertiary activo',
 };
+const ICONOS = { presente: 'check_circle', falta: 'cancel', retardo: 'schedule' };
 const ETIQUETAS = { presente: 'Presente', falta: 'Falta', retardo: 'Retardo' };
 
 function escapeHtml(str) {
@@ -45,9 +47,9 @@ function actualizarContador() {
   const valores = Object.values(estadoPorAlumno);
   const contar = (t) => valores.filter((v) => v === t).length;
   document.getElementById('contador-resumen').innerHTML = `
-    <span>${contar('presente')} presentes</span>
-    <span>${contar('falta')} faltas</span>
-    <span>${contar('retardo')} retardos</span>`;
+    <span class="pill-contador bg-secondary-container text-on-secondary-container"><span class="material-symbols-outlined text-base">check_circle</span> ${contar('presente')} presentes</span>
+    <span class="pill-contador bg-error-container text-on-error-container"><span class="material-symbols-outlined text-base">cancel</span> ${contar('falta')} faltas</span>
+    <span class="pill-contador bg-tertiary-container text-on-tertiary-container"><span class="material-symbols-outlined text-base">schedule</span> ${contar('retardo')} retardos</span>`;
 }
 
 function renderLista() {
@@ -58,17 +60,25 @@ function renderLista() {
     return;
   }
 
-  cont.innerHTML = alumnos.map((a) => {
+  const filtro = terminoBusqueda.trim().toLowerCase();
+  const visibles = filtro ? alumnos.filter((a) => a.nombre.toLowerCase().includes(filtro)) : alumnos;
+
+  if (visibles.length === 0) {
+    cont.innerHTML = '<p class="text-on-surface-variant">Ningún alumno coincide con la búsqueda.</p>';
+    return;
+  }
+
+  cont.innerHTML = visibles.map((a, i) => {
     const actual = estadoPorAlumno[a.id];
     const botones = ['presente', 'falta', 'retardo'].map((t) => `
-      <button data-alumno="${a.id}" data-estado="${t}" class="btn-estado px-4 py-2 rounded-full font-label-lg text-label-lg border transition-colors ${actual === t ? ESTILOS[t] : 'bg-surface text-on-surface-variant border-outline-variant hover:bg-surface-container-high'}">
-        ${ETIQUETAS[t]}
+      <button data-alumno="${a.id}" data-estado="${t}" class="btn-estado px-4 py-2 rounded-full font-label-lg text-label-lg border ${actual === t ? ESTILOS[t] : 'bg-surface text-on-surface-variant border-outline-variant hover:bg-surface-container-high'}">
+        <span class="material-symbols-outlined text-lg">${ICONOS[t]}</span> ${ETIQUETAS[t]}
       </button>`).join('');
 
     return `
-      <div class="flex items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4">
+      <div class="card-hover flex items-center justify-between gap-4 bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4" style="animation: popIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.05}s both;">
         <span class="font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</span>
-        <div class="flex gap-2 shrink-0">${botones}</div>
+        <div class="flex gap-2 shrink-0 flex-wrap justify-end">${botones}</div>
       </div>`;
   }).join('');
 
@@ -82,6 +92,11 @@ function renderLista() {
 
   actualizarContador();
 }
+
+document.getElementById('buscador-alumnos').addEventListener('input', (e) => {
+  terminoBusqueda = e.target.value;
+  renderLista();
+});
 
 async function cargarAlumnos() {
   const { data, error } = await supabase

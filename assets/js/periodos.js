@@ -44,12 +44,13 @@ async function cargarPeriodos() {
     return;
   }
 
-  contenedor.innerHTML = periodos.map((p) => {
+   contenedor.innerHTML = periodos.map((p, i) => {
     const numExamenes = p.examenes?.[0]?.count ?? 0;
     const numTareas = p.tareas?.[0]?.count ?? 0;
     return `
-      <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 flex items-center justify-between gap-4">
-        <div>
+      <div class="anim-pop card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 flex items-center gap-4" style="animation-delay: ${i * 0.08}s;">
+        <div class="badge-periodo">${i + 1}</div>
+        <div class="flex-1">
           <h3 class="font-body-lg text-body-lg text-on-surface">${escapeHtml(p.nombre)}</h3>
           <p class="font-body-md text-body-md text-on-surface-variant mt-1">${numExamenes} examen(es) · ${numTareas} tarea(s)</p>
         </div>

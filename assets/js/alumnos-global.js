@@ -24,14 +24,19 @@ function renderTabla(lista) {
     return;
   }
 
-  tbody.innerHTML = lista.map((a) => `
-    <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors">
-      <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</td>
+  tbody.innerHTML = lista.map((a, i) => `
+    <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
+      <td class="py-3 px-6">
+        <div class="flex items-center gap-3">
+          <span class="avatar-inicial">${escapeHtml((a.nombre || '?').trim().charAt(0).toUpperCase())}</span>
+          <span class="font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</span>
+        </div>
+      </td>
       <td class="py-3 px-6 font-body-md text-body-md text-on-surface-variant">${escapeHtml(a.matricula || '—')}</td>
       <td class="py-3 px-6">
         <div class="flex flex-wrap gap-2">
           ${a.grupos.map((g) => `
-            <a href="alumnos.html?id=${g.id}" class="text-sm bg-surface-container-high hover:bg-primary-fixed text-on-surface px-3 py-1 rounded-full transition-colors" title="Ver en ${escapeHtml(g.nombre)}">
+            <a href="alumnos.html?id=${g.id}" class="badge-grupo text-sm bg-surface-container-high hover:bg-primary-fixed text-on-surface px-3 py-1 rounded-full" title="Ver en ${escapeHtml(g.nombre)}">
               ${escapeHtml(g.nombre)}
             </a>`).join('')}
         </div>

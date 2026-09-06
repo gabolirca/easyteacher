@@ -30,6 +30,30 @@ function formatoFecha(f) {
   return `${d}/${m}/${y}`;
 }
 
+const PALABRAS_A_ICONO = [
+  [['examen', 'quiz', 'cuestionario'], 'quiz'],
+  [['proyecto'], 'engineering'],
+  [['ensayo', 'redaccion', 'redacción'], 'edit_note'],
+  [['lectura', 'leer', 'libro', 'capitulo', 'capítulo'], 'menu_book'],
+  [['investigacion', 'investigación'], 'science'],
+  [['presentacion', 'presentación', 'expo', 'exposicion', 'exposición'], 'co_present'],
+  [['resumen', 'sintesis', 'síntesis'], 'summarize'],
+  [['mapa mental', 'mapa conceptual'], 'account_tree'],
+  [['dibujo', 'dibuja', 'ilustra'], 'draw'],
+  [['video', 'vídeo'], 'movie'],
+  [['laboratorio', 'practica', 'práctica'], 'science'],
+  [['problema', 'ejercicio', 'ejercicios'], 'calculate'],
+  [['equipo', 'grupal'], 'groups'],
+];
+
+function iconoParaTarea(titulo) {
+  const t = (titulo || '').toLowerCase();
+  for (const [palabras, icono] of PALABRAS_A_ICONO) {
+    if (palabras.some((p) => t.includes(p))) return icono;
+  }
+  return 'assignment';
+}
+
 async function cargarTareas() {
   const contenedor = document.getElementById('tareas-container');
 
@@ -49,11 +73,14 @@ async function cargarTareas() {
     return;
   }
 
-  contenedor.innerHTML = tareas.map((t) => {
+  contenedor.innerHTML = tareas.map((t, i) => {
     const calificados = t.calificaciones_tareas?.[0]?.count ?? 0;
     return `
-      <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 flex items-center justify-between gap-4">
-        <div>
+      <div class="card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 flex items-center gap-4" style="animation: popIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.08}s both;">
+        <div class="icono-tarea">
+          <span class="material-symbols-outlined">${iconoParaTarea(t.titulo)}</span>
+        </div>
+        <div class="flex-1">
           <h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">${escapeHtml(t.titulo)}</h3>
           <p class="font-body-md text-body-md text-on-surface-variant mt-1">${formatoFecha(t.fecha_limite)} · peso ${t.peso_ponderacion} · ${calificados} alumno(s) calificados${t.periodos?.nombre ? ` · ${escapeHtml(t.periodos.nombre)}` : ''}</p>
         </div>

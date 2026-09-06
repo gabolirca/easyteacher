@@ -101,32 +101,109 @@
           }
         }
     </script>
+
+<style>
+  :root {
+    --cpg-red: #d02b2f;
+    --cpg-red-dark: #97262c;
+    --cpg-gray: #54565a;
+  }
+
+  @keyframes flotar1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(30px, -40px) scale(1.08); }
+  }
+  @keyframes flotar2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-40px, 30px) scale(1.1); }
+  }
+  @keyframes flotar3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(20px, 25px) scale(0.95); }
+  }
+
+  .blob {
+    position: absolute;
+    border-radius: 9999px;
+    filter: blur(60px);
+    opacity: 0.28;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .blob-1 { width: 420px; height: 420px; background: var(--cpg-red); top: -120px; left: -100px; animation: flotar1 14s ease-in-out infinite; }
+  .blob-2 { width: 340px; height: 340px; background: var(--cpg-red-dark); bottom: -100px; right: -80px; animation: flotar2 18s ease-in-out infinite; }
+  .blob-3 { width: 260px; height: 260px; background: var(--cpg-gray); top: 40%; right: 10%; animation: flotar3 16s ease-in-out infinite; opacity: 0.14; }
+
+  @keyframes entradaLogo {
+    from { opacity: 0; transform: translateY(-16px) scale(0.92); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes entradaCard {
+    from { opacity: 0; transform: translateY(28px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes entradaTexto {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .anim-logo { animation: entradaLogo 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .anim-subtitulo { animation: entradaTexto 0.8s ease-out 0.25s both; }
+  .anim-card { animation: entradaCard 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both; }
+
+  #fade-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--cpg-red);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+    z-index: 50;
+  }
+  #fade-overlay.activo { opacity: 1; pointer-events: all; }
+
+  .btn-cpg {
+    background: var(--cpg-red);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+  }
+  .btn-cpg:hover { background: var(--cpg-red-dark); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(208, 43, 47, 0.35); }
+  .btn-cpg:active { transform: translateY(0); }
+
+  .input-cpg:focus { border-color: var(--cpg-red) !important; box-shadow: 0 0 0 3px rgba(208, 43, 47, 0.15); }
+</style>
 </head>
-<body class="bg-background text-on-background min-h-screen font-body-md flex items-center justify-center px-4">
-<div class="w-full max-w-md">
+<body class="bg-background text-on-background min-h-screen font-body-md flex items-center justify-center px-4 overflow-hidden relative">
+<div id="fade-overlay"></div>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="blob blob-3"></div>
+
+<div class="w-full max-w-md relative z-10">
 <div class="text-center mb-stack-lg">
-<h1 class="font-display-lg text-display-lg text-primary font-bold" style="font-size:32px;">AulaFácil</h1>
-<p class="font-body-md text-body-md text-on-surface-variant mt-2">Portal del profesor</p>
+<img src="assets/img/logo-pdg.png" alt="Colegio Pedro de Gante" class="anim-logo mx-auto h-20 w-auto object-contain mb-4"/>
+<p class="anim-subtitulo font-body-md text-body-md" style="color:var(--cpg-gray);">Portal del profesor · Easy Teacher</p>
 </div>
-<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-8 shadow-[0_4px_20px_rgba(0,0,0,0.05)]">
+
+<div class="anim-card bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-8 shadow-[0_10px_40px_rgba(0,0,0,0.08)]">
 <h2 id="mode-title" class="font-headline-md text-headline-md text-on-surface mb-stack-md">Iniciar sesión</h2>
 <div id="error-box" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 <form id="login-form" class="flex flex-col gap-4">
 <div id="nombre-field" class="hidden flex flex-col">
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="nombre">Tu nombre</label>
-<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="nombre" placeholder="Ej: Roberto Lira" type="text"/>
+<input class="input-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors" id="nombre" placeholder="Ej: Roberto Lira" type="text"/>
 </div>
 <div class="flex flex-col">
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="correo">Correo</label>
-<input autocomplete="email" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="correo" placeholder="tu@correo.com" required type="email"/>
+<input autocomplete="email" class="input-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors" id="correo" placeholder="tu@correo.com" required type="email"/>
 </div>
 <div class="flex flex-col">
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="password">Contraseña</label>
-<input autocomplete="current-password" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="password" minlength="6" placeholder="••••••••" required type="password"/>
+<input autocomplete="current-password" class="input-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors" id="password" minlength="6" placeholder="••••••••" required type="password"/>
 </div>
-<button class="mt-2 bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-3 hover:bg-primary hover:text-on-primary transition-colors" id="submit-btn" type="submit">Entrar</button>
+<button class="btn-cpg mt-2 text-white font-button-text text-button-text rounded-full py-3" id="submit-btn" type="submit">Entrar</button>
 </form>
-<button class="w-full text-center mt-4 text-primary font-label-lg text-label-lg hover:underline" id="toggle-mode" type="button">¿Primera vez? Crea tu cuenta</button>
+<button class="w-full text-center mt-4 font-label-lg text-label-lg hover:underline" style="color:var(--cpg-red);" id="toggle-mode" type="button">¿Primera vez? Crea tu cuenta</button>
 </div>
 </div>
 <script type="module" src="assets/js/login.js"></script>

@@ -15,35 +15,35 @@
             extend: {
               "colors": {
                       "on-error-container": "#93000a",
-                      "on-primary-fixed-variant": "#911b00",
+                      "on-primary-fixed-variant": "#830e10",
                       "surface-dim": "#d9d9e2",
                       "tertiary-fixed-dim": "#ffb694",
                       "tertiary-fixed": "#ffdbcc",
                       "on-primary": "#ffffff",
                       "outline-variant": "#c2c6d4",
                       "surface-container": "#ededf6",
-                      "primary-fixed-dim": "#ffc8ac",
-                      "primary": "#871a00",
-                      "inverse-primary": "#ffc8ac",
+                      "primary-fixed-dim": "#f7bdb4",
+                      "primary": "#7a0d0e",
+                      "inverse-primary": "#f7bdb4",
                       "surface-container-low": "#f2f3fc",
                       "outline": "#727784",
                       "on-surface": "#191c21",
-                      "on-primary-container": "#ffd3bb",
+                      "on-primary-container": "#f8cac2",
                       "surface": "#f9f9ff",
                       "secondary-fixed": "#b1f0ce",
                       "on-error": "#ffffff",
                       "error-container": "#ffdad6",
                       "surface-container-lowest": "#ffffff",
-                      "primary-fixed": "#ffe6d7",
+                      "primary-fixed": "#fbe1db",
                       "background": "#f9f9ff",
                       "secondary": "#2c694e",
                       "surface-bright": "#f9f9ff",
                       "error": "#ba1a1a",
                       "on-secondary": "#ffffff",
                       "on-tertiary": "#ffffff",
-                      "primary-container": "#E83C17",
-                      "on-primary-fixed": "#401000",
-                      "surface-tint": "#b93411",
+                      "primary-container": "#d02b2f",
+                      "on-primary-fixed": "#3a0906",
+                      "surface-tint": "#a82322",
                       "surface-container-highest": "#e1e2ea",
                       "on-secondary-fixed": "#002114",
                       "tertiary": "#722b00",
@@ -101,6 +101,48 @@
           }
         }
     </script>
+
+<style>
+  :root { --cpg-red: #d02b2f; --cpg-red-dark: #97262c; --cpg-gray: #3a3b3e; }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: translateY(26px) scale(0.93); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .anim-fade { animation: fadeIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .anim-fade-delay { animation: fadeIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both; }
+
+  .card-hover {
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-3px) scale(1.008);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+  }
+
+  .btn-estado {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: transform 0.15s cubic-bezier(0.22,1,0.36,1), background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .btn-estado:hover { transform: translateY(-2px); }
+  .btn-estado:active { transform: translateY(0) scale(0.96); }
+  .btn-estado.activo { box-shadow: 0 6px 14px rgba(0,0,0,0.18); }
+
+  .pill-contador {
+    padding: 0.35rem 0.9rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+</style>
 </head>
 <body class="bg-background text-on-background min-h-screen font-body-md">
 <header class="bg-surface border-b border-outline-variant sticky top-0 z-40">
@@ -112,8 +154,8 @@
 <span class="material-symbols-outlined">home</span>
 </a>
 <div>
-<h1 class="font-headline-md text-headline-md text-on-surface">Asistencia</h1>
-<p id="grupo-nombre" class="font-body-md text-body-md text-on-surface-variant"></p>
+<h1 class="anim-fade font-headline-md text-headline-md text-on-surface">Asistencia</h1>
+<p id="grupo-nombre" class="anim-fade-delay font-body-md text-body-md text-on-surface-variant"></p>
 </div>
 </div>
 </header>
@@ -127,12 +169,14 @@
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="fecha-asistencia">Fecha</label>
 <input id="fecha-asistencia" type="date" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors"/>
 </div>
-<button id="btn-marcar-todos" class="text-primary font-label-lg text-label-lg hover:underline flex items-center gap-1 h-fit">
+<button id="btn-marcar-todos" class="card-hover text-primary font-label-lg text-label-lg hover:underline flex items-center gap-1 h-fit">
 <span class="material-symbols-outlined text-lg">done_all</span> Marcar todos presentes
 </button>
 </div>
 
-<div id="contador-resumen" class="flex gap-4 mb-stack-md font-label-lg text-label-lg text-on-surface-variant"></div>
+<input id="buscador-alumnos" type="text" placeholder="Buscar alumno..." class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors w-full max-w-sm mb-stack-md"/>
+
+<div id="contador-resumen" class="flex gap-2 mb-stack-md flex-wrap"></div>
 
 <div id="lista-alumnos" class="flex flex-col gap-2">
 <p class="text-on-surface-variant">Cargando alumnos...</p>

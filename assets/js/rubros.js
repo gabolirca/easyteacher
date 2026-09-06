@@ -24,6 +24,28 @@ function mostrarOk(msg) {
   document.getElementById('error-box').classList.add('hidden');
 }
 
+const PALABRAS_A_ICONO = [
+  [['conducta', 'comportamiento', 'disciplina'], 'psychology'],
+  [['proyecto'], 'engineering'],
+  [['puntualidad', 'asistencia'], 'schedule'],
+  [['participacion', 'participación'], 'record_voice_over'],
+  [['limpieza', 'orden'], 'cleaning_services'],
+  [['presentacion', 'presentación', 'expo', 'exposicion', 'exposición'], 'co_present'],
+  [['trabajo en equipo', 'equipo', 'grupal', 'colaboracion', 'colaboración'], 'groups'],
+  [['creatividad', 'arte', 'dibujo'], 'palette'],
+  [['esfuerzo', 'actitud'], 'emoji_events'],
+  [['uniforme'], 'checkroom'],
+  [['tarea', 'tareas'], 'assignment'],
+];
+
+function iconoParaRubro(nombre) {
+  const n = (nombre || '').toLowerCase();
+  for (const [palabras, icono] of PALABRAS_A_ICONO) {
+    if (palabras.some((p) => n.includes(p))) return icono;
+  }
+  return 'star';
+}
+
 async function cargarRubros() {
   const contenedor = document.getElementById('rubros-container');
 
@@ -43,11 +65,14 @@ async function cargarRubros() {
     return;
   }
 
-  contenedor.innerHTML = rubros.map((r) => {
+  contenedor.innerHTML = rubros.map((r, i) => {
     const calificados = r.calificaciones_rubro?.[0]?.count ?? 0;
     return `
-      <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 flex items-center justify-between gap-4">
-        <div>
+      <div class="anim-pop card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 flex items-center gap-4" style="animation-delay: ${i * 0.08}s;">
+        <div class="icono-rubro">
+          <span class="material-symbols-outlined">${iconoParaRubro(r.nombre)}</span>
+        </div>
+        <div class="flex-1">
           <h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">${escapeHtml(r.nombre)}</h3>
           <p class="font-body-md text-body-md text-on-surface-variant mt-1">Peso actual: ${r.peso}% · ${calificados} alumno(s) calificados${r.periodos?.nombre ? ` · ${escapeHtml(r.periodos.nombre)}` : ''}</p>
         </div>

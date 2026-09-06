@@ -341,8 +341,8 @@ function renderTablaPeriodo(filas) {
         </tr>
       </thead>
       <tbody>
-        ${filas.map((f) => `
-          <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors">
+        ${filas.map((f, i) => `
+          <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
             <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(f.nombre)}</td>
             <td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${f.promExamenes ?? '—'}</td>
             <td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${f.promTareas ?? '—'}</td>
@@ -375,8 +375,8 @@ function renderTablaCiclo() {
         </tr>
       </thead>
       <tbody>
-        ${alumnosGrupo.map((a) => `
-          <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors">
+        ${alumnosGrupo.map((a, i) => `
+          <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
             <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</td>
             ${periodos.map((p) => {
               const val = resultadosPorPeriodo[p.id]?.find((f) => f.alumnoId === a.id)?.promedioFinal;

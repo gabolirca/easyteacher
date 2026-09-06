@@ -49,7 +49,7 @@ form.addEventListener('submit', async (e) => {
       if (error) throw error;
     }
 
-    window.location.href = 'dashboard.html';
+      await irADashboardConTransicion();
   } catch (err) {
     errorBox.textContent = err.message || 'Ocurrió un error, intenta de nuevo';
     errorBox.classList.remove('hidden');
@@ -58,3 +58,14 @@ form.addEventListener('submit', async (e) => {
   }
 });
 
+function irADashboardConTransicion() {
+  return new Promise(() => {
+    const overlay = document.getElementById('fade-overlay');
+    if (overlay) {
+      overlay.classList.add('activo');
+      setTimeout(() => { window.location.href = 'dashboard.html'; }, 380);
+    } else {
+      window.location.href = 'dashboard.html';
+    }
+  });
+}

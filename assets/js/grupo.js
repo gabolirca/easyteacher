@@ -55,12 +55,12 @@ async function cargarExamenes() {
 
   const opcionesGrupos = gruposDelProfesor.map((g) => `<option value="${g.id}" ${g.id === grupoId ? 'selected' : ''}>${escapeHtml(g.nombre)}${g.id === grupoId ? ' (este grupo)' : ''}</option>`).join('');
 
-  contenedor.innerHTML = examenes.map((ex) => `
-    <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6">
+  contenedor.innerHTML = examenes.map((ex, i) => `
+    <div class="card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6" style="animation: popIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.08}s both;">
       <div class="flex items-center justify-between gap-4">
         <div>
           <h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">${escapeHtml(ex.titulo)}</h3>
-        <div class="mt-2 flex items-center gap-2">${badgeEstado(ex.estado)}${ex.periodos?.nombre ? `<span class="text-sm text-on-surface-variant">· ${escapeHtml(ex.periodos.nombre)}</span>` : ''}</div>
+          <div class="mt-2 flex items-center gap-2">${badgeEstado(ex.estado)}${ex.periodos?.nombre ? `<span class="text-sm text-on-surface-variant">· ${escapeHtml(ex.periodos.nombre)}</span>` : ''}</div>
         </div>
         <div class="flex gap-2 shrink-0">
           <button class="btn-archivar-examen text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" data-examen-id="${ex.id}" aria-label="Archivar">
@@ -281,7 +281,6 @@ async function init() {
   document.getElementById('tab-alumnos')?.setAttribute('href', `alumnos.html?id=${grupoId}`);
   document.getElementById('tab-rubros')?.setAttribute('href', `rubros.html?id=${grupoId}`);
   document.getElementById('tab-periodos')?.setAttribute('href', `periodos.html?id=${grupoId}`);
-  
 
   await cargarGruposDelProfesor();
   await cargarExamenes();

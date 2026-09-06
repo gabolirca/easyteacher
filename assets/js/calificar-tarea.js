@@ -7,6 +7,31 @@ const tareaId = params.get('tarea_id');
 let grupoId = null;
 let alumnos = []; // [{id, nombre}]
 let estadoPorAlumno = {}; // { alumno_id: { entregado: bool, calificacion: number|null } }
+let terminoBusqueda = '';
+
+const PALABRAS_A_ICONO = [
+  [['examen', 'quiz', 'cuestionario'], 'quiz'],
+  [['proyecto'], 'engineering'],
+  [['ensayo', 'redaccion', 'redacción'], 'edit_note'],
+  [['lectura', 'leer', 'libro', 'capitulo', 'capítulo'], 'menu_book'],
+  [['investigacion', 'investigación'], 'science'],
+  [['presentacion', 'presentación', 'expo', 'exposicion', 'exposición'], 'co_present'],
+  [['resumen', 'sintesis', 'síntesis'], 'summarize'],
+  [['mapa mental', 'mapa conceptual'], 'account_tree'],
+  [['dibujo', 'dibuja', 'ilustra'], 'draw'],
+  [['video', 'vídeo'], 'movie'],
+  [['laboratorio', 'practica', 'práctica'], 'science'],
+  [['problema', 'ejercicio', 'ejercicios'], 'calculate'],
+  [['equipo', 'grupal'], 'groups'],
+];
+
+function iconoParaTarea(titulo) {
+  const t = (titulo || '').toLowerCase();
+  for (const [palabras, icono] of PALABRAS_A_ICONO) {
+    if (palabras.some((p) => t.includes(p))) return icono;
+  }
+  return 'assignment';
+}
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -42,16 +67,24 @@ function renderTabla() {
     return;
   }
 
-  tbody.innerHTML = alumnos.map((a) => {
+  const filtro = terminoBusqueda.trim().toLowerCase();
+  const visibles = filtro ? alumnos.filter((a) => a.nombre.toLowerCase().includes(filtro)) : alumnos;
+
+  if (visibles.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="py-6 px-6 text-center text-on-surface-variant">Ningún alumno coincide con la búsqueda.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = visibles.map((a, i) => {
     const estado = estadoPorAlumno[a.id] || { entregado: false, calificacion: '' };
     return `
-      <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors">
+      <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
         <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</td>
         <td class="py-3 px-6 text-center">
           <input type="checkbox" class="chk-entregado w-5 h-5" data-alumno="${a.id}" ${estado.entregado ? 'checked' : ''}/>
         </td>
         <td class="py-3 px-6">
-          <input type="number" min="0" max="10" step="0.1" class="input-calificacion w-24 px-3 py-2 rounded-DEFAULT border border-outline-variant" data-alumno="${a.id}" value="${estado.calificacion}" placeholder="—"/>
+          <input type="number" min="0" max="10" step="0.1" class="input-calificacion w-24 px-3 py-2 rounded-DEFAULT border border-outline-variant transition-colors" data-alumno="${a.id}" value="${estado.calificacion}" placeholder="—"/>
         </td>
       </tr>`;
   }).join('');
@@ -75,6 +108,11 @@ function renderTabla() {
 
   actualizarContador();
 }
+
+document.getElementById('buscador-alumnos').addEventListener('input', (e) => {
+  terminoBusqueda = e.target.value;
+  renderTabla();
+});
 
 async function cargarAlumnosYCalificaciones() {
   const { data: alumnosData, error: errorAlumnos } = await supabase
@@ -162,6 +200,7 @@ async function init() {
 
   document.getElementById('tarea-titulo').textContent = tarea.titulo;
   document.getElementById('tarea-info').textContent = tarea.fecha_limite ? `Fecha límite: ${tarea.fecha_limite}` : 'Sin fecha límite';
+  document.getElementById('icono-tarea').textContent = iconoParaTarea(tarea.titulo);
   document.getElementById('link-volver').href = `tareas.html?id=${grupoId}`;
   const tituloEl = document.getElementById('page-title');
   if (tituloEl) tituloEl.textContent = `AulaFácil - ${tarea.titulo}`;

@@ -42,7 +42,7 @@ async function cargarGrupos() {
     const icono = ICONOS[i % ICONOS.length];
     const color = COLORES[i % COLORES.length];
     return `
-      <div class="relative bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] flex flex-col gap-6">
+              <div class="relative card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 shadow-[0_4px_20px_rgba(0,0,0,0.05)] flex flex-col gap-6" style="animation: popIn 0.6s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.08}s both;">
         <button class="btn-menu-grupo absolute top-4 right-4 text-on-surface-variant hover:bg-surface-container-high p-1 rounded-full transition-colors" data-grupo-id="${g.id}" aria-label="Más opciones">
           <span class="material-symbols-outlined">more_vert</span>
         </button>
