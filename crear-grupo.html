@@ -22,28 +22,28 @@
                         "surface-dim": "#d9d9e2",
                         "surface-container": "#ededf6",
                         "inverse-surface": "#2e3037",
-                        "surface-tint": "#b93411",
+                        "surface-tint": "#a82322",
                         "secondary-container": "#aeeecb",
                         "secondary": "#2c694e",
-                        "primary-fixed": "#ffe6d7",
+                        "primary-fixed": "#fbe1db",
                         "secondary-fixed": "#b1f0ce",
                         "on-primary": "#ffffff",
                         "outline": "#727784",
                         "on-tertiary-fixed-variant": "#7b2f00",
                         "tertiary-container": "#983c00",
                         "on-tertiary-fixed": "#351000",
-                        "primary": "#871a00",
+                        "primary": "#7a0d0e",
                         "tertiary-fixed": "#ffdbcc",
-                        "on-primary-fixed-variant": "#911b00",
+                        "on-primary-fixed-variant": "#830e10",
                         "on-background": "#191c21",
-                        "primary-container": "#E83C17",
+                        "primary-container": "#d02b2f",
                         "surface-container-highest": "#e1e2ea",
                         "on-tertiary": "#ffffff",
                         "on-surface": "#191c21",
                         "tertiary": "#722b00",
                         "on-surface-variant": "#424752",
                         "surface-bright": "#f9f9ff",
-                        "on-primary-container": "#ffd3bb",
+                        "on-primary-container": "#f8cac2",
                         "tertiary-fixed-dim": "#ffb694",
                         "surface-container-lowest": "#ffffff",
                         "on-error": "#ffffff",
@@ -51,14 +51,14 @@
                         "on-tertiary-container": "#ffc2a7",
                         "on-secondary": "#ffffff",
                         "surface": "#f9f9ff",
-                        "primary-fixed-dim": "#ffc8ac",
+                        "primary-fixed-dim": "#f7bdb4",
                         "on-secondary-container": "#316e52",
                         "secondary-fixed-dim": "#95d4b3",
                         "inverse-on-surface": "#f0f0f9",
                         "surface-variant": "#e1e2ea",
                         "surface-container-low": "#f2f3fc",
-                        "on-primary-fixed": "#401000",
-                        "inverse-primary": "#ffc8ac",
+                        "on-primary-fixed": "#3a0906",
+                        "inverse-primary": "#f7bdb4",
                         "error": "#ba1a1a",
                         "background": "#f9f9ff"
                     },
@@ -107,7 +107,10 @@
 </head>
 <body class="bg-surface text-on-surface h-screen flex overflow-hidden">
 <!-- SideNavBar -->
-<nav class="h-screen w-64 hidden md:flex flex-col fixed left-0 top-0 border-r border-outline-variant bg-surface-container-low p-4 space-y-2">
+<nav id="sidebar-nav" class="h-screen w-64 flex flex-col fixed left-0 top-0 border-r border-outline-variant bg-surface-container-low p-4 space-y-2 z-40 -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
+<button id="btn-cerrar-menu" class="md:hidden self-end text-on-surface-variant hover:bg-surface-container-highest p-2 rounded-full" aria-label="Cerrar menú">
+<span class="material-symbols-outlined">close</span>
+</button>
 <div class="mb-8 px-4">
 <h1 class="text-primary font-bold text-headline-md">AulaFácil</h1>
 <p class="text-on-surface-variant font-label-lg text-label-lg mt-1">Portal del Docente</p>
@@ -153,8 +156,12 @@
 </a>
 </div>
 </nav>
+<div id="sidebar-backdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
 <!-- Main Content Area -->
-<main class="ml-64 flex-1 overflow-y-auto px-margin-desktop py-12 bg-background">
+<main class="md:ml-64 flex-1 overflow-y-auto px-margin-desktop py-12 bg-background">
+<button id="btn-abrir-menu" class="md:hidden mb-4 text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center" aria-label="Abrir menú">
+<span class="material-symbols-outlined">menu</span>
+</button>
 <div class="max-w-4xl mx-auto">
 <!-- Header -->
 <header class="mb-stack-lg">
@@ -218,11 +225,30 @@
 </section>
 <!-- Footer Action -->
 <div class="flex justify-end pt-stack-md border-t border-outline-variant">
-<button type="button" id="btn-guardar-grupo" class="bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-4 px-12 hover:bg-[#911b00] transition-colors duration-200 active:scale-95 shadow-md">
+<button type="button" id="btn-guardar-grupo" class="bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-4 px-12 hover:bg-[#830e10] transition-colors duration-200 active:scale-95 shadow-md">
                     Guardar grupo
                 </button>
 </div>
 </div>
 </main>
+<script>
+  const btnAbrir = document.getElementById('btn-abrir-menu');
+  const btnCerrar = document.getElementById('btn-cerrar-menu');
+  const sidebarNav = document.getElementById('sidebar-nav');
+  const backdrop = document.getElementById('sidebar-backdrop');
+
+  function abrirMenu() {
+    sidebarNav.classList.remove('-translate-x-full');
+    backdrop.classList.remove('hidden');
+  }
+  function cerrarMenu() {
+    sidebarNav.classList.add('-translate-x-full');
+    backdrop.classList.add('hidden');
+  }
+
+  btnAbrir?.addEventListener('click', abrirMenu);
+  btnCerrar?.addEventListener('click', cerrarMenu);
+  backdrop?.addEventListener('click', cerrarMenu);
+</script>
 <script type="module" src="assets/js/crear-grupo.js"></script>
 </body></html>

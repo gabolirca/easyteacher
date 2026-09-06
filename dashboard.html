@@ -134,7 +134,10 @@
 </head>
 <body class="bg-background text-on-background min-h-screen font-body-md flex">
 <!-- SideNavBar -->
-<nav class="bg-surface-container-low dark:bg-surface-container-highest text-primary dark:text-primary-fixed-dim font-label-lg text-label-lg h-screen w-64 fixed left-0 top-0 border-r border-outline-variant hidden md:flex flex-col py-8 gap-stack-md z-40">
+<nav id="sidebar-nav" class="bg-surface-container-low dark:bg-surface-container-highest text-primary dark:text-primary-fixed-dim font-label-lg text-label-lg h-screen w-64 fixed left-0 top-0 border-r border-outline-variant flex flex-col py-8 gap-stack-md z-40 -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out">
+<button id="btn-cerrar-menu" class="md:hidden self-end mr-4 mb-2 text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full" aria-label="Cerrar menú">
+<span class="material-symbols-outlined">close</span>
+</button>
 <a href="perfil.html" class="px-gutter mb-4 flex items-center gap-4 hover:bg-surface-container-high rounded-lg py-2 transition-colors" title="Editar perfil">
 <img id="sidebar-avatar" class="w-12 h-12 rounded-full object-cover bg-surface-container-high" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAh4c-YCf7n16DM2uFJtU8QFRfRVNvzYPDhMB_U1GcSV4umCadhz8DZQyJ0syjYD1sX_p5TXHxMLc1y-7nPJvrrFha3CiluQmE6WH25scStvTS_DeaHVNVWisUBMuTcrcq39CpkLGkHgYpNbUwB1OrKjmXe9Shc7tR4sAmO7A4-IdIBa6UYBY7oDrcrYlM3N26ZVGnXO9yGebct91jGm6IQ7YIp1DRfcOdsDyEkZ0_m9BNkM-ZBv6JJlw"/>
 <div>
@@ -146,12 +149,12 @@
 <!-- Home (Active) -->
 <a class="flex items-center gap-4 px-4 py-3 bg-primary-container text-on-primary-container rounded-r-full font-bold transition-all duration-150 transform hover:scale-[0.98]" href="dashboard.html">
 <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
-                Casa
+                Home
             </a>
 <!-- Groups -->
 <a id="nav-groups" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#mis-grupos">
 <span class="material-symbols-outlined">group</span>
-                Grupos
+                Groups
             </a>
 <!-- Alumnos (todos los grupos) -->
 <a id="nav-alumnos" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="alumnos-global.html">
@@ -161,22 +164,22 @@
 <!-- Exams -->
 <a id="nav-exams" data-quick="crear-examen" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
 <span class="material-symbols-outlined">quiz</span>
-                Examenes
+                Exams
             </a>
 <!-- Tasks -->
 <a id="nav-tasks" data-quick="tareas" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
 <span class="material-symbols-outlined">assignment</span>
-                Tareas
+                Tasks
             </a>
 <!-- Attendance -->
 <a id="nav-attendance" data-quick="asistencia" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
 <span class="material-symbols-outlined">rule</span>
-                Asistencia
+                Attendance
             </a>
 <!-- Grades -->
 <a id="nav-grades" data-quick="calificaciones" class="flex items-center gap-4 px-4 py-3 text-on-surface-variant hover:bg-surface-container-high rounded-r-full transition-all duration-150" href="#">
 <span class="material-symbols-outlined">grade</span>
-                Calificaciones
+                Grades
             </a>
 </div>
 <div class="px-4 mt-auto">
@@ -186,12 +189,15 @@
             </button>
 </div>
 </nav>
+<div id="sidebar-backdrop" class="hidden fixed inset-0 bg-black/40 z-30 md:hidden"></div>
 <!-- Main Content Wrapper -->
 <div class="flex-1 md:ml-64 flex flex-col min-h-screen">
 <!-- TopNavBar -->
 <header class="bg-surface dark:bg-surface-container-low text-primary dark:text-primary-fixed-dim font-label-lg text-label-lg shadow-sm border-b border-outline-variant docked full-width top-0 z-50 flex justify-between items-center w-full px-margin-desktop py-4 sticky">
-<div class="flex items-center gap-3">
-<img src="assets/img/logo-pdg.png" alt="Colegio Pedro de Gante" class="h-9 w-auto object-contain"/>
+<div class="flex items-center gap-4">
+<button id="btn-abrir-menu" class="md:hidden text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center" aria-label="Abrir menú">
+<span class="material-symbols-outlined">menu</span>
+</button>
 <span class="font-headline-md text-headline-md text-primary font-bold">AulaFácil</span>
 </div>
 <div class="flex items-center gap-6">
@@ -204,7 +210,7 @@
 <main class="flex-1 p-margin-mobile md:p-margin-desktop overflow-y-auto">
 <!-- Welcome Header -->
 <div class="mb-stack-lg">
-<h1 class="anim-fade font-display-lg text-display-lg text-on-surface mb-2" id="saludo-nombre">Bienvenido</h1>
+<h1 class="anim-fade font-display-lg text-display-lg text-on-surface mb-2" id="saludo-nombre">Buenos días</h1>
 <p class="anim-fade-delay font-body-lg text-body-lg text-on-surface-variant">Aquí está el resumen de tu día.</p>
 </div>
 <!-- Quick Access Section -->
@@ -260,5 +266,24 @@
 </section>
 </main>
 </div>
+<script>
+  const btnAbrir = document.getElementById('btn-abrir-menu');
+  const btnCerrar = document.getElementById('btn-cerrar-menu');
+  const sidebarNav = document.getElementById('sidebar-nav');
+  const backdrop = document.getElementById('sidebar-backdrop');
+
+  function abrirMenu() {
+    sidebarNav.classList.remove('-translate-x-full');
+    backdrop.classList.remove('hidden');
+  }
+  function cerrarMenu() {
+    sidebarNav.classList.add('-translate-x-full');
+    backdrop.classList.add('hidden');
+  }
+
+  btnAbrir?.addEventListener('click', abrirMenu);
+  btnCerrar?.addEventListener('click', cerrarMenu);
+  backdrop?.addEventListener('click', cerrarMenu);
+</script>
 <script type="module" src="assets/js/dashboard.js"></script>
 </body></html>
