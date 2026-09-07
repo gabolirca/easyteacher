@@ -72,6 +72,9 @@ async function cargarExamenes() {
           <a class="btn-ver-resultados text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" href="resultados-examen.html?examen_id=${ex.id}" aria-label="Ver resultados">
             <span class="material-symbols-outlined">assessment</span>
           </a>
+          <button class="btn-borrar-examen text-error hover:bg-error-container p-2 rounded-full transition-colors" data-examen-id="${ex.id}" data-titulo="${escapeHtml(ex.titulo)}" aria-label="Borrar">
+            <span class="material-symbols-outlined">delete_forever</span>
+          </button>
           <a class="border-2 border-primary text-primary font-button-text text-button-text py-2 px-6 rounded-full hover:bg-primary hover:text-on-primary transition-colors" href="constructor-examen.html?examen_id=${ex.id}">
             Editar
           </a>
@@ -147,6 +150,21 @@ document.getElementById('examenes-container').addEventListener('click', async (e
     const { error } = await supabase.from('examenes').update({ archivado: true }).eq('id', id);
     if (error) {
       alert(`No se pudo archivar: ${error.message}`);
+      return;
+    }
+    await cargarExamenes();
+    return;
+  }
+
+  const btnBorrar = e.target.closest('.btn-borrar-examen');
+  if (btnBorrar) {
+    const id = btnBorrar.dataset.examenId;
+    const titulo = btnBorrar.dataset.titulo;
+    const confirmado = window.confirm(`¿Borrar el examen "${titulo}"? Esta acción no se puede deshacer.`);
+    if (!confirmado) return;
+    const { error } = await supabase.from('examenes').delete().eq('id', id);
+    if (error) {
+      alert(`No se pudo borrar: ${error.message}`);
       return;
     }
     await cargarExamenes();

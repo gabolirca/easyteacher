@@ -204,6 +204,7 @@
 </section>
 
 <!-- Link generado -->
+<!-- Link generado -->
 <section id="seccion-link" class="hidden bg-secondary-fixed text-on-secondary-fixed border border-secondary-fixed-dim rounded-DEFAULT p-6 mb-stack-lg">
 <h2 class="font-headline-md text-headline-md mb-2">Link del examen</h2>
 <div class="flex items-center gap-2 bg-surface rounded-DEFAULT p-3">
@@ -212,7 +213,15 @@
 <span class="material-symbols-outlined">content_copy</span>
 </button>
 </div>
+<div class="flex flex-col items-center gap-3 mt-stack-md">
+<div id="qr-container" class="bg-white p-4 rounded-DEFAULT inline-block"></div>
+<p class="font-body-md text-body-md text-on-secondary-fixed text-center max-w-sm">Los alumnos escanean este código con la cámara de su celular y entran directo — deja de funcionar automáticamente después de la hora de cierre del examen.</p>
+<button id="btn-descargar-qr" class="text-primary bg-surface hover:bg-surface-container-high px-4 py-2 rounded-full font-button-text text-button-text transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined">download</span> Descargar QR
+</button>
+</div>
 </section>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </main>
 
 <!-- Barra inferior fija -->

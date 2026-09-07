@@ -450,8 +450,18 @@ function mostrarLink() {
   // funcione igual en localhost (raíz "/") que en GitHub Pages (que sirve el
   // repo bajo una subcarpeta, ej. "/easyteacher/").
   const carpetaActual = window.location.pathname.replace(/[^/]*$/, '');
-  document.getElementById('link-examen').textContent = `${window.location.origin}${carpetaActual}examen.html?token=${linkToken}`;
+  const urlExamen = `${window.location.origin}${carpetaActual}examen.html?token=${linkToken}`;
+  document.getElementById('link-examen').textContent = urlExamen;
   document.getElementById('seccion-link').classList.remove('hidden');
+
+  const qrContenedor = document.getElementById('qr-container');
+  qrContenedor.innerHTML = '';
+  new window.QRCode(qrContenedor, {
+    text: urlExamen,
+    width: 220,
+    height: 220,
+    correctLevel: window.QRCode.CorrectLevel.M,
+  });
 }
 
 document.getElementById('btn-guardar-examen').addEventListener('click', guardarExamen);
@@ -460,6 +470,14 @@ document.getElementById('btn-generar-link').addEventListener('click', generarLin
 document.getElementById('btn-copiar-link').addEventListener('click', () => {
   navigator.clipboard.writeText(document.getElementById('link-examen').textContent);
   mostrarOk('Link copiado');
+});
+document.getElementById('btn-descargar-qr').addEventListener('click', () => {
+  const canvas = document.querySelector('#qr-container canvas');
+  if (!canvas) return;
+  const enlace = document.createElement('a');
+  enlace.download = 'qr-examen.png';
+  enlace.href = canvas.toDataURL('image/png');
+  enlace.click();
 });
 
 // ---------- Carga inicial ----------
