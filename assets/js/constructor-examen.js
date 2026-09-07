@@ -446,10 +446,11 @@ async function generarLink() {
 }
 
 function mostrarLink() {
-  // Nota: examen.html (la pantalla donde el alumno responde) todavía no está
-  // conectada — se arma en el siguiente paso. Por ahora esto muestra el link
-  // que va a usar una vez que exista esa pantalla.
-  document.getElementById('link-examen').textContent = `${window.location.origin}/examen.html?token=${linkToken}`;
+  // Usa la carpeta donde vive esta misma página (no solo el dominio), para que
+  // funcione igual en localhost (raíz "/") que en GitHub Pages (que sirve el
+  // repo bajo una subcarpeta, ej. "/easyteacher/").
+  const carpetaActual = window.location.pathname.replace(/[^/]*$/, '');
+  document.getElementById('link-examen').textContent = `${window.location.origin}${carpetaActual}examen.html?token=${linkToken}`;
   document.getElementById('seccion-link').classList.remove('hidden');
 }
 
