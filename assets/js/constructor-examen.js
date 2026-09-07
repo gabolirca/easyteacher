@@ -358,8 +358,17 @@ async function guardarExamen() {
   btn.textContent = 'Guardando...';
 
   try {
-    const fechaApertura = document.getElementById('fecha-apertura').value || null;
-    const fechaCierre = document.getElementById('fecha-cierre').value || null;
+      // El input datetime-local no trae zona horaria — "2026-09-08T07:30" son las
+    // 7:30 de TU reloj, no UTC. new Date() de un string así lo interpreta como
+    // hora local del navegador, así que toISOString() la convierte bien a UTC
+    // antes de guardarla (si se manda el texto tal cual, Postgres lo toma como
+    // si ya fuera UTC y el examen abre/cierra 6 horas antes de lo que escribiste).
+    const fechaApertura = document.getElementById('fecha-apertura').value
+      ? new Date(document.getElementById('fecha-apertura').value).toISOString()
+      : null;
+    const fechaCierre = document.getElementById('fecha-cierre').value
+      ? new Date(document.getElementById('fecha-cierre').value).toISOString()
+      : null;
     const duracion = document.getElementById('duracion').value || null;
     const periodoId = document.getElementById('examen-periodo').value || null;
 
@@ -482,6 +491,14 @@ document.getElementById('btn-descargar-qr').addEventListener('click', () => {
 
 // ---------- Carga inicial ----------
 
+function fechaUtcAInputLocal(fechaUtc) {
+  // Convierte lo que viene de la base (UTC) a la hora local del navegador,
+  // en el formato que espera un input datetime-local (YYYY-MM-DDTHH:mm).
+  const d = new Date(fechaUtc);
+  const offsetMs = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - offsetMs).toISOString().slice(0, 16);
+}
+
 async function cargarExamenExistente() {
   const { data: examen, error } = await supabase.from('examenes').select('*').eq('id', examenId).single();
   if (error || !examen) {
@@ -494,8 +511,8 @@ async function cargarExamenExistente() {
   linkToken = examen.link_token;
 
   document.getElementById('titulo').value = examen.titulo || '';
-  if (examen.fecha_apertura) document.getElementById('fecha-apertura').value = examen.fecha_apertura.slice(0, 16);
-  if (examen.fecha_cierre) document.getElementById('fecha-cierre').value = examen.fecha_cierre.slice(0, 16);
+  if (examen.fecha_apertura) document.getElementById('fecha-apertura').value = fechaUtcAInputLocal(examen.fecha_apertura);
+  if (examen.fecha_cierre) document.getElementById('fecha-cierre').value = fechaUtcAInputLocal(examen.fecha_cierre);
   if (examen.duracion_min) document.getElementById('duracion').value = examen.duracion_min;
   await cargarPeriodos(examen.periodo_id);
 
