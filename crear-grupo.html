@@ -104,6 +104,7 @@
 <style>
         body { font-family: 'Inter', sans-serif; }
     </style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-surface text-on-surface h-screen flex overflow-hidden">
 <!-- SideNavBar -->
@@ -169,6 +170,7 @@
 <p class="font-body-lg text-body-lg text-on-surface-variant">Completa la información para comenzar con tu nueva clase.</p>
 </header>
 <div id="error-box" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
+<div id="ok-box" class="hidden bg-secondary-container text-on-secondary-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 <!-- Form Section -->
 <section class="bg-surface-container-lowest rounded-DEFAULT border border-[#D1E9FF] shadow-[0_4px_20px_rgba(0,0,0,0.05)] p-stack-md mb-stack-lg">
 <h2 class="font-headline-md text-headline-md text-primary mb-stack-md">Detalles del Grupo</h2>
@@ -187,10 +189,11 @@
 <section class="bg-surface-container-lowest rounded-DEFAULT border border-[#D1E9FF] shadow-[0_4px_20px_rgba(0,0,0,0.05)] p-stack-md mb-stack-lg">
 <div class="flex justify-between items-center mb-stack-md">
 <h2 class="font-headline-md text-headline-md text-primary">Lista de Alumnos</h2>
-<button disabled title="Próximamente" class="flex items-center space-x-2 text-on-surface-variant opacity-60 cursor-not-allowed font-label-lg text-label-lg">
+<button id="btn-importar-excel" class="flex items-center space-x-2 text-primary hover:bg-surface-container-high px-3 py-2 rounded-DEFAULT transition-colors font-label-lg text-label-lg">
 <span class="material-symbols-outlined" data-icon="upload_file">upload_file</span>
-<span>Importar lista de alumnos (Excel) — próximamente</span>
+<span>Importar lista de alumnos (Excel)</span>
 </button>
+<input id="input-excel" type="file" accept=".xlsx,.xls,.csv" class="hidden"/>
 </div>
 <!-- Add Student Form Inline -->
 <div class="flex items-end space-x-gutter mb-8 bg-surface-container-low p-4 rounded-lg">
@@ -200,7 +203,12 @@
 </div>
 <div class="flex-1 flex flex-col">
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="student-id">Matrícula/Correo</label>
-<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="student-id" placeholder="Ej: a.gonzalez@email.com" type="text"/>
+<div class="flex gap-2">
+<input class="flex-1 px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="student-id" placeholder="Ej: a.gonzalez@email.com" type="text"/>
+<button type="button" id="btn-generar-matricula" title="Generar matrícula única al azar" class="px-3 rounded-DEFAULT border border-outline-variant hover:bg-surface-container-high transition-colors text-on-surface-variant">
+<span class="material-symbols-outlined">casino</span>
+</button>
+</div>
 </div>
 <button type="button" id="btn-agregar-alumno" class="h-[50px] px-6 bg-secondary text-on-secondary font-button-text text-button-text rounded-DEFAULT hover:bg-on-secondary-fixed-variant transition-colors flex items-center space-x-2">
 <span class="material-symbols-outlined" data-icon="add">add</span>

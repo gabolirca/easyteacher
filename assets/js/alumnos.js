@@ -17,6 +17,7 @@ function escapeHtml(str) {
 function mostrarError(msg) {
   const box = document.getElementById('error-box');
   box.textContent = msg;
+  box.style.whiteSpace = 'pre-line';
   box.classList.remove('hidden');
   document.getElementById('ok-box').classList.add('hidden');
 }
@@ -124,6 +125,92 @@ async function cargarAlumnos() {
   alumnos = (data || []).map((row) => row.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
   renderTabla();
 }
+
+function normalizarEncabezado(s) {
+  return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+document.getElementById('btn-importar-excel').addEventListener('click', () => {
+  document.getElementById('input-excel').click();
+});
+
+document.getElementById('input-excel').addEventListener('change', async (e) => {
+  const archivo = e.target.files[0];
+  if (!archivo) return;
+
+  try {
+    const datosArchivo = await archivo.arrayBuffer();
+    const libro = window.XLSX.read(datosArchivo, { type: 'array' });
+    const primeraHoja = libro.Sheets[libro.SheetNames[0]];
+    const filas = window.XLSX.utils.sheet_to_json(primeraHoja, { defval: '' });
+
+    if (filas.length === 0) {
+      mostrarError('El archivo no tiene filas para importar');
+      e.target.value = '';
+      return;
+    }
+
+    const encabezados = Object.keys(filas[0]);
+    const colNombre = encabezados.find((h) => ['nombre', 'alumno', 'nombre del alumno', 'nombre completo'].includes(normalizarEncabezado(h)));
+    const colId = encabezados.find((h) => ['matricula', 'matrícula', 'correo', 'email', 'matricula/correo', 'matricula o correo'].includes(normalizarEncabezado(h)));
+
+    if (!colNombre || !colId) {
+      mostrarError('No encontré las columnas de Nombre y Matrícula/Correo. Revisa que la primera fila del Excel tenga esos encabezados.');
+      e.target.value = '';
+      return;
+    }
+
+    const payload = filas
+      .map((fila) => {
+        const nombre = (fila[colNombre] || '').toString().trim();
+        const idAlumno = (fila[colId] || '').toString().trim();
+        if (!nombre || !idAlumno) return null;
+        const esCorreo = idAlumno.includes('@');
+        return { nombre, matricula: esCorreo ? idAlumno.split('@')[0] : idAlumno, correo: esCorreo ? idAlumno : '' };
+      })
+      .filter(Boolean);
+
+    if (payload.length === 0) {
+      mostrarError('No se encontraron filas completas (nombre + matrícula) para importar');
+      e.target.value = '';
+      return;
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/crear-alumnos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ grupo_id: grupoId, alumnos: payload }),
+    });
+    const resultado = await resp.json();
+    if (!resp.ok) throw new Error(resultado.error || 'No se pudo importar la lista');
+
+    const exitosos = (resultado.resultados || []).filter((r) => r.ok);
+    const fallidos = (resultado.resultados || []).filter((r) => !r.ok);
+
+    if (fallidos.length > 0) {
+      console.warn('Alumnos que no se pudieron importar:', fallidos);
+      const detalle = fallidos.map((f) => `• ${f.matricula}: ${f.error}`).join('\n');
+      mostrarError(`Se importaron ${exitosos.length} de ${payload.length}. Estos no se pudieron agregar:\n${detalle}`);
+    } else {
+      mostrarOk(`Se importaron los ${exitosos.length} alumnos del Excel correctamente.`);
+    }
+
+    await cargarAlumnos();
+  } catch (err) {
+    mostrarError(err.message || 'No se pudo leer o importar el archivo');
+  } finally {
+    e.target.value = '';
+  }
+});
+
+function generarMatriculaAleatoria() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+document.getElementById('btn-generar-matricula').addEventListener('click', () => {
+  document.getElementById('nuevo-id').value = generarMatriculaAleatoria();
+});
 
 document.getElementById('btn-agregar-alumno').addEventListener('click', async () => {
   const nombre = document.getElementById('nuevo-nombre').value.trim();
