@@ -158,15 +158,25 @@ function activarDeteccionSalida() {
   window.addEventListener('blur', onPosibleSalida);
 }
 
+let temporizadorSalida = null;
+
 function onPosibleSalida() {
   if (examenTerminado || enviando) return;
 
-  const salioDeFullscreen = !document.fullscreenElement;
-  const pestañaOculta = document.hidden;
-
-  if (salioDeFullscreen || pestañaOculta) {
-    entregar(true);
-  }
+  // Algunos navegadores móviles (sobre todo Android) salen de pantalla
+  // completa solos por una fracción de segundo al abrir un <select> nativo
+  // (como en las preguntas de "relacionar") — no es que el alumno haya
+  // salido de verdad. Por eso esperamos un momento corto y confirmamos que
+  // SIGUE fuera antes de bloquear; si ya se recuperó solo, no pasa nada.
+  if (temporizadorSalida) clearTimeout(temporizadorSalida);
+  temporizadorSalida = setTimeout(() => {
+    if (examenTerminado || enviando) return;
+    const salioDeFullscreen = !document.fullscreenElement;
+    const pestañaOculta = document.hidden;
+    if (salioDeFullscreen || pestañaOculta) {
+      entregar(true);
+    }
+  }, 700);
 }
 
 // ---------- Render de la pregunta actual ----------
