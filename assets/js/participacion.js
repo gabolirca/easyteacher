@@ -492,6 +492,211 @@ document.getElementById('fecha-participacion').addEventListener('change', async 
   if (!document.getElementById('registro-container').classList.contains('hidden')) await cargarRegistro();
 });
 
+// ================= MODO DIARIO =================
+
+let alumnosDiario = [];
+let totalesDiario = {};
+let valoresHoyDiario = {}; // { alumno_id: string del input }
+
+async function cargarDiario() {
+  const { data: alumnosData, error: errorAlumnos } = await supabase
+    .from('grupo_alumnos')
+    .select('alumnos(id, nombre)')
+    .eq('grupo_id', grupoId);
+
+  if (errorAlumnos) {
+    mostrarError(`No se pudieron cargar los alumnos: ${errorAlumnos.message}`);
+    return;
+  }
+
+  alumnosDiario = (alumnosData || []).map((row) => row.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  const { data: todas, error: errorTodas } = await supabase
+    .from('participaciones')
+    .select('alumno_id, valor')
+    .eq('grupo_id', grupoId)
+    .eq('tipo_ficha', 'diario');
+
+  if (errorTodas) {
+    mostrarError(`No se pudieron cargar los totales: ${errorTodas.message}`);
+    return;
+  }
+
+  totalesDiario = {};
+  (todas || []).forEach((p) => { totalesDiario[p.alumno_id] = (totalesDiario[p.alumno_id] || 0) + Number(p.valor); });
+
+  await cargarValoresDeHoy();
+}
+
+async function cargarValoresDeHoy() {
+  const fecha = document.getElementById('diario-fecha').value;
+  const { data, error } = await supabase
+    .from('participaciones')
+    .select('alumno_id, valor')
+    .eq('grupo_id', grupoId)
+    .eq('tipo_ficha', 'diario')
+    .eq('fecha', fecha);
+
+  if (error) {
+    mostrarError(`No se pudo cargar el registro de esta fecha: ${error.message}`);
+    return;
+  }
+
+  valoresHoyDiario = {};
+  (data || []).forEach((p) => { valoresHoyDiario[p.alumno_id] = String(p.valor); });
+
+  renderDiario();
+}
+
+function renderDiario() {
+  const tbody = document.getElementById('tabla-diario-body');
+
+  if (alumnosDiario.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" class="py-6 px-6 text-center text-on-surface-variant">Este grupo todavía no tiene alumnos inscritos.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = alumnosDiario.map((a, i) => `
+    <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
+      <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</td>
+      <td class="py-3 px-6">
+        <span class="bg-surface-container-high text-on-surface-variant text-sm px-3 py-1 rounded-full">${totalesDiario[a.id] || 0} pts</span>
+      </td>
+      <td class="py-3 px-6">
+        <input type="number" min="0" step="0.5" class="input-valor-diario w-24 px-3 py-2 rounded-DEFAULT border border-outline-variant transition-colors" data-alumno="${a.id}" value="${valoresHoyDiario[a.id] ?? ''}" placeholder="—"/>
+      </td>
+    </tr>`).join('');
+
+  tbody.querySelectorAll('.input-valor-diario').forEach((el) => {
+    el.addEventListener('input', () => { valoresHoyDiario[el.dataset.alumno] = el.value; });
+  });
+}
+
+document.getElementById('diario-fecha').addEventListener('change', cargarValoresDeHoy);
+
+document.getElementById('btn-guardar-diario').addEventListener('click', async () => {
+  const fecha = document.getElementById('diario-fecha').value;
+  const btn = document.getElementById('btn-guardar-diario');
+  btn.disabled = true;
+
+  try {
+    for (const a of alumnosDiario) {
+      const valorTexto = valoresHoyDiario[a.id];
+
+      // Primero se borra lo que ya hubiera ese día para ese alumno (para que
+      // "guardar" reemplace el valor del día, en vez de ir sumando cada vez
+      // que le das clic — como en Asistencia).
+      const { error: errorBorrar } = await supabase
+        .from('participaciones')
+        .delete()
+        .eq('grupo_id', grupoId)
+        .eq('alumno_id', a.id)
+        .eq('tipo_ficha', 'diario')
+        .eq('fecha', fecha);
+      if (errorBorrar) throw errorBorrar;
+
+      if (valorTexto !== undefined && valorTexto !== '') {
+        const { error: errorInsertar } = await supabase
+          .from('participaciones')
+          .insert({ grupo_id: grupoId, alumno_id: a.id, fecha, tipo_ficha: 'diario', valor: parseFloat(valorTexto) });
+        if (errorInsertar) throw errorInsertar;
+      }
+    }
+
+    mostrarOk('Registro del día guardado.');
+    await cargarDiario();
+  } catch (err) {
+    mostrarError(err.message || 'No se pudo guardar el registro');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// -------- Corte (modo diario) --------
+
+document.getElementById('btn-toggle-corte-diario').addEventListener('click', async () => {
+  const cont = document.getElementById('corte-diario-container');
+  const oculto = cont.classList.contains('hidden');
+  if (oculto) {
+    await abrirCorteDiario();
+    cont.classList.remove('hidden');
+  } else {
+    cont.classList.add('hidden');
+  }
+});
+
+async function abrirCorteDiario() {
+  const ranking = alumnosDiario
+    .map((a) => ({ nombre: a.nombre, puntos: totalesDiario[a.id] || 0 }))
+    .sort((a, b) => b.puntos - a.puntos);
+
+  document.getElementById('ranking-diario-lista').innerHTML = ranking.map((r, i) => `
+    <div class="flex items-center justify-between px-4 py-2 rounded-DEFAULT ${i === 0 ? 'bg-primary-fixed' : 'bg-surface-container-high'}">
+      <span class="font-body-md text-body-md text-on-surface">${i + 1}. ${escapeHtml(r.nombre)}</span>
+      <span class="font-label-lg text-label-lg text-on-surface">${r.puntos} pts</span>
+    </div>`).join('') || '<p class="text-on-surface-variant">Sin alumnos.</p>';
+
+  const sugerido = ranking.length ? (ranking[Math.floor(ranking.length / 2)] || ranking[0]).puntos : 0;
+  document.getElementById('corte-diario-media').value = sugerido;
+
+  await mostrarUltimoCorteDiario();
+}
+
+async function mostrarUltimoCorteDiario() {
+  const periodoId = document.getElementById('diario-periodo').value || null;
+  let consulta = supabase.from('cortes_participacion').select('fecha, media, created_at').eq('grupo_id', grupoId);
+  consulta = periodoId ? consulta.eq('periodo_id', periodoId) : consulta.is('periodo_id', null);
+  const { data: ultimoCorte } = await consulta.order('created_at', { ascending: false }).limit(1).maybeSingle();
+
+  document.getElementById('ultimo-corte-diario-info').textContent = ultimoCorte
+    ? `Último corte de este periodo: ${ultimoCorte.fecha} con referencia de ${ultimoCorte.media} pts.`
+    : 'Aún no se ha hecho corte para este periodo.';
+}
+
+document.getElementById('diario-periodo')?.addEventListener('change', mostrarUltimoCorteDiario);
+
+document.getElementById('btn-aplicar-corte-diario').addEventListener('click', async () => {
+  const media = parseFloat(document.getElementById('corte-diario-media').value);
+  const periodoId = document.getElementById('diario-periodo').value || null;
+  if (!media || media <= 0) {
+    mostrarError('Escribe un valor de referencia mayor a cero');
+    return;
+  }
+
+  const confirmado = window.confirm(`¿Aplicar corte con referencia de ${media} puntos? Esto guarda la calificación de participación de todos como una foto fija de este momento.`);
+  if (!confirmado) return;
+
+  const btn = document.getElementById('btn-aplicar-corte-diario');
+  btn.disabled = true;
+
+  try {
+    const { data: corte, error: errorCorte } = await supabase
+      .from('cortes_participacion')
+      .insert({ grupo_id: grupoId, media, periodo_id: periodoId })
+      .select()
+      .single();
+    if (errorCorte) throw errorCorte;
+
+    const filas = alumnosDiario.map((a) => {
+      const puntos = totalesDiario[a.id] || 0;
+      const calificacion = Math.min(10, Math.round((puntos / media) * 10 * 10) / 10);
+      return { corte_id: corte.id, alumno_id: a.id, puntos_al_momento: puntos, calificacion };
+    });
+
+    if (filas.length > 0) {
+      const { error: errorFilas } = await supabase.from('calificaciones_corte_participacion').insert(filas);
+      if (errorFilas) throw errorFilas;
+    }
+
+    mostrarOk('Corte aplicado. Las calificaciones finales ya usan este resultado para participación.');
+    await abrirCorteDiario();
+  } catch (err) {
+    mostrarError(err.message || 'No se pudo aplicar el corte');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ================= INICIO =================
 
 async function cargarPeriodosParticipacion() {
@@ -512,6 +717,12 @@ async function cargarPeriodosParticipacion() {
   if (selectCorte) {
     selectCorte.innerHTML = opciones;
     document.getElementById('campo-periodo-corte').classList.remove('hidden');
+  }
+
+  const selectDiario = document.getElementById('diario-periodo');
+  if (selectDiario) {
+    selectDiario.innerHTML = opciones;
+    document.getElementById('campo-periodo-diario').classList.remove('hidden');
   }
 }
 
@@ -549,6 +760,10 @@ async function init() {
     document.getElementById('fecha-participacion').value = hoyLocal();
     renderLeyenda();
     await cargarAlumnosYTotales();
+  } else if (modoParticipacion === 'diario') {
+    document.getElementById('vista-diario').classList.remove('hidden');
+    document.getElementById('diario-fecha').value = hoyLocal();
+    await cargarDiario();
   } else {
     document.getElementById('vista-simple').classList.remove('hidden');
     await cargarModoSimple();

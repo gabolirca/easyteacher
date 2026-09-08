@@ -12,7 +12,7 @@ export async function requireProfesor() {
 
   const { data: profesor, error } = await supabase
     .from('profesores')
-    .select('id, nombre, correo, tipo_maestro, avatar_url, modo_participacion')
+        .select('id, nombre, correo, tipo_maestro, avatar_url, modo_participacion, etiqueta_examenes, etiqueta_tareas, etiqueta_participacion')
     .eq('id', session.user.id)
     .maybeSingle();
 

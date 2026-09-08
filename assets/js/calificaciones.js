@@ -6,11 +6,16 @@ const grupoId = params.get('id');
 
 let grupoInfo = null;
 let modoParticipacion = 'simple';
+let etiquetas = { examenes: 'Exámenes', tareas: 'Tareas', participacion: 'Participación' };
 let periodos = []; // [{id, nombre}]
 let rubrosTodos = []; // [{id, nombre, peso, periodo_id}]
 let alumnosGrupo = []; // [{id, nombre}]
 let resultadosPorPeriodo = {}; // { periodoKey: filasCalculadas }  ('sin' = sin periodo)
 let vistaActual = 'sin'; // 'sin' | 'ciclo' | periodo.id
+
+function claveDePeriodo(periodoId) {
+  return periodoId || 'sin';
+}
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -115,6 +120,8 @@ document.getElementById('btn-guardar-pesos').addEventListener('click', async () 
 
 async function calcularParaPeriodo(periodoId) {
   // periodoId: null (sin periodo / todo el ciclo cuando no hay periodos) o un id de periodo
+  const filtroExamenes = periodoId ? { col: 'examenes.periodo_id', val: periodoId } : null;
+
   let queryIntentos = supabase
     .from('intentos')
     .select('alumno_id, calificacion, examenes!inner(grupo_id, periodo_id)')
@@ -333,9 +340,9 @@ function renderTablaPeriodo(filas) {
       <thead class="bg-surface-container-high">
         <tr>
           <th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Alumno</th>
-          <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">Exámenes (0-10)</th>
-          <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">Tareas (0-10)</th>
-          <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">Participación</th>
+          <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">${escapeHtml(etiquetas.examenes)} (0-10)</th>
+          <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">${escapeHtml(etiquetas.tareas)} (0-10)</th>
+          <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">${escapeHtml(etiquetas.participacion)}</th>
           ${columnasRubros}
           <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">Promedio (0-10)</th>
         </tr>
@@ -404,10 +411,10 @@ document.getElementById('btn-exportar').addEventListener('click', () => {
     const datos = filas.map((f) => {
       const fila = {
         Alumno: f.nombre,
-        'Examenes (0-10)': f.promExamenes ?? '',
-        'Tareas (0-10)': f.promTareas ?? '',
-        'Participacion (0-10)': f.participacionDiez ?? '',
-        'Detalle Participacion': f.etiquetaParticipacion,
+        [`${etiquetas.examenes} (0-10)`]: f.promExamenes ?? '',
+        [`${etiquetas.tareas} (0-10)`]: f.promTareas ?? '',
+        [`${etiquetas.participacion} (0-10)`]: f.participacionDiez ?? '',
+        [`Detalle ${etiquetas.participacion}`]: f.etiquetaParticipacion,
       };
       rubrosPeriodo.forEach((r) => { fila[r.nombre] = f.valoresPorRubro[r.id] ?? ''; });
       fila['Promedio Final (0-10)'] = f.promedioFinal ?? '';
@@ -421,9 +428,9 @@ document.getElementById('btn-exportar').addEventListener('click', () => {
       const datos = filas.map((f) => {
         const fila = {
           Alumno: f.nombre,
-          'Examenes (0-10)': f.promExamenes ?? '',
-          'Tareas (0-10)': f.promTareas ?? '',
-          'Participacion (0-10)': f.participacionDiez ?? '',
+          [`${etiquetas.examenes} (0-10)`]: f.promExamenes ?? '',
+          [`${etiquetas.tareas} (0-10)`]: f.promTareas ?? '',
+          [`${etiquetas.participacion} (0-10)`]: f.participacionDiez ?? '',
         };
         rubrosPeriodo.forEach((r) => { fila[r.nombre] = f.valoresPorRubro[r.id] ?? ''; });
         fila['Promedio (0-10)'] = f.promedioFinal ?? '';
@@ -455,6 +462,14 @@ async function init() {
   if (!profesor) return;
 
   modoParticipacion = profesor.modo_participacion || 'simple';
+  etiquetas = {
+    examenes: profesor.etiqueta_examenes || 'Exámenes',
+    tareas: profesor.etiqueta_tareas || 'Tareas',
+    participacion: profesor.etiqueta_participacion || 'Participación',
+  };
+  document.getElementById('etiqueta-label-examenes').textContent = etiquetas.examenes;
+  document.getElementById('etiqueta-label-tareas').textContent = etiquetas.tareas;
+  document.getElementById('etiqueta-label-participacion').textContent = etiquetas.participacion;
 
   if (!grupoId) {
     mostrarError('Falta el id del grupo en la URL');

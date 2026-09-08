@@ -220,6 +220,59 @@
 </div>
 </div>
 
+<!-- ============ MODO DIARIO (registro por fecha, como Asistencia) ============ -->
+<div id="vista-diario" class="hidden">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-stack-md">
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="diario-fecha">Fecha</label>
+<input id="diario-fecha" type="date" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors"/>
+</div>
+<div id="campo-periodo-diario" class="hidden flex flex-col max-w-xs">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="diario-periodo">Periodo</label>
+<select id="diario-periodo" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors">
+<option value="">Sin periodo (todo el ciclo)</option>
+</select>
+</div>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Ponle un valor a cada alumno para el día de hoy (ej. 1 punto por participar, o lo que prefieras). Se va acumulando con los demás días — cuando quieras convertirlo a calificación, usa "Hacer corte" abajo.</p>
+
+<div id="diario-lista" class="anim-pop card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden">
+<table class="w-full">
+<thead class="bg-surface-container-high">
+<tr>
+<th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Alumno</th>
+<th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Total acumulado</th>
+<th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Valor de hoy</th>
+</tr>
+</thead>
+<tbody id="tabla-diario-body">
+<tr><td colspan="3" class="py-6 px-6 text-center text-on-surface-variant">Cargando...</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="flex justify-between items-center mt-stack-md">
+<button id="btn-toggle-corte-diario" class="text-primary font-label-lg text-label-lg hover:underline flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">leaderboard</span> Hacer corte
+</button>
+<button id="btn-guardar-diario" class="bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-3 px-8 hover:bg-primary hover:text-on-primary transition-colors">Guardar registro de hoy</button>
+</div>
+
+<div id="corte-diario-container" class="hidden bg-surface-container-lowest border-2 border-primary-fixed rounded-DEFAULT p-6 mt-stack-md">
+<h2 class="font-headline-md text-headline-md text-primary mb-stack-md">Ranking y corte</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">De mayor a menor. Elige un valor de referencia — quien lo alcance o supere saca 10; los demás se califican en proporción.</p>
+<div id="ranking-diario-lista" class="flex flex-col gap-2 mb-stack-md"></div>
+<div class="flex flex-col md:flex-row gap-4 items-end">
+<div class="flex-1 flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="corte-diario-media">Valor de referencia</label>
+<input id="corte-diario-media" type="number" min="0" step="1" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors"/>
+</div>
+<button id="btn-aplicar-corte-diario" class="bg-primary text-on-primary font-button-text text-button-text rounded-full py-3 px-8 hover:opacity-90 transition-opacity whitespace-nowrap">Aplicar corte</button>
+</div>
+<p id="ultimo-corte-diario-info" class="font-body-md text-body-md text-on-surface-variant mt-stack-md"></p>
+</div>
+</div>
+
 <!-- ============ MODO FICHAS ============ -->
 <div id="vista-fichas" class="hidden">
 <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-stack-md">

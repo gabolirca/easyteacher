@@ -35,8 +35,6 @@ document.getElementById('avatar-input').addEventListener('change', async (e) => 
   }
 
   const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(ruta);
-  // Le agregamos un parámetro con la hora para que el navegador no muestre la
-  // versión vieja en caché si ya habías subido una foto antes con el mismo nombre.
   const urlConCache = `${urlData.publicUrl}?t=${Date.now()}`;
 
   const { error: errorGuardar } = await supabase
@@ -107,6 +105,56 @@ document.getElementById('btn-cambiar-password').addEventListener('click', async 
   mostrarOk('Contraseña actualizada.');
 });
 
+document.getElementById('btn-guardar-etiquetas').addEventListener('click', async () => {
+  const etiqueta_examenes = document.getElementById('etiqueta-examenes').value.trim() || 'Exámenes';
+  const etiqueta_tareas = document.getElementById('etiqueta-tareas').value.trim() || 'Tareas';
+  const etiqueta_participacion = document.getElementById('etiqueta-participacion').value.trim() || 'Participación';
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const btn = document.getElementById('btn-guardar-etiquetas');
+  btn.disabled = true;
+
+  const { error } = await supabase
+    .from('profesores')
+    .update({ etiqueta_examenes, etiqueta_tareas, etiqueta_participacion })
+    .eq('id', session.user.id);
+
+  btn.disabled = false;
+
+  if (error) {
+    mostrarError(`No se pudo guardar: ${error.message}`);
+    return;
+  }
+
+  mostrarOk('Nombres de rubros actualizados — se verán así en Calificaciones finales y en el Excel.');
+});
+
+document.getElementById('btn-guardar-modo-participacion').addEventListener('click', async () => {
+  const seleccionado = document.querySelector('input[name="modo-participacion"]:checked');
+  if (!seleccionado) {
+    mostrarError('Elige un modo de participación');
+    return;
+  }
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const btn = document.getElementById('btn-guardar-modo-participacion');
+  btn.disabled = true;
+
+  const { error } = await supabase
+    .from('profesores')
+    .update({ modo_participacion: seleccionado.value })
+    .eq('id', session.user.id);
+
+  btn.disabled = false;
+
+  if (error) {
+    mostrarError(`No se pudo guardar: ${error.message}`);
+    return;
+  }
+
+  mostrarOk('Modo de participación actualizado — se aplica en todos tus grupos.');
+});
+
 async function init() {
   const profesor = await requireProfesor();
   if (!profesor) return;
@@ -115,6 +163,14 @@ async function init() {
   document.getElementById('perfil-correo').value = profesor.correo || '';
   document.getElementById('perfil-tipo').value = profesor.tipo_maestro || '';
   document.getElementById('avatar-preview').src = profesor.avatar_url || AVATAR_DEFAULT;
+
+  document.getElementById('etiqueta-examenes').value = profesor.etiqueta_examenes || 'Exámenes';
+  document.getElementById('etiqueta-tareas').value = profesor.etiqueta_tareas || 'Tareas';
+  document.getElementById('etiqueta-participacion').value = profesor.etiqueta_participacion || 'Participación';
+
+  const modoActual = profesor.modo_participacion || 'simple';
+  const radio = document.querySelector(`input[name="modo-participacion"][value="${modoActual}"]`);
+  if (radio) radio.checked = true;
 }
 
 init();
