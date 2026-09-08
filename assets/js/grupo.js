@@ -16,14 +16,26 @@ function mostrarError(mensaje) {
   box.classList.remove('hidden');
 }
 
-function badgeEstado(estado) {
+function badgeEstado(estado, fechaApertura, fechaCierre) {
   const estilos = {
     borrador: 'bg-surface-container-high text-on-surface-variant',
     abierto: 'bg-secondary-container text-on-secondary-container',
+    programado: 'bg-tertiary-container text-on-tertiary-container',
     cerrado: 'bg-error-container text-on-error-container',
   };
-  const etiquetas = { borrador: 'Borrador', abierto: 'Abierto', cerrado: 'Cerrado' };
-  return `<span class="px-3 py-1 rounded-full text-sm font-label-lg ${estilos[estado] || ''}">${etiquetas[estado] || estado}</span>`;
+  const etiquetas = { borrador: 'Borrador', abierto: 'Abierto', programado: 'Programado', cerrado: 'Cerrado' };
+
+  // "abierto" en la base no se actualiza solo con el paso del tiempo — aquí
+  // calculamos en el momento si, por la hora, en realidad ya cerró o
+  // todavía no abre, sin necesidad de que nadie lo cambie a mano.
+  let estadoMostrado = estado;
+  if (estado === 'abierto') {
+    const ahora = new Date();
+    if (fechaCierre && ahora > new Date(fechaCierre)) estadoMostrado = 'cerrado';
+    else if (fechaApertura && ahora < new Date(fechaApertura)) estadoMostrado = 'programado';
+  }
+
+  return `<span class="px-3 py-1 rounded-full text-sm font-label-lg ${estilos[estadoMostrado] || ''}">${etiquetas[estadoMostrado] || estadoMostrado}</span>`;
 }
 
 let gruposDelProfesor = [];
@@ -38,7 +50,7 @@ async function cargarExamenes() {
 
   const { data: examenes, error } = await supabase
     .from('examenes')
-    .select('id, titulo, estado, link_token, created_at, periodos(nombre)')
+    .select('id, titulo, estado, link_token, created_at, fecha_apertura, fecha_cierre, periodos(nombre)')
     .eq('grupo_id', grupoId)
     .eq('archivado', false)
     .order('created_at', { ascending: false });
@@ -60,8 +72,7 @@ async function cargarExamenes() {
       <div class="flex items-center justify-between gap-4">
         <div>
           <h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">${escapeHtml(ex.titulo)}</h3>
-          <div class="mt-2 flex items-center gap-2">${badgeEstado(ex.estado)}${ex.periodos?.nombre ? `<span class="text-sm text-on-surface-variant">· ${escapeHtml(ex.periodos.nombre)}</span>` : ''}</div>
-        </div>
+                    <div class="mt-2 flex items-center gap-2">${badgeEstado(ex.estado, ex.fecha_apertura, ex.fecha_cierre)}${ex.periodos?.nombre ? `<span class="text-sm text-on-surface-variant">· ${escapeHtml(ex.periodos.nombre)}</span>` : ''}</div>
         <div class="flex gap-2 shrink-0">
           <button class="btn-archivar-examen text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" data-examen-id="${ex.id}" aria-label="Archivar">
             <span class="material-symbols-outlined">archive</span>
