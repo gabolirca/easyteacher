@@ -373,7 +373,7 @@ function activarDeteccionSalida() {
   if (deteccionActiva) return;
   deteccionActiva = true;
   document.addEventListener('fullscreenchange', () => onPosibleSalida('fullscreenchange'));
-  document.addEventListener('visibilitychange', () => onPosibleSalida('visibilitychange'));
+  document.addEventListener('visibilitychange', onCambioVisibilidad);
   window.addEventListener('blur', () => onPosibleSalida('blur'));
   document.addEventListener('focusin', (e) => {
     if (e.target?.matches?.('input, select, textarea')) ultimoFocoInput = Date.now();
@@ -381,12 +381,46 @@ function activarDeteccionSalida() {
 }
 
 let temporizadorSalida = null;
+let tsOculto = null;      // momento en que la pagina paso a segundo plano
+let ultimaSalidaMs = 0;   // para no contar dos veces el mismo salto
+
+// Cambiar de app o de pestana se mide MIDIENDO AL REGRESAR, no con un
+// temporizador.
+//
+// Motivo: cuando la pagina queda en segundo plano el navegador estrangula los
+// setTimeout, y en iOS suspende la pagina por completo. Un setTimeout(700)
+// programado al salir puede no ejecutarse nunca; y si el alumno regresa antes,
+// se cancela y al evaluarse ya esta todo normal. Resultado: salir y volver
+// rapido burlaba la deteccion.
+//
+// Restar Date.now() al volver usa reloj de pared, asi que funciona aunque el
+// navegador haya congelado la pagina entera.
+const MIN_OCULTO_MS = 600;
+
+function onCambioVisibilidad() {
+  if (!deteccionActiva || examenTerminado || enviando || pausadoPorAviso) return;
+
+  if (document.hidden) {
+    tsOculto = Date.now();
+    return;
+  }
+
+  if (tsOculto === null) return;
+  const fuera = Date.now() - tsOculto;
+  tsOculto = null;
+
+  // Menos de medio segundo es el parpadeo de un <select> nativo en movil,
+  // no el alumno saliendose.
+  if (fuera < MIN_OCULTO_MS) return;
+
+  registrarSalida('visibilitychange');
+}
 
 function onPosibleSalida(tipo) {
   if (!deteccionActiva || examenTerminado || enviando || pausadoPorAviso) return;
 
-  // blur es la señal más ruidosa (notificaciones, teclado, alertas del
-  // sistema), así que se confirma con más calma que las demás.
+  // blur es la senal mas ruidosa (notificaciones, teclado, alertas del
+  // sistema), asi que se confirma con mas calma que las demas.
   const espera = tipo === 'blur' ? 1500 : 700;
 
   if (temporizadorSalida) clearTimeout(temporizadorSalida);
@@ -396,15 +430,27 @@ function onPosibleSalida(tipo) {
     // Si acaba de tocar un campo de texto, el blur es del teclado: no cuenta.
     if (tipo === 'blur' && Date.now() - ultimoFocoInput < 2000) return;
 
+    // Si la pagina esta oculta, de esto se encarga onCambioVisibilidad cuando
+    // el alumno regrese. Aqui solo interesan las salidas con la pagina a la
+    // vista: salir de pantalla completa, o cambiar de ventana en escritorio.
+    if (document.hidden) return;
+
     const fueraDeFullscreen = usaFullscreen && !document.fullscreenElement;
-    const pestanaOculta = document.hidden;
     const sinFoco = typeof document.hasFocus === 'function' ? !document.hasFocus() : false;
 
-    const salio = fueraDeFullscreen || pestanaOculta || (tipo === 'blur' && sinFoco);
+    const salio = fueraDeFullscreen || (tipo === 'blur' && sinFoco);
     if (!salio) return;
 
-    manejarSalida(tipo);
+    registrarSalida(tipo);
   }, espera);
+}
+
+// Un mismo salto fuera del examen dispara varios eventos a la vez (se sale de
+// pantalla completa Y se oculta la pestana). Se cuenta una sola vez.
+function registrarSalida(tipo) {
+  if (Date.now() - ultimaSalidaMs < 3000) return;
+  ultimaSalidaMs = Date.now();
+  manejarSalida(tipo);
 }
 
 async function manejarSalida(tipo) {
@@ -463,6 +509,7 @@ function abrirModal(id) {
 
 async function cerrarModalYVolver(id) {
   document.getElementById(id)?.classList.add('hidden');
+  tsOculto = null;
   // Volver a pantalla completa requiere un gesto del usuario: por eso el modal
   // se cierra con un botón y no solo.
   if (usaFullscreen && !document.fullscreenElement) {
