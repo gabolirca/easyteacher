@@ -17,6 +17,7 @@ let deteccionActiva = false;
 let pausadoPorAviso = false;    // hay un modal encima: no contar salidas
 
 let advertencias = 0;
+let advertenciasLocales = 0;  // cuenta que sigue corriendo aunque no haya red
 let maxAdvertencias = 1;
 let eventosOffline = [];        // salidas detectadas sin red (no cuentan, solo se registran)
 
@@ -40,7 +41,7 @@ const LS_PREFIX = 'aulafacil_examen_';
 
 // Se muestra en la pantalla de entrada para saber de un vistazo que version
 // esta corriendo el dispositivo. Subirla junto con VERSION en sw.js.
-const VERSION_APP = 'v3';
+const VERSION_APP = 'v4';
 
 // ---------- Utilidades ----------
 
@@ -110,6 +111,7 @@ function guardarLocal(extra = {}) {
       respuestas: respuestasEstado,
       indice: indiceActual,
       eventosOffline,
+      advertenciasLocales,
       actualizado: new Date().toISOString(),
       ...extra,
     }));
@@ -130,8 +132,17 @@ function limpiarLocal() {
 
 // ---------- Conectividad ----------
 
-function hayProblemaDeRed() {
-  return !navigator.onLine || (Date.now() - ultimoCambioRed) < VENTANA_RED_MS;
+// Solo se perdona una salida cuando coincide con un CAMBIO reciente de
+// conectividad: eso es la alerta del sistema ("no hay internet", "inicia
+// sesion en la red") tapando el navegador, que era la causa de los bloqueos
+// injustos en la escuela.
+//
+// Estar sin internet a secas ya NO da inmunidad. Si la diera, bastaria con
+// apagar los datos para cambiar de pestana con toda libertad. Sin red la
+// salida se cuenta igual, solo que en el dispositivo, y se sincroniza con el
+// servidor al recuperar senal o al entregar.
+function esParpadeoDeRed() {
+  return (Date.now() - ultimoCambioRed) < VENTANA_RED_MS;
 }
 
 function pintarEstadoRed() {
@@ -240,6 +251,7 @@ async function cargarExamen() {
   intentoId = data.intento_id;
   preguntas = data.preguntas;
   advertencias = data.advertencias ?? 0;
+  advertenciasLocales = advertencias;
   maxAdvertencias = data.max_advertencias ?? 1;
 
   if (data.servidor_ahora) {
@@ -272,6 +284,9 @@ async function cargarExamen() {
     respuestasEstado = guardado.respuestas;
     indiceActual = Math.min(guardado.indice ?? 0, Math.max(0, preguntas.length - 1));
     eventosOffline = guardado.eventosOffline || [];
+    // Nunca se pierde una advertencia por recargar: gana la cuenta mas alta.
+    advertenciasLocales = Math.max(advertencias, guardado.advertenciasLocales || 0);
+    advertencias = advertenciasLocales;
     recuperado = true;
   }
 
@@ -477,47 +492,54 @@ function registrarSalida(tipo) {
 }
 
 async function manejarSalida(tipo) {
-  // Caso 1: el dispositivo no tiene red (o acaba de cambiar de estado). Casi
-  // siempre es la alerta de wifi del sistema tapando el navegador, no el
-  // alumno haciendo trampa. Se registra para el profesor, pero NO cuenta.
-  if (hayProblemaDeRed()) {
-    registrarEventoOffline(tipo);
+  // Caso 1: la conectividad acaba de cambiar. Alerta del sistema, no el
+  // alumno. Queda en la bitacora pero no cuenta.
+  if (esParpadeoDeRed()) {
+    anotarEvento(tipo, false);
     mostrarModalRed();
     return;
   }
 
-  // Caso 2: sí hay red. El servidor lleva la cuenta, así que recargar la
-  // página no sirve para borrar los avisos.
-  let data;
-  try {
-    const resp = await fetchConTiempo(`${SUPABASE_URL}/functions/v1/registrar-advertencia`, {
-      method: 'POST',
-      headers: await authHeaders(),
-      body: JSON.stringify({ intento_id: intentoId, tipo }),
-    }, 10000);
-    data = await resp.json();
-    if (!resp.ok) throw new Error(data?.error || 'error');
-  } catch {
-    // Si la petición falla, era la red después de todo: se trata igual que el
-    // caso 1. Preferimos dejar pasar una salida real antes que bloquear a un
-    // alumno por culpa del wifi de la escuela.
-    registrarEventoOffline(tipo);
-    mostrarModalRed();
+  // Caso 2: salida real. Se cuenta SIEMPRE, haya red o no.
+  advertenciasLocales++;
+
+  let data = null;
+  if (navigator.onLine) {
+    try {
+      const resp = await fetchConTiempo(`${SUPABASE_URL}/functions/v1/registrar-advertencia`, {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({ intento_id: intentoId, tipo }),
+      }, 10000);
+      const cuerpo = await resp.json();
+      if (resp.ok) data = cuerpo;
+    } catch { /* sin servidor: seguimos con la cuenta local */ }
+  }
+
+  if (data) {
+    // El servidor manda: su contador no se borra recargando la pagina.
+    // Ya anoto el evento en su bitacora, asi que aqui no se duplica.
+    advertencias = Math.max(data.advertencias ?? 0, advertenciasLocales);
+  } else {
+    // No se pudo avisar. Cuenta local y se sincroniza al entregar.
+    advertencias = advertenciasLocales;
+    anotarEvento(tipo, true);
+  }
+  advertenciasLocales = advertencias;
+  guardarLocal();
+
+  if (advertencias > maxAdvertencias) {
+    entregar(true, 'Salio de la pantalla del examen despues del aviso');
     return;
   }
 
-  advertencias = data.advertencias ?? advertencias + 1;
-
-  if (data.bloquear) {
-    entregar(true, 'Salió de la pantalla del examen después del aviso');
-    return;
-  }
-
-  mostrarModalAviso(data.restantes ?? Math.max(0, maxAdvertencias - advertencias));
+  mostrarModalAviso(Math.max(0, maxAdvertencias - advertencias));
 }
 
-function registrarEventoOffline(tipo) {
-  eventosOffline.push({ ts: new Date().toISOString(), tipo });
+// Bitacora local de salidas que el servidor todavia no conoce. Se vacia al
+// entregar. `conto` dice si ademas suma como advertencia.
+function anotarEvento(tipo, conto) {
+  eventosOffline.push({ ts: new Date().toISOString(), tipo, conto: !!conto });
   if (eventosOffline.length > 60) eventosOffline = eventosOffline.slice(-60);
   guardarLocal();
 }
@@ -705,6 +727,7 @@ async function procesarCola(pendiente) {
         respuestas: respuestasEstado,
         motivo_bloqueo: pendiente.porBloqueo ? pendiente.motivo : null,
         eventos_pendientes: eventosOffline,
+        advertencias_locales: advertenciasLocales,
       }),
     }, 25000);
 
