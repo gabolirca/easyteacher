@@ -1,0 +1,46 @@
+# Recompila assets/css/app.css cuando cambian las clases de Tailwind usadas en
+# el HTML o el JS. Así no hay que acordarse de correr `npm run css` a mano:
+# se edita el HTML, se sube, y el CSS se regenera y se commitea solo.
+name: Compilar CSS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.html'
+      - 'assets/js/**'
+      - 'tailwind.config.js'
+      - 'assets/css/entrada.css'
+      - 'package.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  css:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar dependencias
+        run: npm ci || npm install
+
+      - name: Compilar Tailwind
+        run: npm run css
+
+      - name: Commitear si cambió
+        run: |
+          if git diff --quiet -- assets/css/app.css; then
+            echo "El CSS no cambió, no hay nada que commitear."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/css/app.css
+          git commit -m "CSS: recompilar Tailwind [skip ci]"
+          git push

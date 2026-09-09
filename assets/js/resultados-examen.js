@@ -47,6 +47,41 @@ function formatoFecha(f) {
   return d.toLocaleString('es-MX', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+// Resume la bitácora anti-copia de un intento en etiquetas para el profesor.
+// La distinción importante: las salidas que ocurrieron SIN conexión no cuentan
+// como advertencia (casi siempre son la alerta de wifi del sistema tapando el
+// navegador), pero sí se registran para que el profesor pueda juzgar el caso.
+function etiquetasVigilancia(intento) {
+  if (!intento) return '';
+  const etiquetas = [];
+
+  const avisos = Number(intento.advertencias) || 0;
+  if (avisos > 0) {
+    etiquetas.push(
+      `<span class="px-2 py-1 rounded-full text-xs font-label-lg bg-error-container text-on-error-container" ` +
+      `title="Salidas de la pantalla del examen que sí contaron">` +
+      `${avisos} aviso${avisos === 1 ? '' : 's'}</span>`
+    );
+  }
+
+  const eventos = Array.isArray(intento.eventos_salida) ? intento.eventos_salida : [];
+  const sinRed = eventos.filter((e) => e && e.conto === false);
+  if (sinRed.length > 0) {
+    const detalle = sinRed
+      .slice(-8)
+      .map((e) => formatoFecha(e.ts))
+      .filter(Boolean)
+      .join(', ');
+    etiquetas.push(
+      `<span class="px-2 py-1 rounded-full text-xs font-label-lg bg-surface-container-high text-on-surface-variant" ` +
+      `title="No contaron como advertencia porque el dispositivo estaba sin conexión${detalle ? ': ' + escapeHtml(detalle) : ''}">` +
+      `${sinRed.length} salida${sinRed.length === 1 ? '' : 's'} sin red</span>`
+    );
+  }
+
+  return etiquetas.join(' ');
+}
+
 function renderLista() {
   const cont = document.getElementById('lista-resultados');
 
@@ -82,6 +117,7 @@ function renderLista() {
               <span class="px-3 py-1 rounded-full text-sm font-label-lg ${ESTILOS_ESTADO[estado]}">${ETIQUETAS_ESTADO[estado]}</span>
               <span class="text-sm text-on-surface-variant">${calif}${fecha ? ` · ${fecha}` : ''}</span>
               ${intento?.motivo_bloqueo ? `<span class="text-sm text-error" title="${escapeHtml(intento.motivo_bloqueo)}">· ${escapeHtml(intento.motivo_bloqueo)}</span>` : ''}
+              ${etiquetasVigilancia(intento)}
             </div>
           </div>
         </div>
@@ -126,7 +162,7 @@ async function cargarResultados() {
 
   const { data: intentos, error: errorIntentos } = await supabase
     .from('intentos')
-    .select('id, alumno_id, estado, motivo_bloqueo, calificacion, fecha_inicio, fecha_fin')
+    .select('id, alumno_id, estado, motivo_bloqueo, calificacion, fecha_inicio, fecha_fin, advertencias, eventos_salida')
     .eq('examen_id', examenId);
 
   if (errorIntentos) {

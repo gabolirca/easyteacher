@@ -1,0 +1,31 @@
+{
+  "name": "aulafacil",
+  "version": "1.0.0",
+  "description": "AulaFacil - Colegio Pedro de Gante",
+  "scripts": {
+    "css": "tailwindcss -c tailwind.config.js -i assets/css/entrada.css -o assets/css/app.css --minify",
+    "css:watch": "tailwindcss -c tailwind.config.js -i assets/css/entrada.css -o assets/css/app.css --watch",
+    "vendor": "esbuild .entry-supabase.js --bundle --format=esm --minify --target=es2020 --outfile=assets/vendor/supabase.js",
+    "fuentes": "node scripts/bajar-fuentes.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabolirca/easyteacher.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gabolirca/easyteacher/issues"
+  },
+  "homepage": "https://github.com/gabolirca/easyteacher#readme",
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.116.0",
+    "@tailwindcss/container-queries": "^0.1.1",
+    "@tailwindcss/forms": "^0.5.11",
+    "esbuild": "^0.25.12",
+    "playwright": "^1.63.0",
+    "tailwindcss": "^3.4.19"
+  },
+  "private": true
+}

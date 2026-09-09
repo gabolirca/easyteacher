@@ -3,19 +3,53 @@ import { supabase, SUPABASE_URL } from './supabase-client.js';
 const params = new URLSearchParams(window.location.search);
 const token = params.get('token');
 
+// ---------- Estado ----------
+
 let examenInfo = null;
 let intentoId = null;
 let preguntas = [];
 let indiceActual = 0;
-let respuestasEstado = {}; // { pregunta_id: valor-según-tipo }
+let respuestasEstado = {};      // { pregunta_id: valor-según-tipo }
+let enviando = false;           // hay una entrega en curso (o en cola de reintentos)
+let examenTerminado = false;    // ya se confirmó entrega/bloqueo: ignorar todo
+let usaFullscreen = false;      // ¿de verdad logramos entrar a pantalla completa?
+let deteccionActiva = false;
+let pausadoPorAviso = false;    // hay un modal encima: no contar salidas
+
+let advertencias = 0;
+let maxAdvertencias = 1;
+let eventosOffline = [];        // salidas detectadas sin red (no cuentan, solo se registran)
+
 let cronometroInterval = null;
-let segundosRestantes = null;
-let enviando = false; // evita doble envío
-let examenTerminado = false; // ya se entregó o bloqueó, ignorar más eventos de salida
+let finTs = null;               // momento de cierre, en ms del reloj del SERVIDOR
+let desfaseReloj = 0;           // reloj servidor − reloj del dispositivo
+
+// Ventana después de un cambio de conectividad en la que NO se cuenta ninguna
+// salida. Cuando el wifi de la escuela se cae, el sistema operativo levanta su
+// propia alerta ("no hay internet", "inicia sesión en la red") encima del
+// navegador: eso dispara blur/visibilitychange sin que el alumno haya hecho
+// nada malo. Ésta era la causa principal de los bloqueos injustos.
+const VENTANA_RED_MS = 10000;
+let ultimoCambioRed = 0;
+
+// El teclado en pantalla y algunos menús nativos también roban el foco un
+// instante; ignoramos blur justo después de tocar un campo.
+let ultimoFocoInput = 0;
+
+const LS_PREFIX = 'aulafacil_examen_';
+
+// ---------- Utilidades ----------
+
+const VISTAS = [
+  'vista-login', 'vista-entrada', 'vista-examen',
+  'vista-enviando', 'vista-bloqueo', 'vista-entregado', 'vista-error',
+];
 
 function mostrarVista(id) {
-  ['vista-login', 'vista-entrada', 'vista-examen', 'vista-bloqueo', 'vista-entregado', 'vista-error']
-    .forEach((v) => document.getElementById(v).classList.toggle('hidden', v !== id));
+  VISTAS.forEach((v) => {
+    const el = document.getElementById(v);
+    if (el) el.classList.toggle('hidden', v !== id);
+  });
 }
 
 function escapeHtml(str) {
@@ -25,13 +59,100 @@ function escapeHtml(str) {
 }
 
 function mostrarErrorFatal(mensaje) {
-  document.getElementById('error-mensaje').textContent = mensaje;
+  const el = document.getElementById('error-mensaje');
+  if (el) el.textContent = mensaje;
   mostrarVista('vista-error');
 }
+
+function ahoraServidor() {
+  return Date.now() + desfaseReloj;
+}
+
+// fetch con límite de tiempo: en una red mala, una petición puede quedarse
+// colgada para siempre y dejar al alumno mirando una pantalla congelada.
+async function fetchConTiempo(url, opciones, ms = 20000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opciones, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function authHeaders() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${session?.access_token ?? ''}`,
+  };
+}
+
+// ---------- Persistencia local ----------
+// Todo lo que el alumno contesta se guarda en el propio dispositivo al
+// instante. Si se cae la red, se recarga la página, se muere la batería o el
+// navegador cierra la pestaña, las respuestas siguen ahí.
+
+function claveLocal() {
+  return LS_PREFIX + intentoId;
+}
+
+function guardarLocal(extra = {}) {
+  if (!intentoId) return;
+  try {
+    const previo = leerLocal() || {};
+    localStorage.setItem(claveLocal(), JSON.stringify({
+      ...previo,
+      respuestas: respuestasEstado,
+      indice: indiceActual,
+      eventosOffline,
+      actualizado: new Date().toISOString(),
+      ...extra,
+    }));
+  } catch { /* modo privado o almacenamiento lleno: seguimos sin persistencia */ }
+}
+
+function leerLocal() {
+  if (!intentoId) return null;
+  try {
+    const raw = localStorage.getItem(claveLocal());
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function limpiarLocal() {
+  try { localStorage.removeItem(claveLocal()); } catch { /* noop */ }
+}
+
+// ---------- Conectividad ----------
+
+function hayProblemaDeRed() {
+  return !navigator.onLine || (Date.now() - ultimoCambioRed) < VENTANA_RED_MS;
+}
+
+function pintarEstadoRed() {
+  const banner = document.getElementById('banner-offline');
+  if (!banner) return;
+  banner.classList.toggle('hidden', navigator.onLine);
+}
+
+window.addEventListener('offline', () => {
+  ultimoCambioRed = Date.now();
+  pintarEstadoRed();
+});
+
+window.addEventListener('online', () => {
+  ultimoCambioRed = Date.now();
+  pintarEstadoRed();
+  // Si había una entrega esperando, se reintenta de inmediato en cuanto vuelve
+  // la señal, sin esperar al siguiente ciclo del backoff.
+  if (enviando && !examenTerminado) reintentarYa();
+});
 
 // ---------- Autenticación del alumno ----------
 
 async function revisarSesion() {
+  pintarEstadoRed();
   const { data: { session } } = await supabase.auth.getSession();
   if (session) {
     await cargarExamen();
@@ -52,6 +173,13 @@ document.getElementById('form-login-alumno').addEventListener('submit', async (e
   const btn = document.getElementById('btn-login-alumno');
   btn.disabled = true;
 
+  if (!navigator.onLine) {
+    errorBox.textContent = 'Tu dispositivo no tiene conexión. Conéctate al wifi e inténtalo otra vez.';
+    errorBox.classList.remove('hidden');
+    btn.disabled = false;
+    return;
+  }
+
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
@@ -64,7 +192,7 @@ document.getElementById('form-login-alumno').addEventListener('submit', async (e
   await cargarExamen();
 });
 
-// ---------- Cargar el examen desde la Edge Function ----------
+// ---------- Cargar el examen ----------
 
 async function cargarExamen() {
   if (!token) {
@@ -72,16 +200,22 @@ async function cargarExamen() {
     return;
   }
 
-  const { data: { session } } = await supabase.auth.getSession();
-  const resp = await fetch(`${SUPABASE_URL}/functions/v1/iniciar-examen`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-    body: JSON.stringify({ token }),
-  });
-  const data = await resp.json();
-
-  if (!resp.ok) {
-    mostrarErrorFatal(data.error || 'No se pudo cargar el examen.');
+  let data;
+  try {
+    const resp = await fetchConTiempo(`${SUPABASE_URL}/functions/v1/iniciar-examen`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ token }),
+    });
+    data = await resp.json();
+    if (!resp.ok) {
+      mostrarErrorFatal(data.error || 'No se pudo cargar el examen.');
+      return;
+    }
+  } catch {
+    mostrarErrorFatal(
+      'No se pudo conectar para cargar el examen. Revisa tu conexión y vuelve a entrar al link.'
+    );
     return;
   }
 
@@ -92,13 +226,50 @@ async function cargarExamen() {
   }
   if (data.estado === 'bloqueado') {
     examenTerminado = true;
-    document.getElementById('bloqueo-resumen').textContent = '';
+    const resumen = document.getElementById('bloqueo-resumen');
+    if (resumen) resumen.textContent = data.motivo || '';
     mostrarVista('vista-bloqueo');
     return;
   }
+
   examenInfo = data.examen;
   intentoId = data.intento_id;
   preguntas = data.preguntas;
+  advertencias = data.advertencias ?? 0;
+  maxAdvertencias = data.max_advertencias ?? 1;
+
+  if (data.servidor_ahora) {
+    desfaseReloj = new Date(data.servidor_ahora).getTime() - Date.now();
+  }
+
+  // El cronómetro se ancla al servidor: recargar la página ya no regala tiempo.
+  const limites = [];
+  if (data.intento_inicio && examenInfo.duracion_min) {
+    limites.push(new Date(data.intento_inicio).getTime() + examenInfo.duracion_min * 60000);
+  }
+  if (examenInfo.fecha_cierre) {
+    limites.push(new Date(examenInfo.fecha_cierre).getTime());
+  }
+  finTs = limites.length ? Math.min(...limites) : null;
+
+  // ¿Quedó una entrega a medias (se cayó la red o se cerró el navegador)?
+  const guardado = leerLocal();
+  if (guardado?.pendiente) {
+    respuestasEstado = guardado.respuestas || {};
+    eventosOffline = guardado.eventosOffline || [];
+    enviando = true;
+    mostrarVista('vista-enviando');
+    procesarCola(guardado.pendiente);
+    return;
+  }
+
+  let recuperado = false;
+  if (guardado?.respuestas && Object.keys(guardado.respuestas).length > 0) {
+    respuestasEstado = guardado.respuestas;
+    indiceActual = Math.min(guardado.indice ?? 0, Math.max(0, preguntas.length - 1));
+    eventosOffline = guardado.eventosOffline || [];
+    recuperado = true;
+  }
 
   const tituloEl = document.getElementById('page-title');
   if (tituloEl) tituloEl.textContent = `AulaFácil - ${examenInfo.titulo}`;
@@ -107,77 +278,217 @@ async function cargarExamen() {
     `${preguntas.length} pregunta${preguntas.length === 1 ? '' : 's'}` +
     (examenInfo.duracion_min ? ` · ${examenInfo.duracion_min} minutos` : '');
 
+  // Aviso de reglas, redactado con el número real de oportunidades.
+  const reglas = document.getElementById('entrada-reglas');
+  if (reglas) {
+    reglas.textContent = maxAdvertencias > 0
+      ? `Si sales de la pantalla del examen recibirás un aviso. ` +
+        `A la ${maxAdvertencias === 1 ? 'segunda' : `${maxAdvertencias + 1}ª`} vez, ` +
+        `tu examen se cierra y se entrega automáticamente. ` +
+        `Si se te cae el internet no pasa nada: eso no cuenta como salida.`
+      : 'Si sales de la pantalla del examen, se cerrará y se entregará automáticamente.';
+  }
+
+  const avisoRecuperado = document.getElementById('entrada-recuperado');
+  if (avisoRecuperado) avisoRecuperado.classList.toggle('hidden', !recuperado);
+
+  const btnComenzar = document.getElementById('btn-comenzar');
+  if (btnComenzar) {
+    btnComenzar.textContent = recuperado ? 'Continuar examen' : 'Comenzar examen';
+  }
+
+  const avisoPrevias = document.getElementById('entrada-advertencias');
+  if (avisoPrevias) {
+    const restantes = Math.max(0, maxAdvertencias - advertencias);
+    avisoPrevias.classList.toggle('hidden', advertencias === 0);
+    avisoPrevias.textContent = advertencias > 0
+      ? `Ya llevas ${advertencias} aviso${advertencias === 1 ? '' : 's'}. ` +
+        `Te queda${restantes === 1 ? '' : 'n'} ${restantes} oportunidad${restantes === 1 ? '' : 'es'}.`
+      : '';
+  }
+
   mostrarVista('vista-entrada');
 }
 
-// ---------- Comenzar examen: pantalla completa + anti-salida ----------
+// ---------- Comenzar ----------
 
 document.getElementById('btn-comenzar').addEventListener('click', async () => {
+  // Si el alumno cerró la pestaña y volvió cuando ya se había acabado el
+  // tiempo (o cerró el examen por hora), no se le abre el examen: se entrega
+  // directo lo que tenía guardado.
+  if (finTs && segundosRestantes() <= 0) {
+    entregar(false);
+    return;
+  }
+
   try {
     await document.documentElement.requestFullscreen();
+    usaFullscreen = true;
   } catch {
-    // Si el navegador rechaza pantalla completa, igual dejamos continuar
-    // (mejor que bloquear al alumno por completo), pero el bloqueo por
-    // "salir de pantalla completa" no podrá detectarse en ese caso.
+    // iPhone (Safari) no soporta pantalla completa. Se continúa igual: se
+    // detecta el cambio de app con visibilitychange, que ahí sí funciona.
+    usaFullscreen = false;
   }
 
-  if (examenInfo.duracion_min) {
-    segundosRestantes = examenInfo.duracion_min * 60;
-    iniciarCronometro();
-  }
+  if (finTs) iniciarCronometro();
 
-  indiceActual = 0;
   renderPregunta();
   mostrarVista('vista-examen');
   activarDeteccionSalida();
 });
 
+// ---------- Cronómetro ----------
+
 function iniciarCronometro() {
   actualizarCronometroUI();
+  if (cronometroInterval) clearInterval(cronometroInterval);
   cronometroInterval = setInterval(() => {
-    segundosRestantes--;
     actualizarCronometroUI();
-    if (segundosRestantes <= 0) {
+    if (segundosRestantes() <= 0) {
       clearInterval(cronometroInterval);
       entregar(false); // se acabó el tiempo: entrega normal con lo que haya
     }
   }, 1000);
 }
 
-function actualizarCronometroUI() {
-  const m = Math.floor(segundosRestantes / 60).toString().padStart(2, '0');
-  const s = (segundosRestantes % 60).toString().padStart(2, '0');
-  document.getElementById('cronometro').innerHTML = `<span class="material-symbols-outlined text-lg">timer</span> ${m}:${s}`;
+function segundosRestantes() {
+  if (!finTs) return Infinity;
+  return Math.max(0, Math.round((finTs - ahoraServidor()) / 1000));
 }
 
-// ---------- Detección de salida (fullscreen / cambio de pestaña) ----------
+function actualizarCronometroUI() {
+  const el = document.getElementById('cronometro');
+  if (!el || !finTs) return;
+  const s = segundosRestantes();
+  const mm = Math.floor(s / 60).toString().padStart(2, '0');
+  const ss = (s % 60).toString().padStart(2, '0');
+  el.innerHTML = `<span class="material-symbols-outlined text-lg">timer</span> ${mm}:${ss}`;
+  el.classList.toggle('text-error', s <= 60);
+  el.classList.toggle('text-primary', s > 60);
+}
+
+// ---------- Detección de salida ----------
 
 function activarDeteccionSalida() {
-  document.addEventListener('fullscreenchange', onPosibleSalida);
-  document.addEventListener('visibilitychange', onPosibleSalida);
-  window.addEventListener('blur', onPosibleSalida);
+  if (deteccionActiva) return;
+  deteccionActiva = true;
+  document.addEventListener('fullscreenchange', () => onPosibleSalida('fullscreenchange'));
+  document.addEventListener('visibilitychange', () => onPosibleSalida('visibilitychange'));
+  window.addEventListener('blur', () => onPosibleSalida('blur'));
+  document.addEventListener('focusin', (e) => {
+    if (e.target?.matches?.('input, select, textarea')) ultimoFocoInput = Date.now();
+  });
 }
 
 let temporizadorSalida = null;
 
-function onPosibleSalida() {
-  if (examenTerminado || enviando) return;
+function onPosibleSalida(tipo) {
+  if (!deteccionActiva || examenTerminado || enviando || pausadoPorAviso) return;
 
-  // Algunos navegadores móviles (sobre todo Android) salen de pantalla
-  // completa solos por una fracción de segundo al abrir un <select> nativo
-  // (como en las preguntas de "relacionar") — no es que el alumno haya
-  // salido de verdad. Por eso esperamos un momento corto y confirmamos que
-  // SIGUE fuera antes de bloquear; si ya se recuperó solo, no pasa nada.
+  // blur es la señal más ruidosa (notificaciones, teclado, alertas del
+  // sistema), así que se confirma con más calma que las demás.
+  const espera = tipo === 'blur' ? 1500 : 700;
+
   if (temporizadorSalida) clearTimeout(temporizadorSalida);
   temporizadorSalida = setTimeout(() => {
-    if (examenTerminado || enviando) return;
-    const salioDeFullscreen = !document.fullscreenElement;
-    const pestañaOculta = document.hidden;
-    if (salioDeFullscreen || pestañaOculta) {
-      entregar(true);
-    }
-  }, 700);
+    if (examenTerminado || enviando || pausadoPorAviso) return;
+
+    // Si acaba de tocar un campo de texto, el blur es del teclado: no cuenta.
+    if (tipo === 'blur' && Date.now() - ultimoFocoInput < 2000) return;
+
+    const fueraDeFullscreen = usaFullscreen && !document.fullscreenElement;
+    const pestanaOculta = document.hidden;
+    const sinFoco = typeof document.hasFocus === 'function' ? !document.hasFocus() : false;
+
+    const salio = fueraDeFullscreen || pestanaOculta || (tipo === 'blur' && sinFoco);
+    if (!salio) return;
+
+    manejarSalida(tipo);
+  }, espera);
 }
+
+async function manejarSalida(tipo) {
+  // Caso 1: el dispositivo no tiene red (o acaba de cambiar de estado). Casi
+  // siempre es la alerta de wifi del sistema tapando el navegador, no el
+  // alumno haciendo trampa. Se registra para el profesor, pero NO cuenta.
+  if (hayProblemaDeRed()) {
+    registrarEventoOffline(tipo);
+    mostrarModalRed();
+    return;
+  }
+
+  // Caso 2: sí hay red. El servidor lleva la cuenta, así que recargar la
+  // página no sirve para borrar los avisos.
+  let data;
+  try {
+    const resp = await fetchConTiempo(`${SUPABASE_URL}/functions/v1/registrar-advertencia`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ intento_id: intentoId, tipo }),
+    }, 10000);
+    data = await resp.json();
+    if (!resp.ok) throw new Error(data?.error || 'error');
+  } catch {
+    // Si la petición falla, era la red después de todo: se trata igual que el
+    // caso 1. Preferimos dejar pasar una salida real antes que bloquear a un
+    // alumno por culpa del wifi de la escuela.
+    registrarEventoOffline(tipo);
+    mostrarModalRed();
+    return;
+  }
+
+  advertencias = data.advertencias ?? advertencias + 1;
+
+  if (data.bloquear) {
+    entregar(true, 'Salió de la pantalla del examen después del aviso');
+    return;
+  }
+
+  mostrarModalAviso(data.restantes ?? Math.max(0, maxAdvertencias - advertencias));
+}
+
+function registrarEventoOffline(tipo) {
+  eventosOffline.push({ ts: new Date().toISOString(), tipo });
+  if (eventosOffline.length > 60) eventosOffline = eventosOffline.slice(-60);
+  guardarLocal();
+}
+
+// ---------- Modales ----------
+
+function abrirModal(id) {
+  pausadoPorAviso = true;
+  if (temporizadorSalida) clearTimeout(temporizadorSalida);
+  document.getElementById(id)?.classList.remove('hidden');
+}
+
+async function cerrarModalYVolver(id) {
+  document.getElementById(id)?.classList.add('hidden');
+  // Volver a pantalla completa requiere un gesto del usuario: por eso el modal
+  // se cierra con un botón y no solo.
+  if (usaFullscreen && !document.fullscreenElement) {
+    try { await document.documentElement.requestFullscreen(); } catch { /* noop */ }
+  }
+  // Margen para que el fullscreenchange del propio botón no cuente como salida.
+  setTimeout(() => { pausadoPorAviso = false; }, 800);
+}
+
+function mostrarModalAviso(restantes) {
+  const texto = document.getElementById('aviso-texto');
+  if (texto) {
+    texto.textContent = restantes > 0
+      ? `Si vuelves a salir, tu examen se cerrará y se entregará con lo que lleves contestado. ` +
+        `Te queda${restantes === 1 ? '' : 'n'} ${restantes} oportunidad${restantes === 1 ? '' : 'es'}.`
+      : 'Si vuelves a salir, tu examen se cerrará y se entregará automáticamente.';
+  }
+  abrirModal('modal-aviso');
+}
+
+function mostrarModalRed() {
+  abrirModal('modal-red');
+}
+
+document.getElementById('btn-aviso-entendido')?.addEventListener('click', () => cerrarModalYVolver('modal-aviso'));
+document.getElementById('btn-red-entendido')?.addEventListener('click', () => cerrarModalYVolver('modal-red'));
 
 // ---------- Render de la pregunta actual ----------
 
@@ -198,7 +509,6 @@ function renderPregunta() {
       </label>`).join('');
   } else if (p.tipo === 'completar') {
     const respuestasPrevias = respuestasEstado[p.id] || [];
-    let i = 0;
     const partes = p.plantilla.split('___');
     camposHtml = '<p class="font-body-lg text-body-lg text-on-surface leading-loose">' + partes.map((parte, idx) => {
       if (idx === partes.length - 1) return escapeHtml(parte);
@@ -228,13 +538,14 @@ function renderPregunta() {
     <div>${camposHtml}</div>`;
 
   cont.querySelectorAll('.input-respuesta').forEach((el) => {
-    el.addEventListener('change', () => { respuestasEstado[p.id] = el.value; });
+    el.addEventListener('change', () => { respuestasEstado[p.id] = el.value; guardarLocal(); });
   });
   cont.querySelectorAll('.input-blanco').forEach((el) => {
     el.addEventListener('input', () => {
       const arr = respuestasEstado[p.id] || [];
       arr[Number(el.dataset.idx)] = el.value;
       respuestasEstado[p.id] = arr;
+      guardarLocal();
     });
   });
   cont.querySelectorAll('.select-relacionar').forEach((el) => {
@@ -242,6 +553,7 @@ function renderPregunta() {
       const obj = respuestasEstado[p.id] || {};
       obj[el.dataset.izq] = el.value;
       respuestasEstado[p.id] = obj;
+      guardarLocal();
     });
   });
 
@@ -252,47 +564,177 @@ function renderPregunta() {
 }
 
 document.getElementById('btn-anterior').addEventListener('click', () => {
-  if (indiceActual > 0) { indiceActual--; renderPregunta(); }
+  if (indiceActual > 0) { indiceActual--; renderPregunta(); guardarLocal(); }
 });
 
 document.getElementById('btn-siguiente').addEventListener('click', () => {
   if (indiceActual < preguntas.length - 1) {
     indiceActual++;
     renderPregunta();
+    guardarLocal();
   } else {
-    entregar(false);
+    const sinContestar = preguntas.filter((p) => {
+      const r = respuestasEstado[p.id];
+      if (r === undefined || r === null || r === '') return true;
+      if (Array.isArray(r)) return r.every((v) => !v);
+      if (typeof r === 'object') return Object.values(r).every((v) => !v);
+      return false;
+    }).length;
+
+    const mensaje = sinContestar > 0
+      ? `Te ${sinContestar === 1 ? 'falta' : 'faltan'} ${sinContestar} pregunta${sinContestar === 1 ? '' : 's'} por contestar. ¿Entregar de todos modos?`
+      : '¿Entregar tu examen? Ya no podrás cambiar tus respuestas.';
+
+    if (confirm(mensaje)) entregar(false);
   }
 });
 
-// ---------- Entregar (normal o por bloqueo) ----------
+// ---------- Entregar, con cola de reintentos ----------
 
-async function entregar(porBloqueo) {
+// Espera entre reintentos. La red de la escuela puede tardar en volver, así
+// que después de los primeros intentos se sigue insistiendo cada 30 s en vez
+// de rendirse: el alumno no pierde nada por esperar y sus respuestas están
+// guardadas en el dispositivo mientras tanto.
+const ESPERAS_MS = [0, 2000, 4000, 8000, 15000, 30000];
+let intentoEnvio = 0;
+let temporizadorEnvio = null;
+
+function entregar(porBloqueo, motivo) {
   if (enviando || examenTerminado) return;
   enviando = true;
+  deteccionActiva = false;
   if (cronometroInterval) clearInterval(cronometroInterval);
+  if (temporizadorSalida) clearTimeout(temporizadorSalida);
 
-  const { data: { session } } = await supabase.auth.getSession();
+  const pendiente = {
+    porBloqueo: !!porBloqueo,
+    motivo: porBloqueo ? (motivo || 'Salió de la pantalla del examen') : null,
+    creado: new Date().toISOString(),
+  };
+  guardarLocal({ pendiente });
+
+  mostrarVista('vista-enviando');
+  intentoEnvio = 0;
+  procesarCola(pendiente);
+}
+
+async function procesarCola(pendiente) {
+  if (examenTerminado) return;
+
+  pintarEstadoEnvio(pendiente);
+
+  let ok = false;
+  let errorFatal = null;
+
   try {
-    const resp = await fetch(`${SUPABASE_URL}/functions/v1/enviar-respuestas`, {
+    const resp = await fetchConTiempo(`${SUPABASE_URL}/functions/v1/enviar-respuestas`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      headers: await authHeaders(),
       body: JSON.stringify({
         intento_id: intentoId,
         respuestas: respuestasEstado,
-        motivo_bloqueo: porBloqueo ? 'Salió de pantalla completa o cambió de pestaña' : null,
+        motivo_bloqueo: pendiente.porBloqueo ? pendiente.motivo : null,
+        eventos_pendientes: eventosOffline,
       }),
-    });
-    await resp.json();
+    }, 25000);
+
+    const data = await resp.json().catch(() => ({}));
+
+    if (resp.ok && data.ok) {
+      ok = true;
+      // El servidor manda la última palabra: si el intento ya estaba bloqueado
+      // y este envío llegó tarde, se muestra la pantalla de bloqueo, no la de
+      // entrega normal.
+      if (data.estado === 'bloqueado') pendiente.porBloqueo = true;
+      if (data.estado === 'entregado') pendiente.porBloqueo = false;
+    } else if (resp.status === 400 || resp.status === 403 || resp.status === 404) {
+      // Errores que no se arreglan reintentando.
+      errorFatal = data.error || 'El servidor rechazó la entrega.';
+    }
   } catch {
-    // si falla la red en el momento del bloqueo, igual mostramos la pantalla
-    // de bloqueo del lado del alumno; el profesor puede revisar el caso manualmente
+    // Red caída o petición agotada: se reintenta.
   }
 
+  if (ok) {
+    finalizarEntrega(pendiente.porBloqueo);
+    return;
+  }
+
+  if (errorFatal) {
+    mostrarErrorFatal(
+      `${errorFatal} Tus respuestas siguen guardadas en este dispositivo; ` +
+      `avísale a tu profesor sin cerrar esta pestaña.`
+    );
+    return;
+  }
+
+  intentoEnvio++;
+  const espera = ESPERAS_MS[Math.min(intentoEnvio, ESPERAS_MS.length - 1)];
+  if (temporizadorEnvio) clearTimeout(temporizadorEnvio);
+  temporizadorEnvio = setTimeout(() => procesarCola(pendiente), espera);
+  pintarEstadoEnvio(pendiente, espera);
+}
+
+function reintentarYa() {
+  const guardado = leerLocal();
+  if (!guardado?.pendiente || examenTerminado) return;
+  if (temporizadorEnvio) clearTimeout(temporizadorEnvio);
+  intentoEnvio = 0;
+  procesarCola(guardado.pendiente);
+}
+
+document.getElementById('btn-reintentar-envio')?.addEventListener('click', reintentarYa);
+
+function pintarEstadoEnvio(pendiente, esperaMs) {
+  const titulo = document.getElementById('enviando-titulo');
+  const detalle = document.getElementById('enviando-detalle');
+  if (titulo) {
+    titulo.textContent = pendiente.porBloqueo ? 'Cerrando tu examen…' : 'Entregando tu examen…';
+  }
+  if (detalle) {
+    if (intentoEnvio === 0) {
+      detalle.textContent = 'Enviando tus respuestas al servidor.';
+    } else if (!navigator.onLine) {
+      detalle.textContent =
+        'Tu dispositivo está sin conexión. Tus respuestas están guardadas y se enviarán solas ' +
+        'en cuanto vuelva el internet. No cierres esta pantalla.';
+    } else {
+      const seg = Math.round((esperaMs ?? 0) / 1000);
+      detalle.textContent =
+        `La red está fallando. Reintentando${seg ? ` en ${seg} s` : ''}… ` +
+        `(intento ${intentoEnvio + 1}). Tus respuestas están guardadas, no cierres esta pantalla.`;
+    }
+  }
+}
+
+async function finalizarEntrega(porBloqueo) {
   examenTerminado = true;
+  enviando = false;
+  deteccionActiva = false;
+  if (temporizadorEnvio) clearTimeout(temporizadorEnvio);
+  limpiarLocal();
+
   if (document.fullscreenElement) {
     try { await document.exitFullscreen(); } catch { /* noop */ }
   }
   mostrarVista(porBloqueo ? 'vista-bloqueo' : 'vista-entregado');
+}
+
+// Último candado: si el alumno intenta cerrar la pestaña con una entrega
+// todavía sin confirmar, el navegador le pregunta si está seguro.
+window.addEventListener('beforeunload', (e) => {
+  if (enviando && !examenTerminado) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// ---------- Service worker (modo offline) ----------
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* sin SW se sigue funcionando */ });
+  });
 }
 
 revisarSesion();

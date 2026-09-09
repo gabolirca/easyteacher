@@ -69,3 +69,10 @@ function irADashboardConTransicion() {
     }
   });
 }
+
+// Registra el service worker para que la app quede disponible sin conexion.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* sin SW se sigue funcionando */ });
+  });
+}
