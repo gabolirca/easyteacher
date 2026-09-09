@@ -38,6 +38,10 @@ let ultimoFocoInput = 0;
 
 const LS_PREFIX = 'aulafacil_examen_';
 
+// Se muestra en la pantalla de entrada para saber de un vistazo que version
+// esta corriendo el dispositivo. Subirla junto con VERSION en sw.js.
+const VERSION_APP = 'v2';
+
 // ---------- Utilidades ----------
 
 const VISTAS = [
@@ -307,6 +311,9 @@ async function cargarExamen() {
       : '';
   }
 
+  const versionEl = document.getElementById('entrada-version');
+  if (versionEl) versionEl.textContent = VERSION_APP;
+
   mostrarVista('vista-entrada');
 }
 
@@ -378,6 +385,15 @@ function activarDeteccionSalida() {
   document.addEventListener('focusin', (e) => {
     if (e.target?.matches?.('input, select, textarea')) ultimoFocoInput = Date.now();
   });
+
+  // Refuerzo para iPhone: Safari a veces manda la pagina al bfcache al cambiar
+  // de app sin dejar un visibilitychange aprovechable. pagehide/pageshow si
+  // llegan, y alimentan la misma medicion de "cuanto estuvo fuera".
+  window.addEventListener('pagehide', () => {
+    if (!deteccionActiva || examenTerminado || enviando || pausadoPorAviso) return;
+    if (tsOculto === null) tsOculto = Date.now();
+  });
+  window.addEventListener('pageshow', onCambioVisibilidad);
 }
 
 let temporizadorSalida = null;
