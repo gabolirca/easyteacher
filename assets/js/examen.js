@@ -40,7 +40,7 @@ const LS_PREFIX = 'aulafacil_examen_';
 
 // Se muestra en la pantalla de entrada para saber de un vistazo que version
 // esta corriendo el dispositivo. Subirla junto con VERSION en sw.js.
-const VERSION_APP = 'v2';
+const VERSION_APP = 'v3';
 
 // ---------- Utilidades ----------
 
@@ -414,7 +414,14 @@ let ultimaSalidaMs = 0;   // para no contar dos veces el mismo salto
 const MIN_OCULTO_MS = 600;
 
 function onCambioVisibilidad() {
-  if (!deteccionActiva || examenTerminado || enviando || pausadoPorAviso) return;
+  if (!deteccionActiva || examenTerminado || enviando) return;
+
+  // OJO: aqui a proposito NO se ignora pausadoPorAviso. Si el alumno se sale
+  // teniendo el modal de advertencia encima, esa salida cuenta igual. Antes
+  // no: bastaba con dejar el aviso abierto sin cerrarlo para poder cambiar de
+  // app las veces que quisiera sin que se registrara nada.
+  // pausadoPorAviso si sigue silenciando fullscreen/blur, que es ruido que
+  // genera el propio modal al cerrarse.
 
   if (document.hidden) {
     tsOculto = Date.now();
