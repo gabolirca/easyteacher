@@ -41,7 +41,7 @@ const LS_PREFIX = 'aulafacil_examen_';
 
 // Se muestra en la pantalla de entrada para saber de un vistazo que version
 // esta corriendo el dispositivo. Subirla junto con VERSION en sw.js.
-const VERSION_APP = 'v5';
+const VERSION_APP = 'v6';
 
 // ---------- Utilidades ----------
 

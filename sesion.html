@@ -44,6 +44,10 @@ html.sin-iconos .material-symbols-outlined { display: none !important; }
 </div>
 <button id="btn-iniciar" class="w-full bg-primary text-on-primary font-button-text text-button-text rounded-full py-4">Iniciar clase</button>
 </div>
+
+<h2 class="font-label-lg text-label-lg text-on-surface mt-stack-lg mb-1">Clases anteriores</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-3">Toca una para ver quién participó en cada actividad. Sirve de respaldo si un alumno reclama después.</p>
+<div id="lista-historial"></div>
 </div>
 
 <!-- ============ Sesión en vivo ============ -->
@@ -74,6 +78,7 @@ html.sin-iconos .material-symbols-outlined { display: none !important; }
 <div id="lista-actividades" class="mb-stack-md"></div>
 
 <button id="btn-cerrar-sesion" class="w-full border-2 border-error text-error font-button-text text-button-text rounded-full py-3">Cerrar la clase</button>
+<button id="btn-ver-historial" class="w-full text-on-surface-variant font-label-lg text-label-lg py-3 mt-2">Ver clases anteriores</button>
 </div>
 
 <!-- ============ Revisar una actividad ============ -->
@@ -117,6 +122,22 @@ html.sin-iconos .material-symbols-outlined { display: none !important; }
 <span id="res-puntos" class="font-label-lg text-primary">0</span></div>
 </div>
 <a href="dashboard.html" class="inline-block bg-primary text-on-primary font-button-text text-button-text rounded-full py-3 px-8">Ir al inicio</a>
+</div>
+
+<!-- ============ Detalle de una clase pasada ============ -->
+<div id="vista-detalle" class="hidden">
+<button id="btn-volver-historial" class="inline-flex items-center gap-1 text-primary font-label-lg text-label-lg mb-3">
+<span class="material-symbols-outlined">arrow_back</span> Clases anteriores</button>
+
+<h1 id="det-fecha" class="font-headline-md text-headline-md text-on-surface capitalize mb-3">Clase</h1>
+
+<div id="det-resumen" class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-5 mb-stack-md"></div>
+
+<h2 class="font-label-lg text-label-lg text-on-surface mb-3">Actividades</h2>
+<div id="det-actividades" class="mb-stack-md"></div>
+
+<h2 class="font-label-lg text-label-lg text-on-surface mb-2">Asistencia</h2>
+<div id="det-asistencia" class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 mb-stack-md"></div>
 </div>
 
 <!-- ============ Error ============ -->

@@ -24,6 +24,8 @@ let filtro = '';
 let ventanaPintada = null;
 let relojQR = null;
 let sondeo = null;
+let historial = [];
+let detalle = null;
 
 const LS = (k) => `aulafacil_sesion_${k}`;
 
@@ -36,7 +38,7 @@ function esc(s) {
 }
 
 function vista(id) {
-  ['vista-inicio', 'vista-vivo', 'vista-actividad', 'vista-resumen', 'vista-error']
+  ['vista-inicio', 'vista-vivo', 'vista-actividad', 'vista-resumen', 'vista-detalle', 'vista-error']
     .forEach((v) => document.getElementById(v)?.classList.toggle('hidden', v !== id));
 }
 
@@ -188,6 +190,7 @@ function pintarInicio() {
   const sel = document.getElementById('sel-periodo');
   sel.innerHTML = '<option value="">Sin parcial</option>' +
     periodos.map((p) => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  pintarHistorial();
   vista('vista-inicio');
 }
 
@@ -386,11 +389,21 @@ async function cerrarSesion() {
     if (error) throw new Error(error.message);
 
     await refrescar();
-    const { data: parts } = await supabase
-      .from('participaciones_sesion').select('puntos, estado')
-      .in('actividad_id', actividades.map((a) => a.id));
+    const { data: parts } = actividades.length
+      ? await supabase.from('participaciones_sesion').select('puntos, estado')
+          .in('actividad_id', actividades.map((a) => a.id))
+      : { data: [] };
     const aprobadas = (parts || []).filter((p) => p.estado === 'aprobada');
     const puntos = aprobadas.reduce((s, p) => s + Number(p.puntos || 0), 0);
+
+    // El resumen se guarda, no se recalcula despues. Asi queda como evidencia
+    // estable de lo que paso ese dia, aunque luego se corrija algo.
+    await supabase.from('sesiones').update({
+      total_alumnos: roster.length,
+      presentes: presentes.size,
+      participaciones: aprobadas.length,
+      puntos_generados: puntos,
+    }).eq('id', sesion.id);
 
     document.getElementById('res-presentes').textContent = `${presentes.size} / ${roster.length}`;
     document.getElementById('res-participaciones').textContent = aprobadas.length;
@@ -399,6 +412,123 @@ async function cerrarSesion() {
     if (sondeo) clearInterval(sondeo);
     vista('vista-resumen');
   } catch (e) { aviso(e.message, true); }
+}
+
+
+// ---------- Historial ----------
+// El maestro necesita poder demostrar que un alumno si participo (o no) si
+// hay un reclamo despues. Por eso cada sesion cerrada guarda su resumen y
+// se puede abrir el detalle alumno por alumno.
+
+async function cargarHistorial() {
+  const { data } = await supabase
+    .from('sesiones')
+    .select('id, fecha, inicio, fin, total_alumnos, presentes, participaciones, puntos_generados, periodos(nombre)')
+    .eq('grupo_id', grupoId).eq('estado', 'cerrada')
+    .order('inicio', { ascending: false }).limit(40);
+  historial = data || [];
+}
+
+function fechaLarga(f) {
+  return new Date(`${f}T12:00:00`).toLocaleDateString('es-MX',
+    { weekday: 'short', day: '2-digit', month: 'short' });
+}
+
+function pintarHistorial() {
+  const cont = document.getElementById('lista-historial');
+  if (!cont) return;
+  if (historial.length === 0) {
+    cont.innerHTML = '<p class="text-on-surface-variant font-body-md">Todavía no hay clases registradas en este grupo.</p>';
+    return;
+  }
+  cont.innerHTML = historial.map((h) => `
+    <button class="btn-historial w-full text-left bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 mb-3"
+            data-id="${h.id}">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="font-label-lg text-label-lg text-on-surface capitalize">${fechaLarga(h.fecha)}</p>
+          <p class="font-body-md text-body-md text-on-surface-variant">
+            ${h.presentes ?? '?'} / ${h.total_alumnos ?? '?'} presentes ·
+            ${h.participaciones ?? 0} participaciones
+          </p>
+        </div>
+        <span class="font-headline-md text-headline-md text-primary shrink-0">${h.puntos_generados ?? 0}</span>
+      </div>
+      ${h.periodos?.nombre ? `<p class="text-sm text-on-surface-variant mt-1">${esc(h.periodos.nombre)}</p>` : ''}
+    </button>`).join('');
+
+  cont.querySelectorAll('.btn-historial').forEach((b) => {
+    b.addEventListener('click', () => verDetalle(b.dataset.id));
+  });
+}
+
+async function verDetalle(sesionId) {
+  const h = historial.find((x) => x.id === sesionId);
+  if (!h) return;
+  detalle = h;
+
+  const { data: acts } = await supabase
+    .from('actividades_sesion').select('id, nombre, valor')
+    .eq('sesion_id', sesionId).order('orden');
+
+  const { data: parts } = (acts && acts.length)
+    ? await supabase.from('participaciones_sesion')
+        .select('actividad_id, alumno_id, estado, puntos')
+        .in('actividad_id', acts.map((a) => a.id))
+    : { data: [] };
+
+  const { data: asis } = await supabase
+    .from('asistencias').select('alumno_id, estado')
+    .eq('grupo_id', grupoId).eq('fecha', h.fecha);
+
+  const nombre = Object.fromEntries(roster.map((a) => [a.id, a.nombre]));
+  const asistencia = Object.fromEntries((asis || []).map((a) => [a.alumno_id, a.estado]));
+
+  document.getElementById('det-fecha').textContent = fechaLarga(h.fecha);
+  document.getElementById('det-resumen').innerHTML = `
+    <div class="flex justify-between py-2 border-b border-outline-variant">
+      <span class="font-body-md text-on-surface-variant">Presentes</span>
+      <span class="font-label-lg text-on-surface">${h.presentes ?? '?'} / ${h.total_alumnos ?? '?'}</span></div>
+    <div class="flex justify-between py-2 border-b border-outline-variant">
+      <span class="font-body-md text-on-surface-variant">Participaciones</span>
+      <span class="font-label-lg text-on-surface">${h.participaciones ?? 0}</span></div>
+    <div class="flex justify-between py-2">
+      <span class="font-body-md text-on-surface-variant">Puntos generados</span>
+      <span class="font-label-lg text-primary">${h.puntos_generados ?? 0}</span></div>`;
+
+  const cont = document.getElementById('det-actividades');
+  if (!acts || acts.length === 0) {
+    cont.innerHTML = '<p class="text-on-surface-variant font-body-md">Esta clase no tuvo actividades registradas.</p>';
+  } else {
+    cont.innerHTML = acts.map((a) => {
+      const filas = (parts || []).filter((p) => p.actividad_id === a.id);
+      const con = filas.filter((p) => p.estado === 'aprobada');
+      const sin = filas.filter((p) => p.estado === 'rechazada');
+      const lista = (arr, color) => arr.length === 0 ? '' :
+        `<p class="text-sm ${color} mt-1">${arr.map((p) => esc(nombre[p.alumno_id] || '—')).join(', ')}</p>`;
+      return `
+        <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 mb-3">
+          <div class="flex items-center justify-between gap-3">
+            <p class="font-label-lg text-label-lg text-on-surface">${esc(a.nombre)}</p>
+            <span class="text-sm text-on-surface-variant shrink-0">${a.valor} pts · ${con.length} alumnos</span>
+          </div>
+          ${lista(con, 'text-on-surface-variant')}
+          ${sin.length ? `<p class="text-sm text-on-surface-variant mt-2 font-bold">No contabilizados:</p>${lista(sin, 'text-error')}` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  const faltaron = roster.filter((al) => {
+    const e = asistencia[al.id];
+    return !e || e === 'falta' || e === 'justificada';
+  });
+  document.getElementById('det-asistencia').innerHTML = faltaron.length === 0
+    ? '<p class="font-body-md text-on-surface-variant">Asistió el grupo completo.</p>'
+    : `<p class="font-body-md text-on-surface-variant">No asistieron (${faltaron.length}):</p>
+       <p class="text-sm text-on-surface-variant mt-1">${faltaron.map((a) =>
+         `${esc(a.nombre)}${asistencia[a.id] === 'justificada' ? ' (justificada)' : ''}`).join(', ')}</p>`;
+
+  vista('vista-detalle');
 }
 
 // ---------- eventos ----------
@@ -416,6 +546,12 @@ document.getElementById('btn-volver-vivo')?.addEventListener('click', () => {
 });
 document.getElementById('btn-cerrar-actividad')?.addEventListener('click', cerrarActividad);
 document.getElementById('btn-cerrar-sesion')?.addEventListener('click', cerrarSesion);
+document.getElementById('btn-volver-historial')?.addEventListener('click', () => {
+  detalle = null; vista('vista-inicio');
+});
+document.getElementById('btn-ver-historial')?.addEventListener('click', async () => {
+  await cargarHistorial(); pintarHistorial(); vista('vista-inicio');
+});
 document.getElementById('buscar-alumno')?.addEventListener('input', (e) => {
   filtro = e.target.value; pintarActividad();
 });
@@ -443,6 +579,7 @@ async function init() {
     const t = document.getElementById('page-title');
     if (t) t.textContent = `AulaFácil - Sesión - ${grupo.nombre}`;
 
+    await cargarHistorial();
     sesion = await buscarSesionActiva();
     if (sesion) { await cargarSecreto(); await entrarEnVivo(); }
     else pintarInicio();
