@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link rel="icon" href="favicon.ico"/>
+<link rel="apple-touch-icon" href="assets/img/icon-180.png"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#d02b2f"/>
+<title id="page-title">AulaFácil - Mi clase</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/app.css" rel="stylesheet"/>
+<style id="guarda-iconos">
+html.sin-iconos .material-symbols-outlined { display: none !important; }
+</style>
+<script>
+(function () {
+  var marcar = function () { document.documentElement.classList.add('sin-iconos'); };
+  if (!document.fonts || !document.fonts.load) { return; }
+  var reloj = setTimeout(marcar, 4000);
+  document.fonts.load('24px "Material Symbols Outlined"').then(function (c) {
+    clearTimeout(reloj); if (!c || c.length === 0) marcar();
+  }).catch(function () { clearTimeout(reloj); marcar(); });
+})();
+</script>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md">
+
+<div id="banner-offline" class="hidden bg-tertiary-container text-on-tertiary-container px-4 py-2 text-center font-body-md text-body-md flex items-center justify-center gap-2 sticky top-0 z-50">
+<span class="material-symbols-outlined text-lg">wifi_off</span>
+<span>Sin conexión — lo que marques se enviará solo al volver la señal.</span>
+</div>
+
+<div class="max-w-lg mx-auto px-4 py-6">
+<div id="aviso" class="hidden"></div>
+
+<!-- ============ Login ============ -->
+<div id="vista-login" class="hidden min-h-[70vh] flex items-center justify-center">
+<div class="w-full">
+<div class="text-center mb-stack-lg">
+<img src="assets/img/logo-pdg.png" alt="Colegio Pedro de Gante" class="mx-auto h-14 w-auto object-contain mb-3"/>
+<h1 class="text-primary font-bold" style="font-size:28px;">AulaFácil</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mt-2">Entra para registrar tu clase</p>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-8">
+<div id="login-error" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
+<form id="form-login" class="flex flex-col gap-4">
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="usuario">Matrícula</label>
+<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface font-body-md text-body-md text-on-surface" id="usuario" placeholder="Ej: 2330774" required type="text"/>
+</div>
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="password">Contraseña</label>
+<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface font-body-md text-body-md text-on-surface" id="password" required type="password"/>
+</div>
+<button class="mt-2 bg-primary text-on-primary font-button-text text-button-text rounded-full py-3" id="btn-login" type="submit">Entrar</button>
+</form>
+</div>
+</div>
+</div>
+
+<!-- ============ Panel ============ -->
+<div id="vista-panel" class="hidden">
+<div class="bg-primary text-on-primary rounded-DEFAULT p-6 mb-stack-md">
+<p id="panel-materia" class="font-headline-md text-headline-md">Clase</p>
+<p id="panel-grupo" class="font-body-md text-body-md opacity-90"></p>
+<p id="panel-fecha" class="font-body-md text-body-md opacity-75 capitalize"></p>
+<div class="mt-4 pt-4 border-t border-white/25 flex items-baseline gap-2">
+<span id="panel-puntos" class="font-display-lg text-display-lg">0</span>
+<span class="font-body-md text-body-md opacity-90">puntos hoy</span>
+</div>
+</div>
+
+<h2 class="font-label-lg text-label-lg text-on-surface mb-3">Actividades de la clase</h2>
+<div id="lista-actividades" class="mb-stack-md"></div>
+
+<button id="btn-salir" class="w-full border-2 border-outline-variant text-on-surface-variant font-label-lg text-label-lg rounded-full py-2">Cerrar sesión</button>
+</div>
+
+<!-- ============ Sin clase activa ============ -->
+<div id="vista-sin-clase" class="hidden text-center py-16">
+<span class="material-symbols-outlined text-on-surface-variant" style="font-size:56px;">event_busy</span>
+<h1 class="font-headline-md text-headline-md text-on-surface mt-3 mb-2">No hay clase activa</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Cuando tu maestro inicie la clase, escanea el código que aparezca en su pantalla.</p>
+<button id="btn-salir-2" class="mt-stack-md text-primary font-label-lg text-label-lg" onclick="location.reload()">Volver a revisar</button>
+</div>
+
+<!-- ============ Error ============ -->
+<div id="vista-error" class="hidden text-center py-16">
+<span class="material-symbols-outlined text-error" style="font-size:56px;">error</span>
+<p id="error-msg" class="font-body-md text-body-md text-on-surface-variant mt-3"></p>
+</div>
+</div>
+
+<script type="module" src="assets/js/panel-alumno.js"></script>
+</body></html>

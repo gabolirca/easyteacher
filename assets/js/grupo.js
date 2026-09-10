@@ -307,6 +307,7 @@ async function init() {
   const tituloEl = document.getElementById('page-title');
   if (tituloEl) tituloEl.textContent = `AulaFácil - ${grupo.nombre}`;
   document.getElementById('tab-asistencia')?.setAttribute('href', `asistencia.html?id=${grupoId}`);
+  document.getElementById('tab-sesion')?.setAttribute('href', `sesion.html?grupo=${grupoId}`);
   document.getElementById('tab-tareas')?.setAttribute('href', `tareas.html?id=${grupoId}`);
   document.getElementById('tab-participacion')?.setAttribute('href', `participacion.html?id=${grupoId}`);
   document.getElementById('tab-calificaciones')?.setAttribute('href', `calificaciones.html?id=${grupoId}`);

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link rel="icon" href="favicon.ico"/>
+<link rel="apple-touch-icon" href="assets/img/icon-180.png"/>
+<link rel="manifest" href="manifest.json"/>
+<meta name="theme-color" content="#d02b2f"/>
+<title id="page-title">AulaFácil - Sesión</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="assets/css/app.css" rel="stylesheet"/>
+<style id="guarda-iconos">
+html.sin-iconos .material-symbols-outlined { display: none !important; }
+</style>
+<script>
+(function () {
+  var marcar = function () { document.documentElement.classList.add('sin-iconos'); };
+  if (!document.fonts || !document.fonts.load) { return; }
+  var reloj = setTimeout(marcar, 4000);
+  document.fonts.load('24px "Material Symbols Outlined"').then(function (c) {
+    clearTimeout(reloj); if (!c || c.length === 0) marcar();
+  }).catch(function () { clearTimeout(reloj); marcar(); });
+})();
+</script>
+</head>
+<body class="bg-background text-on-background min-h-screen font-body-md">
+
+<div class="max-w-2xl mx-auto px-4 py-5">
+<a id="link-volver" href="#" class="inline-flex items-center gap-1 text-primary font-label-lg text-label-lg mb-4">
+<span class="material-symbols-outlined">arrow_back</span> Volver al grupo</a>
+
+<div id="aviso" class="hidden"></div>
+
+<!-- ============ Iniciar sesión ============ -->
+<div id="vista-inicio" class="hidden">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 text-center">
+<span class="material-symbols-outlined text-primary" style="font-size:48px;">co_present</span>
+<h1 id="inicio-grupo" class="font-headline-md text-headline-md text-on-surface mt-3">Grupo</h1>
+<p id="inicio-materia" class="font-body-md text-body-md text-on-surface-variant mb-stack-md"></p>
+<div class="text-left mb-stack-md">
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="sel-periodo">Parcial</label>
+<select id="sel-periodo" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface font-body-md text-body-md text-on-surface"></select>
+</div>
+<button id="btn-iniciar" class="w-full bg-primary text-on-primary font-button-text text-button-text rounded-full py-4">Iniciar clase</button>
+</div>
+</div>
+
+<!-- ============ Sesión en vivo ============ -->
+<div id="vista-vivo" class="hidden">
+<div class="flex items-center justify-between mb-4">
+<div>
+<h1 id="vivo-grupo" class="font-headline-md text-headline-md text-on-surface">Grupo</h1>
+<p class="font-body-md text-body-md text-secondary">Sesión activa</p>
+</div>
+<div class="text-right">
+<p id="vivo-presentes" class="font-headline-md text-headline-md text-on-surface">0 / 0</p>
+<p class="text-sm text-on-surface-variant">presentes</p>
+</div>
+</div>
+
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-5 mb-stack-md text-center">
+<p class="font-label-lg text-label-lg text-on-surface mb-3">Que escaneen este código para registrar su presencia</p>
+<canvas id="qr-canvas" class="mx-auto rounded-DEFAULT bg-white" width="260" height="260"></canvas>
+<p id="qr-cuenta" class="text-sm text-on-surface-variant mt-3">El código cambia en 20 s</p>
+<p class="text-sm text-on-surface-variant mt-1">Cambia solo cada 20 segundos: una foto del código no le sirve a nadie fuera del salón.</p>
+</div>
+
+<div class="flex items-center justify-between mb-3">
+<h2 class="font-label-lg text-label-lg text-on-surface">Actividades</h2>
+<button id="btn-nueva-actividad" class="bg-primary-container text-on-primary-container font-label-lg text-label-lg rounded-full py-2 px-4 flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">add</span> Nueva</button>
+</div>
+<div id="lista-actividades" class="mb-stack-md"></div>
+
+<button id="btn-cerrar-sesion" class="w-full border-2 border-error text-error font-button-text text-button-text rounded-full py-3">Cerrar la clase</button>
+</div>
+
+<!-- ============ Revisar una actividad ============ -->
+<div id="vista-actividad" class="hidden">
+<button id="btn-volver-vivo" class="inline-flex items-center gap-1 text-primary font-label-lg text-label-lg mb-3">
+<span class="material-symbols-outlined">arrow_back</span> Actividades</button>
+
+<h1 id="act-titulo" class="font-headline-md text-headline-md text-on-surface">Actividad</h1>
+<p id="act-sub" class="font-body-md text-body-md text-on-surface-variant mb-3"></p>
+<p id="act-cerrada" class="hidden bg-surface-container-high text-on-surface-variant rounded-DEFAULT p-3 mb-3 font-body-md text-body-md">Esta actividad ya está cerrada. Se muestra solo para consulta.</p>
+
+<input id="buscar-alumno" type="search" placeholder="Buscar alumno..." class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-3 font-body-md text-body-md text-on-surface"/>
+
+<div class="flex gap-2 mb-3">
+<button id="btn-marcar-todos" class="flex-1 border-2 border-outline-variant text-on-surface font-label-lg text-label-lg rounded-full py-2">Marcar presentes</button>
+<button id="btn-limpiar-marcas" class="flex-1 border-2 border-outline-variant text-on-surface font-label-lg text-label-lg rounded-full py-2">Limpiar</button>
+</div>
+
+<div id="lista-alumnos" class="pb-24"></div>
+
+<div class="fixed bottom-0 left-0 right-0 bg-surface border-t border-outline-variant p-4">
+<div class="max-w-2xl mx-auto">
+<button id="btn-cerrar-actividad" class="w-full bg-primary text-on-primary font-button-text text-button-text rounded-full py-4">Cerrar actividad y dar puntos</button>
+</div>
+</div>
+</div>
+
+<!-- ============ Resumen ============ -->
+<div id="vista-resumen" class="hidden text-center">
+<span class="material-symbols-outlined text-secondary" style="font-size:64px;">task_alt</span>
+<h1 class="font-headline-md text-headline-md text-on-surface mt-3 mb-stack-md">Clase cerrada</h1>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6 mb-stack-md">
+<div class="flex justify-between py-2 border-b border-outline-variant">
+<span class="font-body-md text-on-surface-variant">Presentes</span>
+<span id="res-presentes" class="font-label-lg text-on-surface">0</span></div>
+<div class="flex justify-between py-2 border-b border-outline-variant">
+<span class="font-body-md text-on-surface-variant">Participaciones</span>
+<span id="res-participaciones" class="font-label-lg text-on-surface">0</span></div>
+<div class="flex justify-between py-2">
+<span class="font-body-md text-on-surface-variant">Puntos generados</span>
+<span id="res-puntos" class="font-label-lg text-primary">0</span></div>
+</div>
+<a href="dashboard.html" class="inline-block bg-primary text-on-primary font-button-text text-button-text rounded-full py-3 px-8">Ir al inicio</a>
+</div>
+
+<!-- ============ Error ============ -->
+<div id="vista-error" class="hidden text-center py-10">
+<span class="material-symbols-outlined text-error" style="font-size:56px;">error</span>
+<p id="error-msg" class="font-body-md text-body-md text-on-surface-variant mt-3"></p>
+</div>
+</div>
+
+<!-- Diálogo: nueva actividad -->
+<div id="dialogo-actividad" class="hidden fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center">
+<div class="w-full sm:max-w-sm bg-surface-container-lowest rounded-t-DEFAULT sm:rounded-DEFAULT p-6">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-stack-md">Nueva actividad</h2>
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="act-nombre">Nombre</label>
+<input id="act-nombre" type="text" placeholder="Ejercicio 1" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-3 font-body-md text-body-md text-on-surface"/>
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="act-valor">Puntos que vale</label>
+<input id="act-valor" type="number" inputmode="numeric" value="40" min="0" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-3 font-body-md text-body-md text-on-surface"/>
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="act-inicio">La lista empieza</label>
+<select id="act-inicio" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-4 font-body-md text-body-md text-on-surface">
+<option value="vacia">Vacía — voy marcando quién participó</option>
+<option value="todos">Con todos los presentes — voy quitando</option>
+</select>
+<div class="flex gap-2">
+<button id="btn-cancelar-actividad" class="flex-1 border-2 border-outline-variant text-on-surface font-button-text text-button-text rounded-full py-3">Cancelar</button>
+<button id="btn-crear-actividad" class="flex-1 bg-primary text-on-primary font-button-text text-button-text rounded-full py-3">Crear</button>
+</div>
+</div>
+</div>
+
+<script type="module" src="assets/js/sesion.js"></script>
+</body></html>

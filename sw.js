@@ -13,7 +13,7 @@
  * versión nueva.
  */
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE_APP = `aulafacil-app-${VERSION}`;
 const CACHE_FUENTES = 'aulafacil-fuentes';
 
@@ -25,7 +25,12 @@ const PRECARGA = [
   './manifest.json',
   './favicon.ico',
   './assets/css/app.css',
+  './sesion.html',
+  './panel-alumno.html',
   './assets/js/examen.js',
+  './assets/js/sesion.js',
+  './assets/js/panel-alumno.js',
+  './assets/vendor/qrcode.js',
   './assets/js/login.js',
   './assets/js/supabase-client.js',
   './assets/vendor/supabase.js',
