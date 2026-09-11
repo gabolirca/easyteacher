@@ -13,7 +13,7 @@
  * versión nueva.
  */
 
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE_APP = `aulafacil-app-${VERSION}`;
 const CACHE_FUENTES = 'aulafacil-fuentes';
 
@@ -104,40 +104,52 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3) Mismo origen: caché primero (rapidez y tolerancia a cortes), con
-  //    actualización silenciosa en segundo plano.
-  if (url.origin === self.location.origin) {
-    event.respondWith(
-      caches.open(CACHE_APP).then(async (cache) => {
-        // El link del examen trae ?token=..., que haría fallar el match exacto;
-        // se busca ignorando la query.
-        const guardada =
-          (await cache.match(req)) || (await cache.match(req, { ignoreSearch: true }));
+  // 3) Mismo origen.
+  //
+  // El codigo (HTML, JS, CSS) va a RED PRIMERO, con la cache como respaldo.
+  // Antes era al reves y tenia un defecto feo: cada despliegue se veia un
+  // recargado tarde, porque se servia la copia vieja mientras la nueva se
+  // bajaba por detras. Eso hizo que el perfil siguiera mostrando una opcion
+  // que la base ya no aceptaba.
+  //
+  // Con red primero, estando en linea siempre se ve la version actual; si la
+  // red falla o tarda mas de LIMITE_MS, entra la copia guardada y el salon
+  // sigue funcionando. La proteccion del examen no depende de esto: viene de
+  // que el service worker nuevo no toma el control hasta cerrar las pestanas.
+  //
+  // Imagenes, fuentes y bundles de vendor si van de cache primero: no cambian
+  // y no vale la pena esperarlos.
+  const LIMITE_MS = 3000;
+  const esEstatico = /\.(png|jpg|jpeg|svg|ico|webp|woff2?|ttf)$/i.test(url.pathname)
+                     || url.pathname.includes('/assets/vendor/');
 
-        const red = fetch(req)
-          .then((resp) => {
-            if (resp && resp.ok && resp.type === 'basic') {
-              cache.put(new Request(url.pathname), resp.clone()).catch(() => {});
-            }
-            return resp;
-          })
-          .catch(() => null);
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_APP);
+    const guardada = (await cache.match(req)) || (await cache.match(req, { ignoreSearch: true }));
 
-        if (guardada) {
-          event.waitUntil(red);
-          return guardada;
-        }
+    if (esEstatico && guardada) {
+      event.waitUntil(fetch(req).then((r) => {
+        if (r && r.ok && r.type === 'basic') cache.put(new Request(url.pathname), r.clone());
+      }).catch(() => null));
+      return guardada;
+    }
 
-        const resp = await red;
-        if (resp) return resp;
-
-        // Sin caché y sin red: si era una navegación, al menos damos el examen.
-        if (req.mode === 'navigate') {
-          const respaldo = await cache.match('./examen.html');
-          if (respaldo) return respaldo;
-        }
-        return Response.error();
-      })
-    );
-  }
+    try {
+      const resp = await Promise.race([
+        fetch(req),
+        new Promise((_, rechazar) => setTimeout(() => rechazar(new Error('lento')), LIMITE_MS)),
+      ]);
+      if (resp && resp.ok && resp.type === 'basic') {
+        cache.put(new Request(url.pathname), resp.clone()).catch(() => {});
+      }
+      return resp;
+    } catch {
+      if (guardada) return guardada;
+      if (req.mode === 'navigate') {
+        const respaldo = await cache.match('./examen.html');
+        if (respaldo) return respaldo;
+      }
+      return Response.error();
+    }
+  })());
 });
