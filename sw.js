@@ -13,7 +13,7 @@
  * versión nueva.
  */
 
-const VERSION = 'v7';
+const VERSION = 'v8';
 const CACHE_APP = `aulafacil-app-${VERSION}`;
 const CACHE_FUENTES = 'aulafacil-fuentes';
 
@@ -28,6 +28,7 @@ const PRECARGA = [
   './sesion.html',
   './panel-alumno.html',
   './assets/js/examen.js',
+  './assets/js/recargar.js',
   './assets/js/sesion.js',
   './assets/js/panel-alumno.js',
   './assets/vendor/qrcode.js',
@@ -62,6 +63,14 @@ self.addEventListener('install', (event) => {
   // A propósito NO se llama skipWaiting: si un alumno está a media prueba,
   // no queremos cambiarle el JS por debajo. La versión nueva entra la
   // siguiente vez que abra la app.
+});
+
+// El boton "Actualizar" de recargar.js manda esto cuando el usuario acepta
+// pasarse a la version nueva. Es la unica forma de que un service worker en
+// espera tome el control: a proposito no se llama skipWaiting solo, para no
+// cambiarle el codigo a un alumno con el examen abierto.
+self.addEventListener('message', (event) => {
+  if (event.data === 'actualizar') self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {

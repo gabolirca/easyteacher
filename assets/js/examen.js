@@ -41,7 +41,7 @@ const LS_PREFIX = 'aulafacil_examen_';
 
 // Se muestra en la pantalla de entrada para saber de un vistazo que version
 // esta corriendo el dispositivo. Subirla junto con VERSION en sw.js.
-const VERSION_APP = 'v7';
+const VERSION_APP = 'v8';
 
 // ---------- Utilidades ----------
 
@@ -357,6 +357,9 @@ document.getElementById('btn-comenzar').addEventListener('click', async () => {
   renderPregunta();
   mostrarVista('vista-examen');
   activarDeteccionSalida();
+  // Lo lee recargar.js: con el examen abierto nunca se ofrece cambiar de
+  // version, seria cambiarle el codigo al alumno a media prueba.
+  window.__examenEnCurso = true;
 });
 
 // ---------- Cronómetro ----------
@@ -802,6 +805,7 @@ function pintarEstadoEnvio(pendiente, esperaMs) {
 
 async function finalizarEntrega(porBloqueo) {
   examenTerminado = true;
+  window.__examenEnCurso = false;
   enviando = false;
   deteccionActiva = false;
   if (temporizadorEnvio) clearTimeout(temporizadorEnvio);
