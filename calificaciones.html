@@ -192,5 +192,32 @@
 </div>
 </main>
 <script type="module" src="assets/js/calificaciones.js"></script>
+
+<!-- Diálogo: ajustar la calificación de un alumno -->
+<div id="dialogo-ajuste" class="hidden fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center px-0 sm:px-4">
+<div class="w-full sm:max-w-md bg-surface-container-lowest rounded-t-DEFAULT sm:rounded-DEFAULT p-6">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-1">Ajustar calificación</h2>
+<p id="ajuste-alumno" class="font-body-md text-body-md text-on-surface-variant mb-stack-md"></p>
+
+<div class="bg-surface-container-high rounded-DEFAULT p-4 mb-stack-md">
+<p class="font-body-md text-body-md text-on-surface-variant">Promedio calculado por el sistema</p>
+<p id="ajuste-calculado" class="font-headline-md text-headline-md text-on-surface">—</p>
+</div>
+
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="ajuste-valor">Calificación final (0 a 10)</label>
+<input id="ajuste-valor" type="number" inputmode="decimal" min="0" max="10" step="0.1" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-3 font-body-md text-body-md text-on-surface"/>
+
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="ajuste-motivo">Motivo del ajuste</label>
+<textarea id="ajuste-motivo" rows="3" placeholder="Ej: el examen no reconoció una respuesta válida en la pregunta 4" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-2 font-body-md text-body-md text-on-surface"></textarea>
+<p class="font-body-md text-on-surface-variant mb-4" style="font-size:13px;">El motivo queda guardado junto con la calificación y aparece en el Excel. El promedio calculado no se borra.</p>
+
+<div class="flex flex-col sm:flex-row gap-2">
+<button id="btn-cancelar-ajuste" class="flex-1 border-2 border-outline-variant text-on-surface font-button-text text-button-text rounded-full py-3">Cancelar</button>
+<button id="btn-quitar-ajuste" class="hidden flex-1 border-2 border-error text-error font-button-text text-button-text rounded-full py-3">Quitar ajuste</button>
+<button id="btn-guardar-ajuste" class="flex-1 bg-primary text-on-primary font-button-text text-button-text rounded-full py-3">Guardar</button>
+</div>
+</div>
+</div>
+
 <script type="module" src="assets/js/recargar.js"></script>
 </body></html>

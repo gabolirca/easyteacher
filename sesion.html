@@ -48,6 +48,7 @@ html.sin-iconos .material-symbols-outlined { display: none !important; }
 <h2 class="font-label-lg text-label-lg text-on-surface mt-stack-lg mb-1">Clases anteriores</h2>
 <p class="font-body-md text-body-md text-on-surface-variant mb-3">Toca una para ver quién participó en cada actividad. Sirve de respaldo si un alumno reclama después.</p>
 <div id="lista-historial"></div>
+<button id="btn-ver-corte" class="w-full mt-stack-md border-2 border-primary text-primary font-button-text text-button-text rounded-full py-3">Hacer corte de participación</button>
 </div>
 
 <!-- ============ Sesión en vivo ============ -->
@@ -138,6 +139,29 @@ html.sin-iconos .material-symbols-outlined { display: none !important; }
 
 <h2 class="font-label-lg text-label-lg text-on-surface mb-2">Asistencia</h2>
 <div id="det-asistencia" class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 mb-stack-md"></div>
+</div>
+
+<!-- ============ Corte de participación ============ -->
+<div id="vista-corte" class="hidden">
+<button id="btn-volver-de-corte" class="inline-flex items-center gap-1 text-primary font-label-lg text-label-lg mb-3">
+<span class="material-symbols-outlined">arrow_back</span> Volver</button>
+
+<h1 class="font-headline-md text-headline-md text-on-surface mb-1">Corte de participación</h1>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Convierte los puntos acumulados en calificación de 0 a 10. Quien alcance el valor de referencia saca 10; los demás se calculan en proporción.</p>
+
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="corte-periodo">Parcial</label>
+<select id="corte-periodo" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-3 font-body-md text-body-md text-on-surface"></select>
+
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="corte-referencia">Puntos de referencia (quien los alcance saca 10)</label>
+<input id="corte-referencia" type="number" inputmode="numeric" min="1" step="1" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-2 font-body-md text-body-md text-on-surface"/>
+<p class="font-body-md text-on-surface-variant mb-stack-md" style="font-size:13px;">Se sugiere el puntaje más alto del grupo. Puedes bajarlo si consideras que ese alumno se salió de la escala, y la tabla se recalcula al momento.</p>
+
+<p id="corte-ultimo" class="bg-surface-container-high text-on-surface-variant rounded-DEFAULT p-3 mb-stack-md font-body-md text-body-md"></p>
+
+<div id="corte-lista" class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 mb-stack-md"></div>
+
+<button id="btn-aplicar-corte" class="w-full bg-primary text-on-primary font-button-text text-button-text rounded-full py-4">Aplicar corte</button>
+<p class="font-body-md text-on-surface-variant mt-3" style="font-size:13px;">El corte se guarda como una foto fija: seguir dando puntos después no cambia las calificaciones ya emitidas. Puedes volver a hacer corte cuando quieras y se usará el más reciente.</p>
 </div>
 
 <!-- ============ Error ============ -->

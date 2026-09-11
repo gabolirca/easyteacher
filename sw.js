@@ -13,7 +13,7 @@
  * versión nueva.
  */
 
-const VERSION = 'v8';
+const VERSION = 'v9';
 const CACHE_APP = `aulafacil-app-${VERSION}`;
 const CACHE_FUENTES = 'aulafacil-fuentes';
 

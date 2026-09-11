@@ -38,7 +38,7 @@ function esc(s) {
 }
 
 function vista(id) {
-  ['vista-inicio', 'vista-vivo', 'vista-actividad', 'vista-resumen', 'vista-detalle', 'vista-error']
+  ['vista-inicio', 'vista-vivo', 'vista-actividad', 'vista-resumen', 'vista-detalle', 'vista-corte', 'vista-error']
     .forEach((v) => document.getElementById(v)?.classList.toggle('hidden', v !== id));
 }
 
@@ -530,6 +530,133 @@ async function verDetalle(sesionId) {
 
   vista('vista-detalle');
 }
+
+
+// ---------- Corte de participación ----------
+// Convierte los puntos acumulados en calificación de 0 a 10, igual que el
+// modo Fichas: se ordena de mayor a menor, el maestro elige un valor de
+// referencia (sugerido: el más alto del grupo) y quien lo alcanza saca 10.
+// El resultado se guarda como foto fija, así que seguir dando puntos después
+// no altera las calificaciones ya emitidas.
+
+let rankingCorte = [];
+
+async function puntosAcumulados(periodoId) {
+  let q = supabase.from('sesiones').select('id').eq('grupo_id', grupoId).eq('estado', 'cerrada');
+  q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
+  const { data: ses } = await q;
+  if (!ses || ses.length === 0) return {};
+
+  const { data: acts } = await supabase
+    .from('actividades_sesion').select('id').in('sesion_id', ses.map((x) => x.id));
+  if (!acts || acts.length === 0) return {};
+
+  const { data: parts } = await supabase
+    .from('participaciones_sesion').select('alumno_id, puntos')
+    .eq('estado', 'aprobada').in('actividad_id', acts.map((x) => x.id));
+
+  const acumulado = {};
+  (parts || []).forEach((x) => {
+    acumulado[x.alumno_id] = (acumulado[x.alumno_id] || 0) + Number(x.puntos || 0);
+  });
+  return acumulado;
+}
+
+async function abrirCorte() {
+  const sel = document.getElementById('corte-periodo');
+  sel.innerHTML = '<option value="">Sin parcial</option>' +
+    periodos.map((p) => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  await cargarRanking();
+  vista('vista-corte');
+}
+
+async function cargarRanking() {
+  const periodoId = document.getElementById('corte-periodo').value || null;
+  const puntos = await puntosAcumulados(periodoId);
+
+  rankingCorte = roster
+    .map((a) => ({ id: a.id, nombre: a.nombre, puntos: puntos[a.id] || 0 }))
+    .sort((a, b) => b.puntos - a.puntos);
+
+  const masAlto = rankingCorte.length ? rankingCorte[0].puntos : 0;
+  document.getElementById('corte-referencia').value = masAlto || '';
+
+  let q = supabase.from('cortes_participacion').select('fecha, media').eq('grupo_id', grupoId);
+  q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
+  const { data: ultimo } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle();
+  document.getElementById('corte-ultimo').textContent = ultimo
+    ? `Último corte de este parcial: ${ultimo.fecha}, con referencia de ${ultimo.media} puntos.`
+    : 'Todavía no se ha hecho corte en este parcial.';
+
+  pintarRanking();
+}
+
+function pintarRanking() {
+  const ref = parseFloat(document.getElementById('corte-referencia').value);
+  const cont = document.getElementById('corte-lista');
+
+  if (rankingCorte.length === 0) {
+    cont.innerHTML = '<p class="text-on-surface-variant font-body-md">No hay alumnos en este grupo.</p>';
+    return;
+  }
+  if (rankingCorte.every((r) => r.puntos === 0)) {
+    cont.innerHTML = '<p class="text-on-surface-variant font-body-md">Todavía no hay puntos en este parcial. Cierra al menos una clase con actividades antes de hacer el corte.</p>';
+    return;
+  }
+
+  cont.innerHTML = rankingCorte.map((r, i) => {
+    const califica = ref > 0 ? Math.min(10, Math.round((r.puntos / ref) * 10 * 10) / 10) : 0;
+    const tope = ref > 0 && r.puntos >= ref;
+    return `
+      <div class="flex items-center gap-3 border-b border-outline-variant py-3">
+        <span class="text-on-surface-variant font-body-md" style="min-width:2rem;">${i + 1}</span>
+        <span class="flex-1 font-body-md text-body-md text-on-surface">${esc(r.nombre)}</span>
+        <span class="font-body-md text-on-surface-variant" style="min-width:4.5rem;text-align:right;">${r.puntos} pts</span>
+        <span class="font-label-lg text-label-lg ${tope ? 'text-secondary' : 'text-on-surface'}" style="min-width:3rem;text-align:right;">${califica.toFixed(1)}</span>
+      </div>`;
+  }).join('');
+}
+
+async function aplicarCorte() {
+  const ref = parseFloat(document.getElementById('corte-referencia').value);
+  const periodoId = document.getElementById('corte-periodo').value || null;
+
+  if (!Number.isFinite(ref) || ref <= 0) {
+    aviso('El valor de referencia debe ser mayor que cero', true);
+    return;
+  }
+  if (!confirm(`¿Aplicar el corte con referencia de ${ref} puntos? Se guarda la calificación de participación de todos como una foto fija de este momento.`)) return;
+
+  const btn = document.getElementById('btn-aplicar-corte');
+  btn.disabled = true;
+  try {
+    const { data: corte, error: errorCorte } = await supabase
+      .from('cortes_participacion')
+      .insert({ grupo_id: grupoId, media: ref, periodo_id: periodoId })
+      .select().single();
+    if (errorCorte) throw new Error(errorCorte.message);
+
+    const filas = rankingCorte.map((r) => ({
+      corte_id: corte.id,
+      alumno_id: r.id,
+      puntos_al_momento: r.puntos,
+      calificacion: Math.min(10, Math.round((r.puntos / ref) * 10 * 10) / 10),
+    }));
+    const { error: errorFilas } = await supabase.from('calificaciones_corte_participacion').insert(filas);
+    if (errorFilas) throw new Error(errorFilas.message);
+
+    aviso('Corte aplicado. Ya se refleja en Calificaciones finales.');
+    await cargarRanking();
+  } catch (e) {
+    aviso(`No se pudo aplicar el corte: ${e.message}`, true);
+  } finally { btn.disabled = false; }
+}
+
+document.getElementById('btn-ver-corte')?.addEventListener('click', abrirCorte);
+document.getElementById('btn-volver-de-corte')?.addEventListener('click', () => vista('vista-inicio'));
+document.getElementById('corte-periodo')?.addEventListener('change', cargarRanking);
+document.getElementById('corte-referencia')?.addEventListener('input', pintarRanking);
+document.getElementById('btn-aplicar-corte')?.addEventListener('click', aplicarCorte);
 
 // ---------- eventos ----------
 

@@ -12,6 +12,8 @@ let rubrosTodos = []; // [{id, nombre, peso, periodo_id}]
 let alumnosGrupo = []; // [{id, nombre}]
 let resultadosPorPeriodo = {}; // { periodoKey: filasCalculadas }  ('sin' = sin periodo)
 let vistaActual = 'sin'; // 'sin' | 'ciclo' | periodo.id
+let profesorId = null;
+let filaEnAjuste = null;
 
 function claveDePeriodo(periodoId) {
   return periodoId || 'sin';
@@ -118,6 +120,34 @@ document.getElementById('btn-guardar-pesos').addEventListener('click', async () 
 
 // ---------- Cálculo por periodo ----------
 
+
+// Puntos de participacion acumulados en el modo Clase en vivo.
+// Solo cuentan las participaciones APROBADAS de sesiones ya CERRADAS: una
+// clase abierta todavia puede cambiar, y un reclamo pendiente no es un punto.
+async function puntosDeSesiones(periodoId) {
+  let q = supabase.from('sesiones').select('id').eq('grupo_id', grupoId).eq('estado', 'cerrada');
+  q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
+  const { data: ses, error: errSes } = await q;
+  if (errSes) throw new Error(`Sesiones: ${errSes.message}`);
+  if (!ses || ses.length === 0) return {};
+
+  const { data: acts, error: errAct } = await supabase
+    .from('actividades_sesion').select('id').in('sesion_id', ses.map((x) => x.id));
+  if (errAct) throw new Error(`Actividades: ${errAct.message}`);
+  if (!acts || acts.length === 0) return {};
+
+  const { data: parts, error: errPart } = await supabase
+    .from('participaciones_sesion').select('alumno_id, puntos')
+    .eq('estado', 'aprobada').in('actividad_id', acts.map((x) => x.id));
+  if (errPart) throw new Error(`Participaciones: ${errPart.message}`);
+
+  const acumulado = {};
+  (parts || []).forEach((x) => {
+    acumulado[x.alumno_id] = (acumulado[x.alumno_id] || 0) + Number(x.puntos || 0);
+  });
+  return acumulado;
+}
+
 async function calcularParaPeriodo(periodoId) {
   // periodoId: null (sin periodo / todo el ciclo cuando no hay periodos) o un id de periodo
   const filtroExamenes = periodoId ? { col: 'examenes.periodo_id', val: periodoId } : null;
@@ -175,6 +205,10 @@ async function calcularParaPeriodo(periodoId) {
       (califCorte || []).forEach((c) => {
         corteVigente.calificaciones[c.alumno_id] = { puntos: Number(c.puntos_al_momento), calificacion: Number(c.calificacion) };
       });
+    } else if (modoParticipacion === 'sesiones') {
+      // Clase en vivo: los puntos vienen de las sesiones cerradas del periodo.
+      participacionPorAlumno = await puntosDeSesiones(periodoId);
+      maxParticipacion = Math.max(0, ...Object.values(participacionPorAlumno));
     } else {
       let qPart = supabase.from('participaciones').select('alumno_id, valor').eq('grupo_id', grupoId);
       const { data: participaciones, error: errorPart } = await qPart;
@@ -205,6 +239,16 @@ async function calcularParaPeriodo(periodoId) {
     rubroPorAlumno[c.rubro_id] ||= {};
     rubroPorAlumno[c.rubro_id][c.alumno_id] = Number(c.calificacion);
   });
+
+  // Ajustes manuales del maestro. No sustituyen el calculo: se guardan aparte
+  // y solo se aplican al final, dejando ver el promedio calculado original.
+  let qAjustes = supabase.from('ajustes_calificacion')
+    .select('alumno_id, promedio_ajustado, motivo').eq('grupo_id', grupoId);
+  qAjustes = periodoId ? qAjustes.eq('periodo_id', periodoId) : qAjustes.is('periodo_id', null);
+  const { data: ajustes, error: errorAjustes } = await qAjustes;
+  if (errorAjustes) throw new Error(`Ajustes: ${errorAjustes.message}`);
+  const ajustePorAlumno = {};
+  (ajustes || []).forEach((x) => { ajustePorAlumno[x.alumno_id] = x; });
 
   const pesoExamenes = Number(grupoInfo.peso_examenes) || 0;
   const pesoTareas = Number(grupoInfo.peso_tareas) || 0;
@@ -256,6 +300,10 @@ async function calcularParaPeriodo(periodoId) {
       ? componentes.reduce((s, c) => s + c.valor * c.peso, 0) / pesoUsado
       : null;
 
+    const calculado = num(promedioFinal);
+    const aj = ajustePorAlumno[a.id];
+    const ajuste = aj ? { valor: num(Number(aj.promedio_ajustado)), motivo: aj.motivo } : null;
+
     return {
       alumnoId: a.id,
       nombre: a.nombre,
@@ -266,7 +314,9 @@ async function calcularParaPeriodo(periodoId) {
       etiquetaParticipacion,
       valoresPorRubro,
       rubrosPeriodo,
-      promedioFinal: num(promedioFinal),
+      promedioCalculado: calculado,
+      ajuste,
+      promedioFinal: ajuste ? ajuste.valor : calculado,
     };
   });
 }
@@ -355,11 +405,117 @@ function renderTablaPeriodo(filas) {
             <td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${f.promTareas ?? '—'}</td>
             <td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${f.etiquetaParticipacion}</td>
             ${rubrosPeriodo.map((r) => `<td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${f.valoresPorRubro[r.id] ?? '—'}</td>`).join('')}
-            <td class="py-3 px-6 text-center font-headline-lg-mobile text-on-surface font-bold">${f.promedioFinal ?? '—'}</td>
+            <td class="py-3 px-6 text-center">
+              <div class="flex items-center justify-center gap-2">
+                <span class="font-headline-lg-mobile font-bold ${f.ajuste ? 'text-primary' : 'text-on-surface'}">${f.promedioFinal ?? '—'}</span>
+                <button class="btn-ajustar text-on-surface-variant hover:text-primary" data-alumno="${f.alumnoId}" title="Ajustar calificación">
+                  <span class="material-symbols-outlined" style="font-size:18px;">edit</span>
+                </button>
+              </div>
+              ${f.ajuste ? `<p class="text-sm text-primary mt-1" title="${escapeHtml(f.ajuste.motivo)}">ajustado · calculado: ${f.promedioCalculado ?? '—'}</p>` : ''}
+            </td>
           </tr>`).join('')}
       </tbody>
     </table>`;
+
+  contenedor.querySelectorAll('.btn-ajustar').forEach((b) => {
+    b.addEventListener('click', () => abrirAjuste(b.dataset.alumno));
+  });
 }
+
+// ---------- Ajuste manual del promedio ----------
+// Existe porque el sistema puede equivocarse: un examen que no reconocio una
+// respuesta valida, un bloqueo injusto. El ajuste NO reescribe el calculo:
+// se guarda aparte, con motivo y autor, y la pantalla sigue mostrando cual
+// era el promedio calculado. Asi la correccion es visible, no un borron.
+
+function periodoDeLaVista() {
+  return vistaActual === 'sin' || vistaActual === 'ciclo' ? null : vistaActual;
+}
+
+function abrirAjuste(alumnoId) {
+  const filas = resultadosPorPeriodo[vistaActual] || [];
+  const f = filas.find((x) => x.alumnoId === alumnoId);
+  if (!f) return;
+  filaEnAjuste = f;
+  document.getElementById('ajuste-alumno').textContent = f.nombre;
+  document.getElementById('ajuste-calculado').textContent = f.promedioCalculado ?? '—';
+  document.getElementById('ajuste-valor').value = f.ajuste ? f.ajuste.valor : (f.promedioCalculado ?? '');
+  document.getElementById('ajuste-motivo').value = f.ajuste ? f.ajuste.motivo : '';
+  document.getElementById('btn-quitar-ajuste').classList.toggle('hidden', !f.ajuste);
+  document.getElementById('dialogo-ajuste').classList.remove('hidden');
+}
+
+function cerrarAjuste() {
+  filaEnAjuste = null;
+  document.getElementById('dialogo-ajuste').classList.add('hidden');
+}
+
+async function guardarAjuste() {
+  if (!filaEnAjuste) return;
+  const valor = parseFloat(document.getElementById('ajuste-valor').value);
+  const motivo = document.getElementById('ajuste-motivo').value.trim();
+
+  if (!Number.isFinite(valor) || valor < 0 || valor > 10) {
+    mostrarError('La calificación debe ser un número entre 0 y 10');
+    return;
+  }
+  if (motivo.length < 3) {
+    mostrarError('Escribe el motivo del ajuste. Queda registrado junto con la calificación.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-guardar-ajuste');
+  btn.disabled = true;
+  try {
+    const periodoId = periodoDeLaVista();
+    // Borrar y volver a insertar: los indices unicos son parciales (por el
+    // caso "sin periodo"), asi que un upsert normal no los aprovecharia.
+    let q = supabase.from('ajustes_calificacion').delete()
+      .eq('grupo_id', grupoId).eq('alumno_id', filaEnAjuste.alumnoId);
+    q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
+    const { error: errorBorrar } = await q;
+    if (errorBorrar) throw new Error(errorBorrar.message);
+
+    const { error } = await supabase.from('ajustes_calificacion').insert({
+      grupo_id: grupoId,
+      alumno_id: filaEnAjuste.alumnoId,
+      periodo_id: periodoId,
+      promedio_ajustado: valor,
+      motivo,
+      ajustado_por: profesorId,
+    });
+    if (error) throw new Error(error.message);
+
+    cerrarAjuste();
+    mostrarOk('Calificación ajustada. Queda marcada como tal en pantalla y en el Excel.');
+    await recalcularTodo();
+  } catch (e) {
+    mostrarError(`No se pudo guardar el ajuste: ${e.message}`);
+  } finally { btn.disabled = false; }
+}
+
+async function quitarAjuste() {
+  if (!filaEnAjuste) return;
+  if (!window.confirm('¿Quitar el ajuste y volver al promedio calculado?')) return;
+  try {
+    const periodoId = periodoDeLaVista();
+    let q = supabase.from('ajustes_calificacion').delete()
+      .eq('grupo_id', grupoId).eq('alumno_id', filaEnAjuste.alumnoId);
+    q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
+    const { error } = await q;
+    if (error) throw new Error(error.message);
+    cerrarAjuste();
+    mostrarOk('Ajuste eliminado.');
+    await recalcularTodo();
+  } catch (e) {
+    mostrarError(`No se pudo quitar: ${e.message}`);
+  }
+}
+
+document.getElementById('btn-guardar-ajuste')?.addEventListener('click', guardarAjuste);
+document.getElementById('btn-quitar-ajuste')?.addEventListener('click', quitarAjuste);
+document.getElementById('btn-cancelar-ajuste')?.addEventListener('click', cerrarAjuste);
 
 function promedioCiclo(alumnoId) {
   const valores = periodos
@@ -418,6 +574,8 @@ document.getElementById('btn-exportar').addEventListener('click', () => {
       };
       rubrosPeriodo.forEach((r) => { fila[r.nombre] = f.valoresPorRubro[r.id] ?? ''; });
       fila['Promedio Final (0-10)'] = f.promedioFinal ?? '';
+      fila['Calculado por el sistema'] = f.promedioCalculado ?? '';
+      fila['Motivo del ajuste'] = f.ajuste ? f.ajuste.motivo : '';
       return fila;
     });
     window.XLSX.utils.book_append_sheet(libro, window.XLSX.utils.json_to_sheet(datos), 'Calificaciones');
@@ -434,6 +592,8 @@ document.getElementById('btn-exportar').addEventListener('click', () => {
         };
         rubrosPeriodo.forEach((r) => { fila[r.nombre] = f.valoresPorRubro[r.id] ?? ''; });
         fila['Promedio (0-10)'] = f.promedioFinal ?? '';
+        fila['Calculado por el sistema'] = f.promedioCalculado ?? '';
+        fila['Motivo del ajuste'] = f.ajuste ? f.ajuste.motivo : '';
         return fila;
       });
       const nombreHoja = p.nombre.replace(/[\\/*?:[\]]/g, '').slice(0, 31) || 'Periodo';
@@ -461,6 +621,7 @@ async function init() {
   const profesor = await requireProfesor();
   if (!profesor) return;
 
+  profesorId = profesor.id;
   modoParticipacion = profesor.modo_participacion || 'simple';
   etiquetas = {
     examenes: profesor.etiqueta_examenes || 'Exámenes',
