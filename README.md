@@ -1,132 +1,170 @@
-# EasyTeacher
+# AulaFácil
 
-Plataforma web para que profesores creen exámenes, tomen asistencia, suban
-calificaciones y las exporten a Excel — con bloqueo anti-copia en exámenes,
-participación configurable, rubros personalizados y parciales.
+Plataforma web del **Colegio Pedro de Gante** para que los maestros apliquen
+exámenes, tomen asistencia, registren participación y saquen calificaciones
+finales a Excel.
 
 Nació como herramienta para un solo profesor y creció a proyecto de estadía:
-ahora soporta varios maestros, cada uno con su propia forma de calificar.
+hoy soporta varios maestros, cada uno con su propia forma de calificar.
 
-Backend: Supabase (Postgres + Auth + Storage + Edge Functions).
-Frontend: HTML + JavaScript puro (sin framework, sin build step).
+- **Frontend**: HTML + JavaScript puro, sin framework.
+- **Backend**: Supabase (Postgres + Auth + Storage + Edge Functions).
+- **Hosting actual**: GitHub Pages — https://gabolirca.github.io/easyteacher/
 
-## Estado actual — funcionalmente completo
+## Qué resuelve
 
-- **Cuentas**: profesor se registra normal; alumnos los da de alta el
-  profesor (o se auto-inscriben si la matrícula ya existe en otro grupo).
-- **Grupos**: crear, archivar/restaurar, varios por profesor. Un alumno
-  puede estar en varios grupos (ej. mismo salón, distinta materia).
-- **Alumnos**: gestión por grupo (`alumnos.html`) y vista global de todos
-  los alumnos del profesor entre grupos (`alumnos-global.html`).
-- **Exámenes**: constructor con 4 tipos de pregunta (opción múltiple,
-  verdadero/falso, relacionar columnas, completar), teclado de símbolos
-  matemáticos automático en materias de Matemáticas, duplicar entre grupos,
-  archivar/restaurar. El alumno responde con bloqueo inmediato si sale de
-  pantalla completa o cambia de pestaña; la calificación se calcula en el
-  servidor (Edge Functions) para que el alumno nunca vea ni manipule las
-  respuestas correctas.
-- **Asistencia**: pase de lista por fecha (presente/falta/retardo).
-- **Tareas**: crear con peso, calificar en lote.
-- **Participación**: dos modos configurables por profesor —
-  - *Fichas* (juego de fichas de casino: verde/azul/roja/blanca con valor
-    editable, negra como multiplicador manual) con sistema de "corte":
-    ranking de mayor a menor, el profesor elige un valor de referencia y
-    se calcula la calificación (tope en 10), guardado como foto fija.
-  - *Simple*: una calificación 0-10 directa por alumno, como Tareas.
-- **Rubros personalizados**: categorías propias del profesor (ej.
-  "Conducta", "Proyecto final"), calificadas 0-10.
-- **Periodos/Parciales**: configurables por grupo; exámenes, tareas, rubros
-  y participación se pueden ligar a un periodo específico.
-- **Calificaciones finales**: ponderación editable (exámenes/tareas/
-  participación/rubros), vista de "Resumen del ciclo" + una por cada
-  parcial, exportación a Excel (una hoja por parcial + hoja "Resumen").
-- **Perfil**: nombre, foto (Supabase Storage), tipo de maestro (grupo o
-  materia), cambio de contraseña.
+| Módulo | Para qué |
+|---|---|
+| Exámenes | 4 tipos de pregunta, link + QR, bloqueo anti-copia, calificación automática |
+| Asistencia | Pase de lista por fecha, o automático por QR en las sesiones |
+| Tareas | Crear con peso y calificar en lote |
+| Participación | Tres modos según el maestro (ver abajo) |
+| Rubros | Categorías propias del maestro, ej. "Conducta" |
+| Periodos | Parciales del ciclo, todo se puede ligar a uno |
+| Calificaciones | Ponderación editable, desglose por parcial, export a Excel |
 
-## Pendiente
+## Los tres modos de participación
 
-- Mejoras de estética/UI (funcionalidad ya completa, ahora toca pulir).
-- Desplegar en un hosting real (Vercel, o el servidor propio de la
-  escuela — ambos funcionan igual de bien porque el sitio es HTML/JS
-  estático puro, sin necesidad de Node ni backend propio).
-- Idea a futuro, no urgente: análisis con IA sobre calificaciones/
-  asistencia para sugerir mejoras por grupo.
+Cada maestro elige uno en su perfil, y solo ve la pestaña de ese modo.
 
-## Estructura del proyecto
-├── index.html → redirige a dashboard o login según la sesión
-├── login.html → registro/login del profesor
-├── dashboard.html → panel principal del profesor
-├── perfil.html → editar perfil, foto, contraseña
-├── crear-grupo.html → crear grupo + dar de alta alumnos
-├── grupo.html → detalle de un grupo (tabs: exámenes, tareas,
-│ asistencia, participación, rubros, periodos,
-│ calificaciones, alumnos)
-├── alumnos.html → alumnos de un grupo específico
-├── alumnos-global.html → todos los alumnos del profesor, entre grupos
-├── constructor-examen.html → crear/editar un examen
-├── examen.html → pantalla donde el alumno responde
-├── asistencia.html → pase de lista
-├── tareas.html / calificar-tarea.html → tareas y su calificación
-├── participacion.html → fichas o modo simple, según el profesor
-├── rubros.html / calificar-rubro.html → rubros personalizados
-├── periodos.html → parciales del ciclo
-├── calificaciones.html → calificaciones finales + Excel
-└── assets/js/ → un archivo .js por pantalla,
-más supabase-client.js y
-auth-guard.js (compartidos)
+- **Fichas** — el juego de fichas de casino (verde/azul/roja/blanca con valor
+  editable, negra como multiplicador). Usa "corte": ranking de mayor a menor,
+  el maestro elige un valor de referencia y de ahí sale la calificación.
+- **Clase en vivo** — el maestro abre la sesión, muestra un QR que rota cada
+  20 s, los alumnos escanean para registrar presencia y marcan qué actividades
+  hicieron; el maestro valida de un toque. Los puntos se acumulan y se
+  convierten a porcentaje al cerrar el parcial.
+- **Formato tarea** — una sola calificación 0-10 por alumno.
 
+## Resistencia a la red del colegio
 
-## Cómo correrlo en tu compu (WSL/Ubuntu)
+La red de la escuela falla seguido, y eso rompía los exámenes. Lo que se hizo
+está documentado a detalle en [`CAMBIOS-RED-Y-BLOQUEOS.md`](CAMBIOS-RED-Y-BLOQUEOS.md).
+En resumen:
 
-No necesita Node ni build — es HTML/JS plano. Un servidor local simple
-basta para que los `import` de JavaScript funcionen (abrir el `.html`
-directo con doble clic no sirve, los navegadores bloquean módulos ES en
-`file://`):
+- **Un aviso antes de bloquear.** Salir del examen da advertencia; a la
+  segunda se cierra y entrega.
+- **Las salidas por caída de red no cuentan.** Solo se perdona la que coincide
+  con un cambio de conectividad (la alerta de wifi del sistema tapando el
+  navegador). Estar sin internet no da inmunidad: la advertencia se cuenta en
+  el dispositivo y se reconcilia al entregar.
+- **Las respuestas se guardan en el dispositivo** a cada cambio. Recargar,
+  quedarse sin batería o cerrar la pestaña ya no las pierde.
+- **La entrega se reintenta** hasta que el servidor confirma. La pantalla de
+  "entregado" solo aparece cuando de verdad se guardó.
+- **Cronómetro anclado al servidor**: recargar no regala tiempo nuevo.
+- **Service worker**: la app abre sin red una vez cargada. Nada de Supabase se
+  cachea nunca.
+- **Sin CDNs en las pantallas del alumno**: Tailwind viene compilado y el SDK
+  de Supabase vive en el repo.
 
-```bash
-cd EasyTeacher
-python3 -m http.server 8000
+## Diseño del módulo de sesiones
+
+Las decisiones y el modelo de datos están en
+[`DISENO-SESIONES-Y-PARTICIPACION.md`](DISENO-SESIONES-Y-PARTICIPACION.md).
+Lo esencial: AulaFácil **no guarda la actividad académica**, solo el marcador.
+La clase ocurre en el salón; aquí vive quién participó, en qué y cuánto vale.
+
+## Estructura
+
+```
+index.html                 redirige a dashboard o login
+login.html                 registro/login del profesor
+dashboard.html             panel principal
+perfil.html                perfil, foto, modo de participación
+crear-grupo.html           crear grupo + alta de alumnos
+grupo.html                 detalle del grupo (pestañas)
+alumnos.html               alumnos de un grupo
+alumnos-global.html        todos los alumnos, entre grupos
+constructor-examen.html    crear/editar examen
+examen.html                pantalla del alumno durante el examen
+resultados-examen.html     resultados + avisos anti-copia
+ver-respuestas.html        detalle de respuestas de un intento
+asistencia.html            pase de lista
+tareas.html                tareas
+calificar-tarea.html       calificar una tarea
+participacion.html         fichas o formato tarea
+sesion.html                clase en vivo: QR, actividades, historial
+panel-alumno.html          pantalla del alumno en la clase en vivo
+rubros.html                rubros personalizados
+calificar-rubro.html       calificar un rubro
+periodos.html              parciales del ciclo
+calificaciones.html        calificaciones finales + Excel
+sw.js                      service worker (modo offline)
+
+assets/js/                 un .js por pantalla
+  supabase-client.js       cliente compartido
+  auth-guard.js            protege las pantallas del profesor
+  recargar.js              botón de recargar / actualizar versión
+assets/css/app.css         Tailwind compilado (generado)
+assets/vendor/             SDK de Supabase y qrcode, sin CDN
 ```
 
-Abre `http://localhost:8000` en el navegador (no `0.0.0.0`).
+## Edge Functions
 
-**Importante**: si editas un archivo y no ves el cambio reflejado, casi
-siempre es caché del navegador — recarga forzada con **Ctrl+Shift+R**
-antes de sospechar que el código está mal.
+Viven en Supabase, no en el repo. Para bajarlas:
+`npx supabase functions download <nombre>`
 
-## Subir cambios a GitHub
+| Función | Qué hace |
+|---|---|
+| `crear-alumnos` | Alta en lote; si la matrícula existe, inscribe al alumno al grupo |
+| `iniciar-examen` | Entrega el examen sin respuestas correctas, ancla el cronómetro |
+| `enviar-respuestas` | Califica en el servidor; idempotente para tolerar reintentos |
+| `registrar-advertencia` | Cuenta los avisos anti-copia del lado del servidor |
+| `registrar-presencia` | Valida el QR rotativo y marca asistencia |
+| `reclamar-participacion` | El alumno dice "yo la hice"; nace pendiente y sin puntos |
+| `cerrar-actividad` | Convierte en puntos la lista definitiva del maestro |
 
-```bash
-cd EasyTeacher
-git add .
-git commit -m "Describe aquí qué cambiaste"
-git push
+## Correrlo en tu compu
+
+No necesita build para funcionar, pero sí un servidor local: abrir el `.html`
+con doble clic no sirve, los navegadores bloquean módulos ES en `file://`.
+
+```powershell
+cd C:\Users\Gabol\OneDrive\Documentos\EasyTeacher
+python -m http.server 8000
 ```
 
-(El repo remoto ya está configurado desde el primer push — no hace falta
-repetir `git remote add` ni `--set-upstream`.)
+Abre `http://localhost:8000`.
 
-## Desplegar
+### Cuando cambies clases de Tailwind
 
-El sitio es HTML/JS estático puro, así que sirve en **cualquier hosting**
-que sepa servir archivos estáticos — no necesita Node, PHP, ni backend
-propio (toda la lógica vive en Supabase). Dos opciones:
+`assets/css/app.css` es **generado**. Si agregas clases nuevas en el HTML hay
+que recompilarlo:
 
-- **Vercel** (gratis): conecta el repo de GitHub, framework preset
-  "Other", deploy. Cada `git push` a `main` lo actualiza solo.
-- **Servidor propio de la escuela**: si puede servir archivos estáticos
-  (Apache, Nginx, IIS, cPanel, lo que sea), solo se copian los archivos
-  del repo ahí — no hay pasos de instalación ni dependencias que armar.
+```powershell
+npm install      # una sola vez
+npm run css
+```
 
-## Notas de seguridad
+También corre solo en cada push, con el workflow `.github/workflows/css.yml`.
 
-- La "publishable key" de Supabase en `assets/js/supabase-client.js` es
-  segura de exponer en el navegador — no es secreta. La protección real
-  vive en las reglas de Row Level Security de la base (cada quien ve/edita
-  solo lo suyo).
-- Las Edge Functions (`crear-alumnos`, `iniciar-examen`,
-  `enviar-respuestas`) usan una llave con privilegios (service role) que
-  nunca sale del servidor — vive solo dentro de las funciones en Supabase.
-- Los alumnos nunca reciben las respuestas correctas de un examen ni
-  pueden escribir su propia calificación directamente — todo el cálculo
-  pasa por las Edge Functions.
+### Otros comandos
+
+```powershell
+npm run vendor    # regenera assets/vendor/supabase.js
+npm run fuentes   # baja Inter y Material Symbols al repo (opcional)
+```
+
+## Al cambiar archivos del examen
+
+Sube `VERSION` en `sw.js`. Si no, los dispositivos que ya abrieron la app
+siguen con la versión anterior guardada.
+
+Para que un dispositivo tome la versión nueva: el botón de arriba a la derecha
+se pone rojo y dice **"Actualizar"** cuando hay una esperando. Eso evita tener
+que borrar los datos del sitio a mano.
+
+## Seguridad
+
+- La *publishable key* de Supabase en `assets/js/supabase-client.js` es segura
+  de exponer: no es secreta. La protección real vive en Row Level Security.
+- Las Edge Functions usan la *service role key*, que nunca sale del servidor.
+- Los alumnos **nunca** reciben las respuestas correctas de un examen, ni
+  pueden escribir su calificación, ni darse puntos de participación. Todo pasa
+  por Edge Functions.
+- El secreto del QR de una sesión vive en su propia tabla (`sesiones_secreto`)
+  porque la RLS de Postgres es por fila, no por columna: si fuera una columna
+  de `sesiones`, un alumno que ve la sesión vería el secreto.
+- RLS verificada suplantando identidades (alumno, maestro ajeno, maestro
+  dueño) y comprobando que cada intento de abuso queda bloqueado.
