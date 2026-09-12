@@ -1,0 +1,147 @@
+const { d, numbering, P, H1, H2, H3, LI, PASO, NOTA, TABLA, PORTADA, SECCION } = require('./comun.js');
+const fs = require('fs');
+
+const doc = new d.Document({ numbering, sections: [SECCION([
+  ...PORTADA('Manual técnico', 'Arquitectura, seguridad y mantenimiento', 'Versión 1.1 · Septiembre 2026'),
+
+  H1('1. Qué es AulaFácil'),
+  P('AulaFácil es una aplicación web que sustituye el trabajo administrativo repetitivo de un maestro: aplicar exámenes, pasar lista, registrar participación y calcular calificaciones finales.'),
+  P('El principio de diseño que ordena todo el sistema es que AulaFácil no guarda la actividad académica, solo el marcador. El examen se contesta en la plataforma, pero los ejercicios de clase, las exposiciones y los trabajos ocurren fuera; el sistema únicamente registra quién participó, cuánto vale y cuándo.'),
+
+  H1('2. Arquitectura'),
+  P('Son dos mitades que se comunican por HTTPS:'),
+  TABLA(['Capa', 'Tecnología', 'Dónde vive'], [
+    ['Frontend', 'HTML + JavaScript puro, sin framework', 'GitHub Pages (archivos estáticos)'],
+    ['Estilos', 'Tailwind CSS compilado a un archivo', 'En el repositorio, generado'],
+    ['Base de datos', 'PostgreSQL con Row Level Security', 'Supabase (nube)'],
+    ['Autenticación', 'Supabase Auth', 'Supabase (nube)'],
+    ['Lógica sensible', 'Edge Functions en Deno/TypeScript', 'Supabase (nube)'],
+    ['Archivos', 'Supabase Storage (fotos de perfil)', 'Supabase (nube)'],
+  ], [1900, 3900, 3560]),
+  P('No hay servidor propio que mantener ni proceso que reiniciar. El frontend es un conjunto de archivos estáticos: cualquier servidor web que los sirva por HTTPS funciona.'),
+
+  H1('3. Modelo de datos'),
+  P('La base tiene 24 tablas. Estas son las que sostienen el modelo:'),
+  TABLA(['Tabla', 'Qué guarda'], [
+    ['profesores / alumnos', 'Perfiles, ligados uno a uno con los usuarios de Auth'],
+    ['grupos / grupo_alumnos', 'Clases y la inscripción de alumnos. Un alumno puede estar en varios grupos'],
+    ['periodos', 'Parciales del ciclo escolar, por grupo'],
+    ['examenes / preguntas / opciones', 'Los exámenes y su contenido'],
+    ['intentos / respuestas', 'Lo que contestó cada alumno y su calificación'],
+    ['asistencias', 'Pase de lista. Estados: presente, retardo, falta, justificada'],
+    ['tareas / calificaciones_tareas', 'Tareas con peso y su calificación'],
+    ['participaciones / cortes_participacion', 'Modo Fichas y su sistema de corte'],
+    ['sesiones / actividades_sesion / participaciones_sesion', 'Modo Clase en vivo'],
+    ['sesiones_secreto', 'El secreto del QR rotativo, aislado a propósito'],
+    ['rubros_evaluacion / calificaciones_rubro', 'Rubros personalizados del maestro'],
+    ['ajustes_calificacion', 'Correcciones manuales del promedio, con motivo y autor'],
+  ], [3100, 6260]),
+
+  H2('Decisiones de modelado que conviene entender'),
+  LI('Los puntos de participación se copian a la fila en el momento de aprobarse, no se leen en vivo desde la actividad. Si el maestro corrige el valor después, no se recalculan calificaciones ya emitidas.'),
+  LI('El resumen de una sesión (presentes, participaciones, puntos) se congela al cerrar la clase. Sirve como evidencia estable de lo que ocurrió ese día.'),
+  LI('El corte de participación en modo Fichas también se guarda como foto fija, no se recalcula.'),
+  LI('El secreto del QR vive en su propia tabla y no como columna de sesiones, porque Row Level Security en PostgreSQL opera por fila y no por columna: si fuera columna, un alumno que puede ver la sesión podría leer el secreto.'),
+  LI('Un ajuste manual de calificación no sobrescribe el cálculo: se guarda en su propia tabla con motivo y autor, y la interfaz muestra ambos valores. La trazabilidad importa más que la simplicidad del dato.'),
+  LI('Una reposición no reabre la sesión cerrada ni edita la participación original: se inserta como fila aparte en participaciones_sesion, marcada con origen, motivo_reposicion, porcentaje_reposicion y resuelto_en. El registro del día sigue siendo evidencia fiel.'),
+
+  H2('Identidad del alumno: por maestro, no global'),
+  P('El diseño original hacía la matrícula única en todo el sistema, asumiendo que sería la del colegio. En la práctica eso no funciona: AulaFácil no es el sistema de control escolar, y los maestros no tienen acceso a las matrículas oficiales. Dos maestros que daban de alta al mismo alumno chocaban sin saber por qué.'),
+  P('Hoy alumnos.profesor_id marca al dueño, y la unicidad de la matrícula está limitada por maestro mediante un índice único parcial que además solo aplica a los alumnos activos. Un mismo estudiante puede existir varias veces, una por maestro, cada una con su propia credencial.'),
+  P('Como auth.users sí exige correo único globalmente, crear-alumnos prueba sufijos hasta encontrar uno libre y guarda el resultado en alumnos.correo_login, que es lo que la interfaz le muestra al maestro para que se lo dé al alumno.'),
+  NOTA('Efecto lateral deseable: un alumno tiene credenciales distintas en cada materia, así que una contraseña prestada solo compromete esa clase. El costo es que la misma persona aparece como varias filas; es aceptable porque el sistema es el control del maestro, no el del colegio.'),
+
+  H2('Egreso: liberar matrículas sin borrar historia'),
+  P('Las columnas activo y ciclo_egreso de alumnos implementan el ciclo de vida. Al egresar, la Edge Function egresar-alumnos marca activo en falso, registra el ciclo y libera el correo de Auth, de modo que el índice único parcial deja de considerar esa matrícula y el número queda disponible otra vez.'),
+  P('Ningún dato académico se borra: intentos, respuestas, asistencias, participaciones y calificaciones siguen apuntando al mismo identificador y se consultan desde los grupos archivados. Solo se exige que el alumno ya no esté en ningún grupo activo, para evitar egresar a alguien que sigue en clase.'),
+
+  H1('4. Seguridad'),
+  P('El supuesto de partida es que el alumno puede abrir las herramientas de desarrollo del navegador y llamar a la API directamente. Todo lo que importa está protegido del lado del servidor.'),
+
+  H2('Row Level Security'),
+  P('Todas las tablas tienen RLS activa. Las reglas se apoyan en dos funciones auxiliares, es_profesor_del_grupo y alumno_en_grupo, que resuelven la pertenencia sin exponer datos de terceros.'),
+  TABLA(['Actor', 'Puede'], [
+    ['Alumno', 'Leer solo lo suyo: sus intentos, sus participaciones, su asistencia'],
+    ['Alumno', 'NO puede escribir participaciones, ni crear sesiones, ni leer el secreto del QR'],
+    ['Maestro', 'Todo, pero únicamente dentro de los grupos de los que es dueño'],
+    ['Maestro ajeno', 'Nada de los grupos de otro maestro'],
+  ], [2400, 6960]),
+  NOTA('Esto no es una suposición: se verificó suplantando las tres identidades contra la base real y comprobando que cada intento de abuso quedara bloqueado. Un alumno intentando insertarse 40 puntos recibe un error de política de seguridad.'),
+
+  H2('Edge Functions'),
+  P('Concentran todo lo que no puede confiarse al navegador. Usan la llave de servicio, que nunca sale del servidor.'),
+  P('Son nueve funciones desplegadas:'),
+  TABLA(['Función', 'Responsabilidad'], [
+    ['crear-alumnos', 'Alta en lote. Resuelve la matrícula contra los alumnos activos de ese maestro y negocia un correo libre'],
+    ['iniciar-examen', 'Entrega el examen sin respuestas correctas y ancla el cronómetro al reloj del servidor'],
+    ['enviar-respuestas', 'Califica en el servidor. Es idempotente, para tolerar reintentos sin duplicar'],
+    ['registrar-advertencia', 'Lleva la cuenta de avisos anti-copia del lado del servidor'],
+    ['registrar-presencia', 'Valida el código del QR rotativo y marca asistencia'],
+    ['reclamar-participacion', 'Registra el reclamo del alumno como pendiente y sin puntos'],
+    ['cerrar-actividad', 'Convierte en puntos la lista definitiva que aprobó el maestro'],
+    ['egresar-alumnos', 'Marca el egreso y libera el correo de Auth para reciclar la matrícula'],
+    ['crear-alumno', 'Obsoleta. Versión de un solo alumno, reemplazada por crear-alumnos. Puede eliminarse'],
+  ], [2900, 6460]),
+  P('Consecuencia práctica: el alumno nunca recibe las respuestas correctas de un examen, no puede escribir su propia calificación y no puede otorgarse puntos de participación.'),
+
+  H2('El QR rotativo'),
+  P('El código del QR se recalcula cada 20 segundos. Contiene una firma HMAC-SHA256 del identificador de la sesión y la ventana de tiempo, calculada en el navegador del maestro con el secreto que solo él puede leer. El servidor revalida aceptando la ventana actual y una de margen a cada lado, es decir unos 60 segundos de vida útil.'),
+  P('Esto resuelve el problema de que un alumno fotografíe el código y se lo mande a un compañero que está en su casa: para cuando llega, ya expiró.'),
+
+  H1('5. Resistencia a la red'),
+  P('La red del colegio falla con frecuencia y eso rompía los exámenes. Las medidas implementadas:'),
+  LI('Un aviso antes de bloquear. Salir del examen genera advertencia; a la segunda se cierra y se entrega.'),
+  LI('Las salidas que coinciden con un cambio de conectividad no cuentan, porque son la alerta de wifi del sistema tapando el navegador. Estar sin internet no da inmunidad: la advertencia se cuenta en el dispositivo y se reconcilia con el servidor al entregar.'),
+  LI('Las respuestas se guardan en el dispositivo a cada cambio. Recargar, quedarse sin batería o cerrar la pestaña ya no las pierde.'),
+  LI('La entrega se reintenta con esperas crecientes hasta que el servidor confirma. La pantalla de "entregado" solo aparece cuando de verdad se guardó.'),
+  LI('El cronómetro se ancla a la hora de inicio registrada en el servidor, así que recargar no regala tiempo.'),
+  LI('Un service worker guarda el cascarón de la aplicación para que abra sin red. Las llamadas a Supabase nunca se cachean.'),
+  LI('Las pantallas del alumno no dependen de ningún CDN externo: Tailwind viene compilado y el SDK de Supabase vive en el repositorio.'),
+  NOTA('Detección en iOS: Safari congela los temporizadores de una página en segundo plano, de modo que un setTimeout programado al salir puede no ejecutarse nunca. Por eso la salida se mide al regresar, restando con reloj de pared. Si alguien modifica esta lógica, debe conservar ese enfoque o la detección dejará de funcionar en iPhone.'),
+
+  H1('6. Versionado del esquema'),
+  P('El esquema no se administra a mano desde el panel de Supabase: cada cambio es una migración con nombre y fecha. A la fecha de este documento hay 27 migraciones, desde la creación del esquema hasta la identidad por maestro, y viven en supabase/migrations dentro del repositorio.'),
+  P('Esto es lo que hace reproducible el sistema. Con el repositorio y una cuenta de Supabase vacía se puede levantar una instancia idéntica sin depender del proyecto actual:'),
+  PASO('npx supabase link --project-ref <identificador del proyecto nuevo>', 1),
+  PASO('npx supabase db push, que aplica las migraciones en orden', 1),
+  PASO('npx supabase functions deploy <nombre>, una por cada Edge Function', 1),
+  NOTA('Si se toca la base directamente desde el panel, hay que bajar el cambio con npx supabase db pull para que quede registrado. Un cambio aplicado solo en producción existe únicamente ahí y se pierde en cualquier migración futura.'),
+
+  H1('7. Compilación y despliegue'),
+  H2('Requisitos'),
+  P('Node.js solo hace falta para recompilar los estilos. La aplicación en sí no necesita build para funcionar.'),
+  H2('Comandos'),
+  TABLA(['Comando', 'Cuándo se usa'], [
+    ['npm install', 'Una sola vez, al clonar el repositorio'],
+    ['npm run css', 'Cuando se agregan clases de Tailwind nuevas en el HTML'],
+    ['npm run vendor', 'Para actualizar el SDK de Supabase incluido en el repositorio'],
+    ['npm run fuentes', 'Opcional: descarga las tipografías al repositorio'],
+  ], [2600, 6760]),
+  P('El archivo assets/css/app.css es generado. Existe además un workflow de GitHub Actions que lo recompila y commitea en cada push, de modo que olvidarlo no rompe el sitio.'),
+  H2('Despliegue'),
+  P('El sitio se sirve hoy desde GitHub Pages. Para moverlo a otro servidor basta copiar el contenido del repositorio a la raíz del sitio: las rutas del proyecto son relativas y funcionan igual en la raíz que en una subcarpeta.'),
+  NOTA('El servidor debe servir por HTTPS con certificado válido. El service worker solo funciona en contexto seguro, y la cámara para escanear el QR también lo exige. Sin HTTPS se pierde el modo offline y la clase en vivo.'),
+
+  H1('8. Mantenimiento'),
+  H2('Al modificar archivos del examen'),
+  P('Hay que subir el número de VERSION en sw.js. Si no se hace, los dispositivos que ya abrieron la aplicación siguen usando la versión guardada. Para que un dispositivo tome la versión nueva, el botón de la esquina superior derecha cambia a color rojo y dice "Actualizar".'),
+  H2('Riesgos operativos conocidos'),
+  LI('El plan gratuito de Supabase suspende los proyectos sin actividad después de aproximadamente una semana. En periodos vacacionales la plataforma puede amanecer caída y requiere que alguien la reactive desde el panel.'),
+  LI('Reactivar un intento de examen después de la hora de cierre no funciona: la función iniciar-examen rechaza crear intentos nuevos una vez pasada la fecha límite.'),
+  LI('La clase "rounded-DEFAULT" aparece en el HTML pero Tailwind no genera esa clase. Las esquinas redondeadas que se pretendían nunca se aplicaron. Corregirlo cambiaría el aspecto de toda la aplicación.'),
+  LI('La barra lateral del panel principal tiene etiquetas en inglés mezcladas con el resto en español.'),
+  LI('El borrado definitivo de un alumno no se hace desde la aplicación: requiere eliminar la cuenta en auth.users, y el borrado cascadea a todo su historial. La operación normal es el egreso, que conserva los datos.'),
+  H2('Auditoría de seguridad'),
+  P('El analizador de Supabase no reporta ningún error sobre el proyecto: no hay tablas sin RLS ni políticas permisivas. Las advertencias abiertas son menores: las funciones auxiliares es_profesor_del_grupo y alumno_en_grupo quedan expuestas como RPC, aunque solo devuelven un booleano sobre el propio usuario, y la verificación de contraseñas filtradas de Supabase Auth está desactivada.'),
+
+  H1('9. Accesos a transferir'),
+  P('Para que la institución quede como dueña de la operación se deben transferir:'),
+  TABLA(['Qué', 'Cómo'], [
+    ['Proyecto de Supabase', 'Transferirlo a la organización del colegio desde Project Settings. Conserva usuarios, datos y contraseñas, y el identificador no cambia, por lo que no hay que tocar código'],
+    ['Repositorio de GitHub', 'Transferirlo o crear una copia en la cuenta institucional. Cambia la dirección pública del sitio'],
+    ['Dominio y hosting', 'Según lo que decida la institución'],
+  ], [2600, 6760]),
+  NOTA('La transferencia del proyecto de Supabase es preferible a crear uno nuevo y migrar. Recrear los usuarios generaría identificadores distintos y dejaría huérfano todo el historial de calificaciones, asistencia y participación, que apunta a los identificadores actuales.'),
+])] });
+
+d.Packer.toBuffer(doc).then((b) => { fs.writeFileSync('Manual-tecnico-AulaFacil.docx', b); console.log('Manual técnico:', b.length, 'bytes'); });

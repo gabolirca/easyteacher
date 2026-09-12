@@ -3,3 +3,9 @@
 node_modules/
 .vercel
 
+# Estado local del CLI de Supabase (no es del proyecto, es de tu maquina)
+supabase/.temp/
+
+# Salidas de trabajo: respaldos y archivos temporales. El repo es publico,
+# y aqui llegan a caer listas con nombres de alumnos.
+Claude outputs/
