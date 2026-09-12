@@ -1,7 +1,7 @@
 {
   "name": "aulafacil",
   "version": "1.0.0",
-  "description": "AulaFacil - Colegio Pedro de Gante",
+  "description": "AulaFacil - plataforma de examenes, asistencia y participacion",
   "scripts": {
     "css": "tailwindcss -c tailwind.config.js -i assets/css/entrada.css -o assets/css/app.css --minify",
     "css:watch": "tailwindcss -c tailwind.config.js -i assets/css/entrada.css -o assets/css/app.css --watch",

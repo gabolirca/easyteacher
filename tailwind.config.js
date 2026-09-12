@@ -1,4 +1,4 @@
-/** Tema de AulaFácil — Colegio Pedro de Gante.
+/** Tema de AulaFácil.
  *
  *  Fuente única de verdad de la paleta. Sale de los bloques
  *  <script id="tailwind-config"> que estaban repetidos en cada HTML.

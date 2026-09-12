@@ -129,18 +129,28 @@ servidor):
 herramientas/generador-marca.html
 ```
 
-Arrastras el logo del colegio, la herramienta extrae los colores dominantes y
-te propone la paleta. Ajustas lo que quieras, ves cómo va quedando en una vista
-previa con pantallas reales, y descargas:
+Arrastras el logo del colegio y la herramienta extrae los colores dominantes.
+Si quieres uno exacto, hay **cuentagotas**: pasas el ratón por el logo, ves el
+color y su código, y con un clic lo aplicas al principal, al secundario o al
+terciario. En Chrome y Edge también puedes tomar el color de cualquier parte de
+la pantalla, útil si tienes abierto el manual de identidad del colegio.
+
+Ves cómo va quedando en una vista previa con pantallas reales, y descargas:
 
 | Archivo | Dónde va |
 |---|---|
 | `marca.json` | raíz del repo |
 | `manifest.json` | raíz del repo |
+| `logo-escuela.png` | `assets/img/` |
 | `icon-192.png`, `icon-512.png`, `icon-180.png` | `assets/img/` |
 | `favicon-32.png`, `favicon-16.png` | `assets/img/` |
 
+Ninguno obliga a tocar el HTML: las páginas ya apuntan a
+`assets/img/logo-escuela.png`, que es un nombre genérico a propósito.
+
 Después: `npm run css` (o simplemente haz push, que el workflow lo recompila).
+Si cambiaste el logo, sube también `VERSION` en `sw.js`: el service worker lo
+tiene guardado y si no, los dispositivos siguen mostrando el anterior.
 
 De un solo color semilla salen los 47 tonos de la interfaz, siguiendo el
 algoritmo de Material Design 3 — el mismo que usa Google para generar temas. Por
