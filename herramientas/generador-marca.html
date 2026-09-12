@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AulaFácil · Generador de marca</title>
+<style>
+  :root{
+    --bg:#f4f4f8; --panel:#fff; --linea:#dcdce4; --texto:#1a1c20; --suave:#5b606b;
+    --acento:#7a0d0e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--texto);
+       font:16px/1.5 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{background:var(--panel);border-bottom:1px solid var(--linea);padding:20px 24px}
+  header h1{margin:0;font-size:20px}
+  header p{margin:4px 0 0;color:var(--suave);font-size:14px}
+  main{max-width:1180px;margin:0 auto;padding:24px;display:grid;
+       grid-template-columns:minmax(320px,420px) 1fr;gap:24px;align-items:start}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--linea);border-radius:14px;padding:20px;margin-bottom:20px}
+  .panel h2{margin:0 0 4px;font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--suave)}
+  .panel .ayuda{margin:0 0 16px;font-size:13px;color:var(--suave)}
+  label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+  input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--linea);border-radius:8px;font:inherit}
+  #zona{border:2px dashed var(--linea);border-radius:12px;padding:28px 16px;text-align:center;
+        cursor:pointer;transition:.15s;background:#fafafc}
+  #zona:hover,#zona.sobre{border-color:var(--acento);background:#fff5f5}
+  #zona p{margin:6px 0 0;font-size:13px;color:var(--suave)}
+  #logoPrev{max-width:150px;max-height:150px;margin-bottom:10px}
+  .semillas{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .semilla{width:38px;height:38px;border-radius:9px;border:2px solid transparent;cursor:pointer}
+  .semilla.sel{border-color:var(--texto);box-shadow:0 0 0 2px #fff inset}
+  .fila{display:flex;align-items:center;gap:10px}
+  .fila input[type=color]{width:52px;height:38px;padding:2px;border:1px solid var(--linea);border-radius:8px;background:#fff}
+  .fila code{font-size:13px;color:var(--suave)}
+  button{font:inherit;font-weight:600;border-radius:9px;border:1px solid var(--linea);
+         background:#fff;padding:9px 14px;cursor:pointer}
+  button:hover{background:#f2f2f6}
+  button.principal{background:var(--acento);border-color:var(--acento);color:#fff}
+  button.principal:hover{filter:brightness(1.12)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .descargas{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .aviso{font-size:13px;padding:10px 12px;border-radius:8px;background:#fff6e5;border:1px solid #f0dcb0;margin-top:14px}
+  .ok{background:#e9f7ef;border-color:#b7e3c7}
+
+  /* ---- vista previa: usa los tokens generados ---- */
+  #previa{border:1px solid var(--linea);border-radius:14px;overflow:hidden;background:var(--surface)}
+  .barra{background:var(--primary);color:var(--on-primary);padding:14px 18px;display:flex;align-items:center;gap:12px}
+  .barra img{height:26px;width:auto}
+  .barra strong{font-size:15px}
+  .cuerpo{padding:18px;background:var(--surface);display:grid;gap:14px}
+  .tarjeta{background:var(--surface-container);border-radius:14px;padding:16px}
+  .tarjeta h3{margin:0 0 2px;font-size:15px;color:var(--on-surface)}
+  .tarjeta p{margin:0;font-size:13px;color:var(--on-surface-variant)}
+  .destacada{background:var(--primary-container);color:var(--on-primary-container)}
+  .destacada h3,.destacada p{color:inherit}
+  .botones{display:flex;gap:10px;flex-wrap:wrap}
+  .b1{background:var(--primary);color:var(--on-primary);border:none;border-radius:999px;padding:10px 20px;font-weight:600}
+  .b2{background:transparent;color:var(--primary);border:2px solid var(--outline-variant);border-radius:999px;padding:9px 18px;font-weight:600}
+  .b3{background:var(--secondary-container);color:var(--on-secondary-container);border:none;border-radius:999px;padding:10px 18px;font-weight:600}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{background:var(--surface-container-high);color:var(--on-surface-variant);
+        border-radius:999px;padding:5px 12px;font-size:12px}
+  .chip.t{background:var(--tertiary-container);color:var(--on-tertiary-container)}
+  .lista{background:var(--surface-container-low);border-radius:14px;overflow:hidden}
+  .reng{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;
+         border-bottom:1px solid var(--outline-variant);font-size:14px;color:var(--on-surface)}
+  .reng:last-child{border-bottom:none}
+  .reng b{color:var(--primary)}
+  .tokens{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px;margin-top:8px}
+  .tok{border:1px solid var(--linea);border-radius:7px;overflow:hidden;font-size:10px}
+  .tok .m{height:30px}
+  .tok .n{padding:3px 5px;background:#fff;color:var(--suave);word-break:break-all;line-height:1.25}
+  details{margin-top:14px}
+  summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--suave)}
+  pre{background:#1e2027;color:#e6e6ec;padding:12px;border-radius:9px;overflow:auto;font-size:11.5px;max-height:280px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Generador de marca · AulaFácil</h1>
+  <p>Configura la identidad visual de una escuela. Sube el logo, ajusta el color y descarga los archivos.</p>
+</header>
+
+<main>
+<div>
+  <section class="panel">
+    <h2>1 · Logo</h2>
+    <p class="ayuda">PNG o SVG, de preferencia cuadrado y con fondo transparente.</p>
+    <div id="zona">
+      <img id="logoPrev" hidden alt=""/>
+      <div id="zonaTexto"><strong>Arrastra el logo aquí</strong><p>o haz clic para elegirlo</p></div>
+    </div>
+    <input type="file" id="archivo" accept="image/*" hidden/>
+    <div id="sugeridas" hidden>
+      <label>Colores que encontré en el logo</label>
+      <div class="semillas" id="semillas"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>2 · Datos de la escuela</h2>
+    <label for="nombre">Nombre completo</label>
+    <input type="text" id="nombre" placeholder="AulaFácil - Colegio Pedro de Gante"/>
+    <label for="corto">Nombre corto <span style="font-weight:400;color:var(--suave)">— el que cabe debajo del icono</span></label>
+    <input type="text" id="corto" placeholder="AulaFácil" maxlength="14"/>
+  </section>
+
+  <section class="panel">
+    <h2>3 · Colores</h2>
+    <p class="ayuda">Del color principal se derivan los 47 tonos de la interfaz. Los otros dos son opcionales.</p>
+    <label for="cPrim">Principal <span style="font-weight:400;color:var(--suave)">— barras, botones, acentos</span></label>
+    <div class="fila"><input type="color" id="cPrim" value="#7a0d0e"/><code id="hPrim">#7a0d0e</code></div>
+    <label for="cSec">Secundario <span style="font-weight:400;color:var(--suave)">— confirmaciones, participación</span></label>
+    <div class="fila"><input type="color" id="cSec" value="#2c694e"/><code id="hSec">#2c694e</code>
+      <button type="button" id="secAuto" style="margin-left:auto;padding:6px 10px;font-size:12px">Derivar</button></div>
+    <label for="cTer">Terciario <span style="font-weight:400;color:var(--suave)">— avisos, etiquetas</span></label>
+    <div class="fila"><input type="color" id="cTer" value="#722b00"/><code id="hTer">#722b00</code>
+      <button type="button" id="terAuto" style="margin-left:auto;padding:6px 10px;font-size:12px">Derivar</button></div>
+
+    <label for="estilo">Estilo de las tarjetas</label>
+    <div class="fila">
+      <select id="estilo" style="padding:9px;border:1px solid var(--linea);border-radius:8px;font:inherit;width:100%">
+        <option value="intenso">Intenso — como se ve AulaFácil hoy</option>
+        <option value="suave">Suave — Material Design estándar</option>
+      </select>
+    </div>
+    <p class="ayuda" style="margin-top:10px">Material normaliza el tono para que el texto encima siempre contraste,
+       así que el color final puede salir un poco más claro o más oscuro que el que elegiste. Es a propósito.</p>
+  </section>
+
+  <section class="panel">
+    <h2>4 · Descargar</h2>
+    <p class="ayuda">Pon estos archivos en la copia del repositorio de esa escuela y haz push. El CSS se recompila solo.</p>
+    <div class="descargas">
+      <button class="principal" id="dlMarca">marca.json</button>
+      <button class="principal" id="dlManifest">manifest.json</button>
+      <button id="dlIconos" disabled>Iconos PNG</button>
+    </div>
+    <label style="margin-top:16px">Fondo de los iconos</label>
+    <div class="fila">
+      <select id="fondoIcono" style="padding:9px;border:1px solid var(--linea);border-radius:8px;font:inherit">
+        <option value="blanco">Blanco</option>
+        <option value="primario">Color principal</option>
+        <option value="transparente">Transparente</option>
+      </select>
+    </div>
+    <div class="aviso" id="avisoIconos">Sube un logo para poder generar los iconos.</div>
+    <details>
+      <summary>Ver marca.json</summary>
+      <pre id="jsonMarca"></pre>
+    </details>
+  </section>
+</div>
+
+<div>
+  <section class="panel" style="padding:14px">
+    <h2 style="padding:6px 6px 10px">Vista previa</h2>
+    <div id="previa">
+      <div class="barra"><img id="logoBarra" hidden alt=""/><strong id="tituloBarra">AulaFácil</strong></div>
+      <div class="cuerpo">
+        <div class="tarjeta destacada">
+          <h3>Clase en vivo</h3>
+          <p>Sesión abierta · 28 de 31 presentes</p>
+        </div>
+        <div class="botones">
+          <button class="b1">Iniciar clase</button>
+          <button class="b2">Ver historial</button>
+          <button class="b3">Dar puntos</button>
+        </div>
+        <div class="chips">
+          <span class="chip">Primer Semestre</span>
+          <span class="chip">3 parciales</span>
+          <span class="chip t">2 reposiciones</span>
+        </div>
+        <div class="lista">
+          <div class="reng"><span>Aguilar Duarte Emily</span><b>9.4</b></div>
+          <div class="reng"><span>Briones Zaragoza Miguel</span><b>8.1</b></div>
+          <div class="reng"><span>Campos Arana Aurora</span><b>10</b></div>
+        </div>
+        <div class="tarjeta">
+          <h3>Promedio del grupo</h3>
+          <p>8.7 · calculado sobre 31 alumnos</p>
+        </div>
+      </div>
+    </div>
+    <details open>
+      <summary style="margin-top:14px">Los 47 tokens generados</summary>
+      <div class="tokens" id="tokens"></div>
+    </details>
+  </section>
+</div>
+</main>
+
+<script src="vendor/material-color.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// Los 47 tokens que usa AulaFacil, cada uno como (paleta, tono) del esquema
+// claro de Material 3. Es la misma receta con la que se armo la paleta
+// original del colegio, por eso los nombres calzan sin tocar el HTML.
+// ---------------------------------------------------------------------------
+function construirMapa(estilo) {
+  // "suave" es el Material estandar: contenedor palido, texto oscuro encima.
+  // "intenso" conserva el caracter de AulaFacil, donde la tarjeta principal
+  // va en color pleno y el texto encima es claro. Cambia solo 6 tokens.
+  const cont = estilo === 'intenso' ? 50 : 90;
+  const onCont = estilo === 'intenso' ? 90 : 10;
+  return Object.assign({}, MAPA, {
+    'primary-container':['primary',cont], 'on-primary-container':['primary',onCont],
+    'secondary-container':['secondary',cont], 'on-secondary-container':['secondary',onCont],
+    'tertiary-container':['tertiary',cont], 'on-tertiary-container':['tertiary',onCont],
+  });
+}
+
+const MAPA = {
+  'primary':[ 'primary',40], 'on-primary':['primary',100],
+  'primary-container':['primary',90], 'on-primary-container':['primary',10],
+  'primary-fixed':['primary',90], 'primary-fixed-dim':['primary',80],
+  'on-primary-fixed':['primary',10], 'on-primary-fixed-variant':['primary',30],
+  'inverse-primary':['primary',80], 'surface-tint':['primary',40],
+
+  'secondary':['secondary',40], 'on-secondary':['secondary',100],
+  'secondary-container':['secondary',90], 'on-secondary-container':['secondary',10],
+  'secondary-fixed':['secondary',90], 'secondary-fixed-dim':['secondary',80],
+  'on-secondary-fixed':['secondary',10], 'on-secondary-fixed-variant':['secondary',30],
+
+  'tertiary':['tertiary',40], 'on-tertiary':['tertiary',100],
+  'tertiary-container':['tertiary',90], 'on-tertiary-container':['tertiary',10],
+  'tertiary-fixed':['tertiary',90], 'tertiary-fixed-dim':['tertiary',80],
+  'on-tertiary-fixed':['tertiary',10], 'on-tertiary-fixed-variant':['tertiary',30],
+
+  'error':['error',40], 'on-error':['error',100],
+  'error-container':['error',90], 'on-error-container':['error',10],
+
+  'background':['neutral',98], 'on-background':['neutral',10],
+  'surface':['neutral',98], 'on-surface':['neutral',10],
+  'surface-dim':['neutral',87], 'surface-bright':['neutral',98],
+  'surface-container-lowest':['neutral',100], 'surface-container-low':['neutral',96],
+  'surface-container':['neutral',94], 'surface-container-high':['neutral',92],
+  'surface-container-highest':['neutral',90],
+  'inverse-surface':['neutral',20], 'inverse-on-surface':['neutral',95],
+
+  'surface-variant':['neutralVariant',90], 'on-surface-variant':['neutralVariant',30],
+  'outline':['neutralVariant',50], 'outline-variant':['neutralVariant',80],
+};
+
+const $ = (id) => document.getElementById(id);
+let logoDataUrl = null;
+let colores = {};
+
+function generar() {
+  const semilla = MC.argbFromHex($('cPrim').value);
+  const tema = MC.themeFromSourceColor(semilla);
+  const paletas = {
+    primary: tema.palettes.primary,
+    secondary: MC.TonalPalette.fromInt(MC.argbFromHex($('cSec').value)),
+    tertiary: MC.TonalPalette.fromInt(MC.argbFromHex($('cTer').value)),
+    error: tema.palettes.error,
+    neutral: tema.palettes.neutral,
+    neutralVariant: tema.palettes.neutralVariant,
+  };
+  colores = {};
+  for (const [token, [paleta, tono]] of Object.entries(construirMapa($('estilo').value))) {
+    colores[token] = MC.hexFromArgb(paletas[paleta].tone(tono));
+  }
+  pintar();
+}
+
+function pintar() {
+  const previa = $('previa');
+  for (const [t, hex] of Object.entries(colores)) previa.style.setProperty('--' + t, hex);
+
+  $('hPrim').textContent = $('cPrim').value;
+  $('hSec').textContent = $('cSec').value;
+  $('hTer').textContent = $('cTer').value;
+  $('tituloBarra').textContent = $('corto').value || $('nombre').value || 'AulaFácil';
+
+  $('tokens').innerHTML = Object.entries(colores).map(([t, hex]) =>
+    `<div class="tok"><div class="m" style="background:${hex}"></div><div class="n">${t}<br>${hex}</div></div>`
+  ).join('');
+
+  $('jsonMarca').textContent = JSON.stringify(objetoMarca(), null, 2);
+}
+
+function objetoMarca() {
+  return {
+    _comentario: 'Identidad visual de esta instancia. Lo genera herramientas/generador-marca.html. Despues de cambiarlo: npm run css',
+    nombre: $('nombre').value || 'AulaFácil',
+    nombreCorto: $('corto').value || 'AulaFácil',
+    colorSemilla: $('cPrim').value,
+    colors: colores,
+  };
+}
+
+function objetoManifest() {
+  return {
+    name: $('nombre').value || 'AulaFácil',
+    short_name: $('corto').value || 'AulaFácil',
+    start_url: './login.html',
+    display: 'standalone',
+    background_color: colores['surface'],
+    theme_color: colores['primary'],
+    icons: [
+      { src: 'assets/img/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { src: 'assets/img/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+  };
+}
+
+function bajar(nombre, contenido, tipo) {
+  const blob = contenido instanceof Blob ? contenido : new Blob([contenido], { type: tipo });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+}
+
+// ---------- logo ----------
+function cargarLogo(archivo) {
+  if (!archivo) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    logoDataUrl = fr.result;              // data: URL, asi el canvas no queda "tainted"
+    $('logoPrev').src = logoDataUrl; $('logoPrev').hidden = false;
+    $('logoBarra').src = logoDataUrl; $('logoBarra').hidden = false;
+    $('zonaTexto').innerHTML = '<p>Clic para cambiarlo</p>';
+    $('dlIconos').disabled = false;
+    $('avisoIconos').className = 'aviso ok';
+    $('avisoIconos').textContent = 'Listo: se generarán icon-192, icon-512, icon-180 y los favicon.';
+    const img = new Image();
+    img.onload = () => proponerColores(img);
+    img.src = logoDataUrl;
+  };
+  fr.readAsDataURL(archivo);
+}
+
+async function proponerColores(img) {
+  let fuente;
+  try { fuente = await MC.sourceColorFromImage(img); } catch (e) { return; }
+  const base = MC.hexFromArgb(fuente);
+  const hct = MC.Hct.fromInt(fuente);
+  // La dominante mas dos vecinas de la rueda, para tener de donde escoger.
+  const opciones = [base,
+    MC.hexFromArgb(MC.Hct.from((hct.hue + 150) % 360, Math.max(hct.chroma, 30), 40).toInt()),
+    MC.hexFromArgb(MC.Hct.from((hct.hue + 60) % 360, Math.max(hct.chroma, 30), 40).toInt())];
+  $('sugeridas').hidden = false;
+  $('semillas').innerHTML = opciones.map((h, i) =>
+    `<div class="semilla${i === 0 ? ' sel' : ''}" style="background:${h}" data-hex="${h}" title="${h}"></div>`).join('');
+  $('semillas').querySelectorAll('.semilla').forEach((el) => {
+    el.addEventListener('click', () => {
+      $('semillas').querySelectorAll('.semilla').forEach((x) => x.classList.remove('sel'));
+      el.classList.add('sel');
+      $('cPrim').value = el.dataset.hex;
+      generar();
+    });
+  });
+  $('cPrim').value = base;
+  derivar('cSec', 150); derivar('cTer', 60);
+  generar();
+}
+
+function derivar(destino, giro) {
+  const hct = MC.Hct.fromInt(MC.argbFromHex($('cPrim').value));
+  $(destino).value = MC.hexFromArgb(
+    MC.Hct.from((hct.hue + giro) % 360, Math.max(hct.chroma, 30), 40).toInt());
+}
+
+// ---------- iconos ----------
+function dibujarIcono(img, lado) {
+  const c = document.createElement('canvas');
+  c.width = c.height = lado;
+  const ctx = c.getContext('2d');
+  const fondo = $('fondoIcono').value;
+  if (fondo === 'blanco') { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, lado, lado); }
+  if (fondo === 'primario') { ctx.fillStyle = colores['primary']; ctx.fillRect(0, 0, lado, lado); }
+  const margen = lado * 0.14;                    // zona segura: el recorte redondo no come el logo
+  const util = lado - margen * 2;
+  const escala = Math.min(util / img.width, util / img.height);
+  const w = img.width * escala, h = img.height * escala;
+  ctx.drawImage(img, (lado - w) / 2, (lado - h) / 2, w, h);
+  return c;
+}
+
+function generarIconos() {
+  const img = new Image();
+  img.onload = () => {
+    [['icon-192.png', 192], ['icon-512.png', 512], ['icon-180.png', 180],
+     ['favicon-32.png', 32], ['favicon-16.png', 16]].forEach(([nombre, lado], i) => {
+      setTimeout(() => dibujarIcono(img, lado).toBlob((b) => bajar(nombre, b)), i * 350);
+    });
+  };
+  img.src = logoDataUrl;
+}
+
+// ---------- enlaces ----------
+$('zona').addEventListener('click', () => $('archivo').click());
+$('archivo').addEventListener('change', (e) => cargarLogo(e.target.files[0]));
+['dragenter', 'dragover'].forEach((ev) => $('zona').addEventListener(ev, (e) => {
+  e.preventDefault(); $('zona').classList.add('sobre');
+}));
+['dragleave', 'drop'].forEach((ev) => $('zona').addEventListener(ev, (e) => {
+  e.preventDefault(); $('zona').classList.remove('sobre');
+}));
+$('zona').addEventListener('drop', (e) => cargarLogo(e.dataTransfer.files[0]));
+
+['cPrim', 'cSec', 'cTer'].forEach((id) => $(id).addEventListener('input', generar));
+$('estilo').addEventListener('change', generar);
+['nombre', 'corto'].forEach((id) => $(id).addEventListener('input', pintar));
+$('secAuto').addEventListener('click', () => { derivar('cSec', 150); generar(); });
+$('terAuto').addEventListener('click', () => { derivar('cTer', 60); generar(); });
+
+$('dlMarca').addEventListener('click', () =>
+  bajar('marca.json', JSON.stringify(objetoMarca(), null, 2) + '\n', 'application/json'));
+$('dlManifest').addEventListener('click', () =>
+  bajar('manifest.json', JSON.stringify(objetoManifest(), null, 2) + '\n', 'application/json'));
+$('dlIconos').addEventListener('click', generarIconos);
+
+generar();
+</script>
+</body>
+</html>

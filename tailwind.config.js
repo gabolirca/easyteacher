@@ -5,62 +5,20 @@
  *  (login.html tenía una paleta naranja anterior al rebrand; se descartó
  *  a propósito para que todo quede en el rojo del colegio.)
  *
- *  Después de cambiar algo aquí: npm run css
+ *  Los COLORES ya no viven aquí: salen de marca.json, que es lo único que
+ *  cambia entre una escuela y otra. Ese archivo lo genera
+ *  herramientas/generador-marca.html a partir del logo del colegio.
+ *
+ *  Después de cambiar algo aquí o en marca.json: npm run css
  */
+const marca = require('./marca.json');
+
 module.exports = {
   content: ['./*.html', './assets/js/**/*.js'],
   darkMode: 'class',
   theme: {
     extend: {
-        "colors": {
-              "on-error-container": "#93000a",
-              "on-primary-fixed-variant": "#830e10",
-              "surface-dim": "#d9d9e2",
-              "tertiary-fixed-dim": "#ffb694",
-              "tertiary-fixed": "#ffdbcc",
-              "on-primary": "#ffffff",
-              "outline-variant": "#c2c6d4",
-              "surface-container": "#ededf6",
-              "primary-fixed-dim": "#f7bdb4",
-              "primary": "#7a0d0e",
-              "inverse-primary": "#f7bdb4",
-              "surface-container-low": "#f2f3fc",
-              "outline": "#727784",
-              "on-surface": "#191c21",
-              "on-primary-container": "#f8cac2",
-              "surface": "#f9f9ff",
-              "secondary-fixed": "#b1f0ce",
-              "on-error": "#ffffff",
-              "error-container": "#ffdad6",
-              "surface-container-lowest": "#ffffff",
-              "primary-fixed": "#fbe1db",
-              "background": "#f9f9ff",
-              "secondary": "#2c694e",
-              "surface-bright": "#f9f9ff",
-              "error": "#ba1a1a",
-              "on-secondary": "#ffffff",
-              "on-tertiary": "#ffffff",
-              "primary-container": "#d02b2f",
-              "on-primary-fixed": "#3a0906",
-              "surface-tint": "#a82322",
-              "surface-container-highest": "#e1e2ea",
-              "on-secondary-fixed": "#002114",
-              "tertiary": "#722b00",
-              "surface-container-high": "#e7e8f0",
-              "on-surface-variant": "#424752",
-              "secondary-container": "#aeeecb",
-              "on-secondary-fixed-variant": "#0e5138",
-              "on-tertiary-container": "#ffc2a7",
-              "inverse-surface": "#2e3037",
-              "on-tertiary-fixed-variant": "#7b2f00",
-              "secondary-fixed-dim": "#95d4b3",
-              "on-background": "#191c21",
-              "on-tertiary-fixed": "#351000",
-              "on-secondary-container": "#316e52",
-              "surface-variant": "#e1e2ea",
-              "inverse-on-surface": "#f0f0f9",
-              "tertiary-container": "#983c00"
-        },
+        colors: marca.colors,
         "borderRadius": {
               "DEFAULT": "1rem",
               "lg": "2rem",

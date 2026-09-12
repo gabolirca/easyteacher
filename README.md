@@ -102,18 +102,54 @@ assets/vendor/             SDK de Supabase y qrcode, sin CDN
 
 ## Edge Functions
 
-Viven en Supabase, no en el repo. Para bajarlas:
-`npx supabase functions download <nombre>`
+El código vive en `supabase/functions/`. Para bajar una versión desplegada:
+`npx supabase functions download <nombre>`, y para subir: `npx supabase functions deploy <nombre>`.
 
 | Función | Qué hace |
 |---|---|
-| `crear-alumnos` | Alta en lote; si la matrícula existe, inscribe al alumno al grupo |
+| `crear-alumnos` | Alta en lote; la matrícula es única por maestro, y negocia un correo libre |
+| `egresar-alumnos` | Marca el egreso y libera la matrícula para reciclarla |
 | `iniciar-examen` | Entrega el examen sin respuestas correctas, ancla el cronómetro |
 | `enviar-respuestas` | Califica en el servidor; idempotente para tolerar reintentos |
 | `registrar-advertencia` | Cuenta los avisos anti-copia del lado del servidor |
 | `registrar-presencia` | Valida el QR rotativo y marca asistencia |
 | `reclamar-participacion` | El alumno dice "yo la hice"; nace pendiente y sin puntos |
 | `cerrar-actividad` | Convierte en puntos la lista definitiva del maestro |
+
+## Configurar una escuela nueva
+
+La identidad visual no está escrita en el código: vive en **`marca.json`**, que
+es el único archivo que cambia entre una escuela y otra. `tailwind.config.js` lo
+lee de ahí, así que cambiarlo y recompilar repinta las 20 pantallas de una vez.
+
+Para generarlo hay una herramienta, que se abre con doble clic (no necesita
+servidor):
+
+```
+herramientas/generador-marca.html
+```
+
+Arrastras el logo del colegio, la herramienta extrae los colores dominantes y
+te propone la paleta. Ajustas lo que quieras, ves cómo va quedando en una vista
+previa con pantallas reales, y descargas:
+
+| Archivo | Dónde va |
+|---|---|
+| `marca.json` | raíz del repo |
+| `manifest.json` | raíz del repo |
+| `icon-192.png`, `icon-512.png`, `icon-180.png` | `assets/img/` |
+| `favicon-32.png`, `favicon-16.png` | `assets/img/` |
+
+Después: `npm run css` (o simplemente haz push, que el workflow lo recompila).
+
+De un solo color semilla salen los 47 tonos de la interfaz, siguiendo el
+algoritmo de Material Design 3 — el mismo que usa Google para generar temas. Por
+eso basta escoger uno y no cuarenta y siete.
+
+**Una instancia por escuela.** Cada colegio tiene su propio proyecto de Supabase
+y su propio despliegue. Es la única forma de que el icono y el nombre en la
+pantalla de inicio del celular sean los suyos: eso lo define `manifest.json`, un
+archivo estático que no puede cambiar según quién entre.
 
 ## Correrlo en tu compu
 
@@ -142,8 +178,9 @@ También corre solo en cada push, con el workflow `.github/workflows/css.yml`.
 ### Otros comandos
 
 ```powershell
-npm run vendor    # regenera assets/vendor/supabase.js
-npm run fuentes   # baja Inter y Material Symbols al repo (opcional)
+npm run vendor        # regenera assets/vendor/supabase.js
+npm run vendor:marca  # regenera la librería de color del generador de marca
+npm run fuentes       # baja Inter y Material Symbols al repo (opcional)
 ```
 
 ## Al cambiar archivos del examen

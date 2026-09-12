@@ -6,7 +6,8 @@
     "css": "tailwindcss -c tailwind.config.js -i assets/css/entrada.css -o assets/css/app.css --minify",
     "css:watch": "tailwindcss -c tailwind.config.js -i assets/css/entrada.css -o assets/css/app.css --watch",
     "vendor": "esbuild .entry-supabase.js --bundle --format=esm --minify --target=es2020 --outfile=assets/vendor/supabase.js",
-    "fuentes": "node scripts/bajar-fuentes.mjs"
+    "fuentes": "node scripts/bajar-fuentes.mjs",
+    "vendor:marca": "esbuild .entry-marca.js --bundle --format=iife --global-name=MC --minify --target=es2020 --outfile=herramientas/vendor/material-color.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,7 @@
   },
   "homepage": "https://github.com/gabolirca/easyteacher#readme",
   "devDependencies": {
+    "@material/material-color-utilities": "^0.4.0",
     "@supabase/supabase-js": "^2.116.0",
     "@tailwindcss/container-queries": "^0.1.1",
     "@tailwindcss/forms": "^0.5.11",
