@@ -118,7 +118,7 @@ function arrancarQR() {
 
 async function cargarGrupo() {
   const { data, error } = await supabase
-    .from('grupos').select('id, nombre, materia').eq('id', grupoId).maybeSingle();
+    .from('grupos').select('id, nombre, materia, repo_pct_justificada, repo_pct_tardia').eq('id', grupoId).maybeSingle();
   if (error || !data) throw new Error('No se pudo cargar el grupo');
   grupo = data;
 
@@ -473,7 +473,7 @@ async function verDetalle(sesionId) {
 
   const { data: parts } = (acts && acts.length)
     ? await supabase.from('participaciones_sesion')
-        .select('actividad_id, alumno_id, estado, puntos')
+        .select('actividad_id, alumno_id, estado, puntos, origen, motivo_reposicion, porcentaje_reposicion')
         .in('actividad_id', acts.map((a) => a.id))
     : { data: [] };
 
@@ -494,28 +494,41 @@ async function verDetalle(sesionId) {
       <span class="font-label-lg text-on-surface">${h.participaciones ?? 0}</span></div>
     <div class="flex justify-between py-2">
       <span class="font-body-md text-on-surface-variant">Puntos generados</span>
-      <span class="font-label-lg text-primary">${h.puntos_generados ?? 0}</span></div>`;
+      <span class="font-label-lg text-primary">${h.puntos_generados ?? 0}</span></div>
+    <p class="text-sm text-on-surface-variant mt-2">Este resumen es del día de la clase y no cambia. Las reposiciones registradas después aparecen marcadas abajo, en cada actividad.</p>`;
 
   const cont = document.getElementById('det-actividades');
   if (!acts || acts.length === 0) {
     cont.innerHTML = '<p class="text-on-surface-variant font-body-md">Esta clase no tuvo actividades registradas.</p>';
   } else {
+    const ETIQUETA_MOTIVO = { justificada: 'falta justificada', tardia: 'entrega tardía' };
+
     cont.innerHTML = acts.map((a) => {
       const filas = (parts || []).filter((p) => p.actividad_id === a.id);
-      const con = filas.filter((p) => p.estado === 'aprobada');
+      const enClase = filas.filter((p) => p.estado === 'aprobada' && p.origen !== 'reposicion');
+      const repuestas = filas.filter((p) => p.estado === 'aprobada' && p.origen === 'reposicion');
       const sin = filas.filter((p) => p.estado === 'rechazada');
       const lista = (arr, color) => arr.length === 0 ? '' :
         `<p class="text-sm ${color} mt-1">${arr.map((p) => esc(nombre[p.alumno_id] || '—')).join(', ')}</p>`;
+
       return `
         <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 mb-3">
           <div class="flex items-center justify-between gap-3">
             <p class="font-label-lg text-label-lg text-on-surface">${esc(a.nombre)}</p>
-            <span class="text-sm text-on-surface-variant shrink-0">${a.valor} pts · ${con.length} alumnos</span>
+            <span class="text-sm text-on-surface-variant shrink-0">${a.valor} pts · ${enClase.length} en clase</span>
           </div>
-          ${lista(con, 'text-on-surface-variant')}
+          ${lista(enClase, 'text-on-surface-variant')}
           ${sin.length ? `<p class="text-sm text-on-surface-variant mt-2 font-bold">No contabilizados:</p>${lista(sin, 'text-error')}` : ''}
+          ${repuestas.length ? `
+            <p class="text-sm text-tertiary mt-3 font-bold">Repuesto después:</p>
+            ${repuestas.map((p) => `<p class="text-sm text-tertiary">${esc(nombre[p.alumno_id] || '—')} — ${ETIQUETA_MOTIVO[p.motivo_reposicion] || p.motivo_reposicion} · ${p.porcentaje_reposicion}% = ${p.puntos} pts</p>`).join('')}` : ''}
+          <button class="btn-reponer mt-3 border-2 border-outline-variant text-on-surface font-label-lg text-label-lg rounded-full py-2 px-4" data-id="${a.id}">Registrar reposición</button>
         </div>`;
     }).join('');
+
+    cont.querySelectorAll('.btn-reponer').forEach((b) => {
+      b.addEventListener('click', () => abrirReposicion(b.dataset.id));
+    });
   }
 
   const faltaron = roster.filter((al) => {
@@ -566,6 +579,8 @@ async function abrirCorte() {
   const sel = document.getElementById('corte-periodo');
   sel.innerHTML = '<option value="">Sin parcial</option>' +
     periodos.map((p) => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  document.getElementById('cfg-pct-justificada').value = grupo?.repo_pct_justificada ?? 100;
+  document.getElementById('cfg-pct-tardia').value = grupo?.repo_pct_tardia ?? 50;
   await cargarRanking();
   vista('vista-corte');
 }
@@ -657,6 +672,109 @@ document.getElementById('btn-volver-de-corte')?.addEventListener('click', () => 
 document.getElementById('corte-periodo')?.addEventListener('change', cargarRanking);
 document.getElementById('corte-referencia')?.addEventListener('input', pintarRanking);
 document.getElementById('btn-aplicar-corte')?.addEventListener('click', aplicarCorte);
+
+
+// ---------- Reposiciones ----------
+// Una sesion cerrada NO se reabre: su resumen es evidencia de lo que paso ese
+// dia. Si un alumno repone despues (falto con justificante, o entrego tarde),
+// se agrega un renglon aparte marcado como reposicion, con su motivo, su
+// porcentaje y su fecha. El registro sigue diciendo la verdad.
+
+let repoActividad = null;   // actividad sobre la que se repone
+let repoCandidatos = [];    // alumnos sin puntos en esa actividad
+
+function pctPorMotivo(motivo) {
+  if (motivo === 'justificada') return Number(grupo?.repo_pct_justificada ?? 100);
+  return Number(grupo?.repo_pct_tardia ?? 50);
+}
+
+async function abrirReposicion(actividadId) {
+  const { data: act } = await supabase
+    .from('actividades_sesion').select('id, nombre, valor, sesion_id').eq('id', actividadId).maybeSingle();
+  if (!act) return;
+  repoActividad = act;
+
+  const { data: filas } = await supabase
+    .from('participaciones_sesion').select('alumno_id, estado').eq('actividad_id', actividadId);
+  const conPuntos = new Set((filas || []).filter((f) => f.estado === 'aprobada').map((f) => f.alumno_id));
+  repoCandidatos = roster.filter((a) => !conPuntos.has(a.id));
+
+  document.getElementById('repo-actividad').textContent = `${act.nombre} · vale ${act.valor} puntos`;
+  document.getElementById('repo-alumno').innerHTML = repoCandidatos.length
+    ? repoCandidatos.map((a) => `<option value="${a.id}">${esc(a.nombre)}</option>`).join('')
+    : '<option value="">Todos los alumnos ya tienen puntos en esta actividad</option>';
+  document.getElementById('repo-motivo').value = 'justificada';
+  document.getElementById('repo-pct').value = pctPorMotivo('justificada');
+  pintarRepoPuntos();
+  document.getElementById('dialogo-reposicion').classList.remove('hidden');
+}
+
+function pintarRepoPuntos() {
+  const pct = parseFloat(document.getElementById('repo-pct').value);
+  const valor = Number(repoActividad?.valor) || 0;
+  const puntos = Number.isFinite(pct) ? Math.round(valor * (pct / 100) * 100) / 100 : 0;
+  document.getElementById('repo-puntos').textContent = `${puntos} puntos`;
+}
+
+async function guardarReposicion() {
+  const alumnoId = document.getElementById('repo-alumno').value;
+  const motivo = document.getElementById('repo-motivo').value;
+  const pct = parseFloat(document.getElementById('repo-pct').value);
+
+  if (!alumnoId) { aviso('Elige un alumno', true); return; }
+  if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+    aviso('El porcentaje debe estar entre 1 y 100', true); return;
+  }
+
+  const btn = document.getElementById('btn-guardar-reposicion');
+  btn.disabled = true;
+  try {
+    const puntos = Math.round(Number(repoActividad.valor) * (pct / 100) * 100) / 100;
+    const { error } = await supabase.from('participaciones_sesion').upsert({
+      actividad_id: repoActividad.id,
+      alumno_id: alumnoId,
+      puntos,
+      estado: 'aprobada',
+      origen: 'reposicion',
+      motivo_reposicion: motivo,
+      porcentaje_reposicion: pct,
+      registrado_por: profesor.id,
+      resuelto_en: new Date().toISOString(),
+    }, { onConflict: 'actividad_id,alumno_id' });
+    if (error) throw new Error(error.message);
+
+    document.getElementById('dialogo-reposicion').classList.add('hidden');
+    aviso(`Reposición registrada: ${puntos} puntos.`);
+    await verDetalle(repoActividad.sesion_id);
+  } catch (e) {
+    aviso(`No se pudo registrar: ${e.message}`, true);
+  } finally { btn.disabled = false; }
+}
+
+async function guardarPctPorDefecto() {
+  const j = parseFloat(document.getElementById('cfg-pct-justificada').value);
+  const t = parseFloat(document.getElementById('cfg-pct-tardia').value);
+  if (![j, t].every((v) => Number.isFinite(v) && v > 0 && v <= 100)) {
+    aviso('Los porcentajes deben estar entre 1 y 100', true); return;
+  }
+  const { error } = await supabase.from('grupos')
+    .update({ repo_pct_justificada: j, repo_pct_tardia: t }).eq('id', grupoId);
+  if (error) { aviso(error.message, true); return; }
+  grupo.repo_pct_justificada = j;
+  grupo.repo_pct_tardia = t;
+  aviso('Porcentajes guardados. Se usarán como sugerencia en las próximas reposiciones.');
+}
+
+document.getElementById('repo-motivo')?.addEventListener('change', (e) => {
+  document.getElementById('repo-pct').value = pctPorMotivo(e.target.value);
+  pintarRepoPuntos();
+});
+document.getElementById('repo-pct')?.addEventListener('input', pintarRepoPuntos);
+document.getElementById('btn-guardar-reposicion')?.addEventListener('click', guardarReposicion);
+document.getElementById('btn-cancelar-reposicion')?.addEventListener('click', () => {
+  document.getElementById('dialogo-reposicion').classList.add('hidden');
+});
+document.getElementById('btn-guardar-pct')?.addEventListener('click', guardarPctPorDefecto);
 
 // ---------- eventos ----------
 
