@@ -10,6 +10,7 @@ let intentoId = null;
 let preguntas = [];
 let indiceActual = 0;
 let respuestasEstado = {};      // { pregunta_id: valor-según-tipo }
+let procedimientosEstado = {};  // { pregunta_id: PNG en data URL }
 let enviando = false;           // hay una entrega en curso (o en cola de reintentos)
 let examenTerminado = false;    // ya se confirmó entrega/bloqueo: ignorar todo
 let usaFullscreen = false;      // ¿de verdad logramos entrar a pantalla completa?
@@ -109,6 +110,7 @@ function guardarLocal(extra = {}) {
     localStorage.setItem(claveLocal(), JSON.stringify({
       ...previo,
       respuestas: respuestasEstado,
+      procedimientos: procedimientosEstado,
       indice: indiceActual,
       eventosOffline,
       advertenciasLocales,
@@ -272,6 +274,7 @@ async function cargarExamen() {
   const guardado = leerLocal();
   if (guardado?.pendiente) {
     respuestasEstado = guardado.respuestas || {};
+    procedimientosEstado = guardado.procedimientos || {};
     eventosOffline = guardado.eventosOffline || [];
     enviando = true;
     mostrarVista('vista-enviando');
@@ -587,6 +590,143 @@ document.getElementById('btn-red-entendido')?.addEventListener('click', () => ce
 
 // ---------- Render de la pregunta actual ----------
 
+// ---------------------------------------------------------------------------
+// Teclado de símbolos para las respuestas escritas.
+//
+// En un teléfono no hay √ ni π, así que sin esto el alumno simplemente no
+// puede contestar ciertas preguntas. Es el mismo juego de símbolos que ya usa
+// el maestro al redactar. Va colapsado para no estorbar cuando no hace falta.
+// ---------------------------------------------------------------------------
+const SIMBOLOS = ['√', 'π', '÷', '×', '±', '≤', '≥', '≠', '°', '²', '³', '½', '¼', '¾', '∞', '∈'];
+
+function tecladoSimbolosHtml() {
+  return `
+    <div class="mt-stack-md">
+      <button type="button" id="btn-simbolos"
+              class="text-primary font-label-lg text-label-lg underline">√ Símbolos</button>
+      <div id="panel-simbolos" class="flex-wrap gap-2 mt-3" style="display:none;">
+        ${SIMBOLOS.map((x) => `<button type="button" class="btn-sim border border-outline-variant rounded-DEFAULT bg-surface-container-low px-3 py-2 font-body-lg text-body-lg text-on-surface" data-sim="${x}">${x}</button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function conectarTeclado(cont, p) {
+  const boton = cont.querySelector('#btn-simbolos');
+  const panel = cont.querySelector('#panel-simbolos');
+  if (!boton || !panel) return;
+
+  // El último campo tocado es al que se le inserta el símbolo.
+  let ultimo = cont.querySelector('.input-blanco');
+  cont.querySelectorAll('.input-blanco').forEach((el) => {
+    el.addEventListener('focus', () => { ultimo = el; });
+  });
+
+  boton.addEventListener('click', () => {
+    const abierto = panel.style.display !== 'none';
+    panel.style.display = abierto ? 'none' : 'flex';
+    boton.textContent = abierto ? '√ Símbolos' : '√ Ocultar símbolos';
+  });
+
+  panel.querySelectorAll('.btn-sim').forEach((b) => {
+    // mousedown en vez de click: así el campo no pierde el foco antes de tiempo
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', () => {
+      if (!ultimo) return;
+      const ini = ultimo.selectionStart ?? ultimo.value.length;
+      const fin = ultimo.selectionEnd ?? ultimo.value.length;
+      const sim = b.dataset.sim;
+      ultimo.value = ultimo.value.slice(0, ini) + sim + ultimo.value.slice(fin);
+      ultimo.selectionStart = ultimo.selectionEnd = ini + sim.length;
+      ultimo.dispatchEvent(new Event('input', { bubbles: true }));
+      ultimo.focus();
+    });
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Pizarra del procedimiento.
+//
+// El alumno escribe con el dedo cómo llegó al resultado. NO se reconoce lo
+// escrito: se guarda el dibujo y lo revisa el maestro. Por eso funciona sin
+// internet y no puede equivocarse al "interpretar" la letra de nadie.
+// ---------------------------------------------------------------------------
+function pizarraHtml() {
+  return `
+    <div class="mt-stack-lg border-t border-outline-variant pt-stack-md">
+      <p class="font-label-lg text-label-lg text-on-surface mb-2">Muestra tu procedimiento</p>
+      <p class="font-body-md text-body-md text-on-surface-variant mb-3">Escribe con el dedo cómo lo resolviste. Esto no se califica solo: lo revisa tu maestro.</p>
+      <canvas id="pizarra" class="w-full border-2 border-outline-variant rounded-DEFAULT bg-white touch-none" style="height:240px;"></canvas>
+      <div class="flex gap-2 mt-2">
+        <button type="button" id="btn-borrar-pizarra" class="border border-outline-variant rounded-full px-4 py-2 font-label-lg text-label-lg text-on-surface">Borrar todo</button>
+        <span id="aviso-pizarra" class="self-center font-body-md text-body-md text-on-surface-variant"></span>
+      </div>
+    </div>`;
+}
+
+function conectarPizarra(cont, p) {
+  const lienzo = cont.querySelector('#pizarra');
+  if (!lienzo) return;
+  const ctx = lienzo.getContext('2d');
+
+  // El tamaño real del lienzo se fija en píxeles del dispositivo para que el
+  // trazo no salga borroso ni descentrado en pantallas densas.
+  const caja = lienzo.getBoundingClientRect();
+  const escala = Math.min(window.devicePixelRatio || 1, 2);
+  lienzo.width = Math.round(caja.width * escala);
+  lienzo.height = Math.round(caja.height * escala);
+  ctx.scale(escala, escala);
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#1a1c20';
+
+  const previo = procedimientosEstado[p.id];
+  if (previo) {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0, caja.width, caja.height);
+    img.src = previo;
+  }
+
+  let trazando = false;
+  const punto = (e) => {
+    const r = lienzo.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  };
+
+  const empezar = (e) => { e.preventDefault(); trazando = true; const q = punto(e); ctx.beginPath(); ctx.moveTo(q.x, q.y); };
+  const mover = (e) => { if (!trazando) return; e.preventDefault(); const q = punto(e); ctx.lineTo(q.x, q.y); ctx.stroke(); };
+  const soltar = () => { if (!trazando) return; trazando = false; guardarPizarra(lienzo, p); };
+
+  lienzo.addEventListener('pointerdown', empezar);
+  lienzo.addEventListener('pointermove', mover);
+  lienzo.addEventListener('pointerup', soltar);
+  lienzo.addEventListener('pointerleave', soltar);
+
+  cont.querySelector('#btn-borrar-pizarra').addEventListener('click', () => {
+    ctx.clearRect(0, 0, lienzo.width, lienzo.height);
+    delete procedimientosEstado[p.id];
+    guardarLocal();
+    const aviso = cont.querySelector('#aviso-pizarra');
+    if (aviso) aviso.textContent = '';
+  });
+}
+
+function guardarPizarra(lienzo, p) {
+  try {
+    const png = lienzo.toDataURL('image/png');
+    // Si el dibujo se dispara de tamaño no se guarda: más vale perder el
+    // procedimiento que llenar el almacenamiento y tirar las RESPUESTAS.
+    if (png.length > 400000) {
+      const aviso = document.getElementById('aviso-pizarra');
+      if (aviso) aviso.textContent = 'El dibujo es muy grande; borra y hazlo más simple.';
+      return;
+    }
+    procedimientosEstado[p.id] = png;
+    guardarLocal();
+  } catch (e) { /* si falla, el examen sigue: el procedimiento es opcional */ }
+}
+
 function renderPregunta() {
   const p = preguntas[indiceActual];
   document.getElementById('contador-pregunta').textContent = `Pregunta ${indiceActual + 1} de ${preguntas.length}`;
@@ -608,8 +748,8 @@ function renderPregunta() {
     camposHtml = '<p class="font-body-lg text-body-lg text-on-surface leading-loose">' + partes.map((parte, idx) => {
       if (idx === partes.length - 1) return escapeHtml(parte);
       const valor = escapeHtml(respuestasPrevias[idx] || '');
-      return `${escapeHtml(parte)}<input type="text" class="input-blanco border-b-2 border-primary bg-transparent outline-none px-2 mx-1 font-bold text-primary" data-idx="${idx}" style="width:120px;" value="${valor}"/>`;
-    }).join('') + '</p>';
+      return `${escapeHtml(parte)}<input type="text" inputmode="text" class="input-blanco border-b-2 border-primary bg-transparent outline-none px-2 mx-1 font-bold text-primary" data-idx="${idx}" style="width:120px;" value="${valor}"/>`;
+    }).join('') + '</p>' + tecladoSimbolosHtml();
   } else if (p.tipo === 'relacionar') {
     const seleccion = respuestasEstado[p.id] || {};
     camposHtml = `
@@ -630,7 +770,8 @@ function renderPregunta() {
     <span class="inline-block bg-surface-container-high text-on-surface-variant text-sm px-3 py-1 rounded-full mb-3">${p.puntos} pts</span>
     <p class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-stack-md">${escapeHtml(p.texto)}</p>
     ${p.imagen_url ? `<img src="${escapeHtml(p.imagen_url)}" class="rounded-DEFAULT mb-stack-md w-full"/>` : ''}
-    <div>${camposHtml}</div>`;
+    <div>${camposHtml}</div>
+    ${p.pide_procedimiento ? pizarraHtml() : ''}`;
 
   cont.querySelectorAll('.input-respuesta').forEach((el) => {
     el.addEventListener('change', () => { respuestasEstado[p.id] = el.value; guardarLocal(); });
@@ -643,6 +784,9 @@ function renderPregunta() {
       guardarLocal();
     });
   });
+  conectarTeclado(cont, p);
+  if (p.pide_procedimiento) conectarPizarra(cont, p);
+
   cont.querySelectorAll('.select-relacionar').forEach((el) => {
     el.addEventListener('change', () => {
       const obj = respuestasEstado[p.id] || {};
@@ -728,6 +872,7 @@ async function procesarCola(pendiente) {
       body: JSON.stringify({
         intento_id: intentoId,
         respuestas: respuestasEstado,
+        procedimientos: procedimientosEstado,
         motivo_bloqueo: pendiente.porBloqueo ? pendiente.motivo : null,
         eventos_pendientes: eventosOffline,
         advertencias_locales: advertenciasLocales,

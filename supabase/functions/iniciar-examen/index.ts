@@ -114,7 +114,8 @@ Deno.serve(async (req: Request) => {
     let mapeoCambio = false;
 
     const preguntasSanitizadas = (preguntas || []).map((p: any) => {
-      const base = { id: p.id, tipo: p.tipo, texto: p.texto, imagen_url: p.imagen_url, puntos: p.puntos };
+      const base = { id: p.id, tipo: p.tipo, texto: p.texto, imagen_url: p.imagen_url, puntos: p.puntos,
+                     pide_procedimiento: !!p.pide_procedimiento };
 
       if (p.tipo === "opcion_multiple" || p.tipo === "verdadero_falso") {
         const opciones = (p.opciones || [])

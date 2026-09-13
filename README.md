@@ -156,6 +156,40 @@ De un solo color semilla salen los 47 tonos de la interfaz, siguiendo el
 algoritmo de Material Design 3 — el mismo que usa Google para generar temas. Por
 eso basta escoger uno y no cuarenta y siete.
 
+### Armar la carpeta de la escuela
+
+Con los archivos del generador ya descargados y un proyecto de Supabase vacío
+creado en la cuenta del colegio:
+
+```powershell
+node scripts/nueva-escuela.mjs
+```
+
+Pregunta la carpeta destino, dónde quedaron las descargas, el `project-ref`, la
+publishable key y el dominio de correo de los maestros. Con eso copia la
+plantilla (sin `.git` ni `node_modules`), pone cada archivo de marca en su
+lugar, deja apuntado `assets/js/supabase-client.js` a la base del colegio, sube
+`VERSION` en `sw.js` y escribe un **`PASOS.md`** dentro de la carpeta nueva con
+los comandos que faltan, ya con el project-ref sustituido.
+
+No guarda ningún token: lo que necesita credenciales queda anotado para que lo
+corras tú con la sesión del CLI.
+
+También acepta banderas, para repetirlo sin teclear:
+
+```powershell
+node scripts/nueva-escuela.mjs --destino ../AulaFacil-Cumbres --descargas $HOME\Downloads ^
+     --ref abcdefghijklmnopqrst --llave sb_publishable_xxx --dominio cumbres.edu.mx
+```
+
+### Quién puede crear cuenta de maestro
+
+El registro está abierto salvo que la tabla `registro_permitido` tenga
+renglones. Cada renglón es un dominio (`cpdg.edu.mx`) o un correo completo para
+las excepciones. Un trigger en `auth.users` lo hace cumplir del lado del
+servidor, y solo aplica a los maestros: los alumnos los crea `crear-alumnos`
+con correo interno y nunca pasan por la regla.
+
 **Una instancia por escuela.** Cada colegio tiene su propio proyecto de Supabase
 y su propio despliegue. Es la única forma de que el icono y el nombre en la
 pantalla de inicio del celular sean los suyos: eso lo define `manifest.json`, un

@@ -16,8 +16,55 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Comparacion tolerante de respuestas escritas.
+//
+// Antes se comparaba texto exacto en minusculas, asi que "0.5" y "1/2" se
+// consideraban distintos aunque valgan lo mismo: el alumno escribia bien y
+// perdia el punto. Estas reglas solo AMPLIAN lo que se acepta, nunca
+// restringen, asi que ninguna respuesta que antes contaba deja de contar.
+const EQUIVALENTES: [RegExp, string][] = [
+  [/\s+/g, ""],                 // "3 x" -> "3x"
+  [/²/g, "^2"], [/³/g, "^3"],
+  [/½/g, "1/2"], [/¼/g, "1/4"], [/¾/g, "3/4"],
+  [/÷/g, "/"], [/×|·/g, "*"],
+  [/−|–|—/g, "-"],              // guiones tipograficos -> signo menos
+  [/π/g, "pi"],
+  [/,/g, "."],                  // coma decimal: "0,5" -> "0.5"
+];
+
 function normalizar(s: string) {
-  return (s || "").trim().toLowerCase();
+  let t = String(s ?? "").trim().toLowerCase();
+  for (const [re, por] of EQUIVALENTES) t = t.replace(re, por);
+  // "x=2" debe valer lo mismo que "2": se descarta la incognita de la izquierda.
+  const partes = t.split("=");
+  if (partes.length === 2 && partes[0].length <= 3) t = partes[1];
+  return t;
+}
+
+// Numero, o fraccion simple a/b. Null si no es ninguno de los dos.
+function comoNumero(t: string): number | null {
+  if (/^-?\d+(\.\d+)?$/.test(t) || /^-?\.\d+$/.test(t)) return parseFloat(t);
+  const f = t.match(/^(-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)$/);
+  if (f) {
+    const b = parseFloat(f[2]);
+    if (b !== 0) return parseFloat(f[1]) / b;
+  }
+  return null;
+}
+
+// El maestro puede separar con "|" varias respuestas que acepta como validas.
+function coincide(dada: string, esperada: string) {
+  const alumno = normalizar(dada);
+  if (alumno === "") return false;
+  for (const opcion of String(esperada ?? "").split("|")) {
+    const buena = normalizar(opcion);
+    if (buena === "") continue;
+    if (alumno === buena) return true;
+    const na = comoNumero(alumno), nb = comoNumero(buena);
+    if (na !== null && nb !== null &&
+        Math.abs(na - nb) <= Math.max(1e-9, Math.abs(nb) * 1e-9)) return true;
+  }
+  return false;
 }
 
 // Salidas que el dispositivo detecto sin poder avisar al servidor en su
@@ -42,8 +89,8 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Falta el token de autorización" }, 401);
 
-    const { intento_id, respuestas, motivo_bloqueo, eventos_pendientes, advertencias_locales } =
-      await req.json();
+    const { intento_id, respuestas, motivo_bloqueo, eventos_pendientes, advertencias_locales,
+            procedimientos } = await req.json();
     if (!intento_id || typeof respuestas !== "object") {
       return json({ error: "Faltan datos (intento_id o respuestas)" }, 400);
     }
@@ -101,7 +148,7 @@ Deno.serve(async (req: Request) => {
         const dadas: string[] = Array.isArray(respuestaAlumno) ? respuestaAlumno : [];
         const total = correctas.length || 1;
         let aciertos = 0;
-        correctas.forEach((c, i) => { if (normalizar(dadas[i] || "") === normalizar(c)) aciertos++; });
+        correctas.forEach((c, i) => { if (coincide(dadas[i] || "", c)) aciertos++; });
         puntos = (Number(p.puntos) || 0) * (aciertos / total);
       } else if (p.tipo === "relacionar") {
         const mapaPregunta = (intento.mapeo_relacionar || {})[p.id] || {};
@@ -117,11 +164,22 @@ Deno.serve(async (req: Request) => {
       }
 
       puntosObtenidos += puntos;
+      // El dibujo del procedimiento no se califica: solo se guarda para que el
+      // maestro pueda verlo. Se acota el tamanio por si llega algo raro.
+      let dibujo: string | null = null;
+      if (p.pide_procedimiento && procedimientos && typeof procedimientos === "object") {
+        const d = procedimientos[p.id];
+        if (typeof d === "string" && d.startsWith("data:image/png;base64,") && d.length <= 400_000) {
+          dibujo = d;
+        }
+      }
+
       filasRespuestas.push({
         intento_id,
         pregunta_id: p.id,
         respuesta_json: respuestaAlumno ?? null,
         puntos_obtenidos: Math.round(puntos * 100) / 100,
+        procedimiento: dibujo,
       });
     }
 

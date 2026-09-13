@@ -554,25 +554,50 @@ async function verDetalle(sesionId) {
 
 let rankingCorte = [];
 
-async function puntosAcumulados(periodoId) {
+// Ids de las actividades de las clases ya cerradas de ese parcial.
+async function actividadesDelPeriodo(periodoId) {
   let q = supabase.from('sesiones').select('id').eq('grupo_id', grupoId).eq('estado', 'cerrada');
   q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
   const { data: ses } = await q;
-  if (!ses || ses.length === 0) return {};
+  if (!ses || ses.length === 0) return [];
 
   const { data: acts } = await supabase
     .from('actividades_sesion').select('id').in('sesion_id', ses.map((x) => x.id));
-  if (!acts || acts.length === 0) return {};
+  return (acts || []).map((x) => x.id);
+}
+
+async function puntosAcumulados(periodoId) {
+  const ids = await actividadesDelPeriodo(periodoId);
+  if (ids.length === 0) return {};
 
   const { data: parts } = await supabase
     .from('participaciones_sesion').select('alumno_id, puntos')
-    .eq('estado', 'aprobada').in('actividad_id', acts.map((x) => x.id));
+    .eq('estado', 'aprobada').in('actividad_id', ids);
 
   const acumulado = {};
   (parts || []).forEach((x) => {
     acumulado[x.alumno_id] = (acumulado[x.alumno_id] || 0) + Number(x.puntos || 0);
   });
   return acumulado;
+}
+
+async function puntosDespuesDe(periodoId, desdeISO) {
+  const ids = await actividadesDelPeriodo(periodoId);
+  if (ids.length === 0) return { puntos: 0, alumnos: 0, reposiciones: 0 };
+
+  const { data: parts } = await supabase
+    .from('participaciones_sesion').select('alumno_id, puntos, origen, resuelto_en, created_at')
+    .eq('estado', 'aprobada').in('actividad_id', ids);
+
+  // Comparar como fechas, no como texto: Postgres devuelve los timestamps con
+  // distinta cantidad de decimales y una comparacion de cadenas se equivoca.
+  const corte = Date.parse(desdeISO);
+  const nuevas = (parts || []).filter((x) => Date.parse(x.resuelto_en || x.created_at) > corte);
+  return {
+    puntos: nuevas.reduce((t, x) => t + Number(x.puntos || 0), 0),
+    alumnos: new Set(nuevas.map((x) => x.alumno_id)).size,
+    reposiciones: nuevas.filter((x) => x.origen === 'reposicion').length,
+  };
 }
 
 async function abrirCorte() {
@@ -596,14 +621,37 @@ async function cargarRanking() {
   const masAlto = rankingCorte.length ? rankingCorte[0].puntos : 0;
   document.getElementById('corte-referencia').value = masAlto || '';
 
-  let q = supabase.from('cortes_participacion').select('fecha, media').eq('grupo_id', grupoId);
+  let q = supabase.from('cortes_participacion').select('fecha, media, created_at').eq('grupo_id', grupoId);
   q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
   const { data: ultimo } = await q.order('created_at', { ascending: false }).limit(1).maybeSingle();
   document.getElementById('corte-ultimo').textContent = ultimo
     ? `Último corte de este parcial: ${ultimo.fecha}, con referencia de ${ultimo.media} puntos.`
     : 'Todavía no se ha hecho corte en este parcial.';
 
+  await avisarPendientes(periodoId, ultimo);
+
   pintarRanking();
+}
+
+// Un corte es una foto fija: los puntos que llegan despues no entran solos.
+// Sin este aviso se perderian en silencio, que es justo lo que pasa con una
+// reposicion registrada al dia siguiente.
+async function avisarPendientes(periodoId, ultimo) {
+  const caja = document.getElementById('corte-pendientes');
+  caja.classList.add('hidden');
+  if (!ultimo) return;
+
+  const { puntos, alumnos, reposiciones } = await puntosDespuesDe(periodoId, ultimo.created_at);
+  if (puntos <= 0) return;
+
+  const quienes = alumnos === 1 ? '1 alumno' : `${alumnos} alumnos`;
+  const detalle = reposiciones > 0
+    ? ` (incluye ${reposiciones === 1 ? 'una reposición' : reposiciones + ' reposiciones'})`
+    : '';
+  caja.innerHTML = `<strong>Hay ${puntos} puntos nuevos desde ese corte</strong>, de ${quienes}${detalle}.
+    Las calificaciones que ya se emitieron no los toman en cuenta. Si quieres que cuenten,
+    aplica un corte nuevo: se recalcula sobre todo el parcial y reemplaza al anterior.`;
+  caja.classList.remove('hidden');
 }
 
 function pintarRanking() {

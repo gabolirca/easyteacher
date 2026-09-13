@@ -137,7 +137,7 @@ async function cargarYRenderizar() {
 
   const { data: respuestas, error: errorRespuestas } = await supabase
     .from('respuestas')
-    .select('pregunta_id, respuesta_json, puntos_obtenidos')
+    .select('pregunta_id, respuesta_json, puntos_obtenidos, procedimiento')
     .eq('intento_id', intentoId);
 
   if (errorRespuestas) {
@@ -177,6 +177,12 @@ async function cargarYRenderizar() {
           ${badgePuntos(r?.puntos_obtenidos ?? 0, p.puntos)}
         </div>
         ${cuerpo}
+        ${r?.procedimiento ? `
+          <div class="mt-stack-md border-t border-outline-variant pt-stack-md">
+            <p class="font-label-lg text-label-lg text-on-surface mb-2">Procedimiento del alumno</p>
+            <img src="${escapeHtml(r.procedimiento)}" alt="Procedimiento escrito a mano"
+                 class="w-full border border-outline-variant rounded-DEFAULT bg-white"/>
+          </div>` : ''}
       </div>`;
   }).join('');
 }

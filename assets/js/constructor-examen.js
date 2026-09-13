@@ -146,7 +146,19 @@ function abrirPanel(tipo, existente = null, idx = null) {
       <div class="flex flex-col mb-4">
         <label class="font-label-lg text-label-lg text-on-surface mb-2">Respuestas correctas (separadas por coma, en el mismo orden que los ___)</label>
         <input id="completar-respuestas" class="${inputBase()}" placeholder="Ej: París, 508" type="text" value="${escapeHtml(respuestas)}"/>
-      </div>`;
+        <p class="font-body-md text-body-md text-on-surface-variant mt-2">
+          Si una respuesta admite varias formas, sepáralas con <b>|</b> — por ejemplo
+          <b>0.5|1/2|medio</b>. Los números se comparan por su valor, así que
+          <b>0.5</b>, <b>.5</b> y <b>1/2</b> ya cuentan como iguales sin que hagas nada.
+        </p>
+      </div>
+      <label class="flex items-start gap-3 mb-4 cursor-pointer">
+        <input type="checkbox" id="completar-procedimiento" class="mt-1" ${existente?.pide_procedimiento ? 'checked' : ''}/>
+        <span>
+          <span class="font-label-lg text-label-lg text-on-surface block">Pedir el procedimiento</span>
+          <span class="font-body-md text-body-md text-on-surface-variant">Aparece una pizarra donde el alumno escribe con el dedo cómo lo resolvió. El resultado se sigue calificando solo; el procedimiento lo revisas tú.</span>
+        </span>
+      </label>`;
   }
 
   const SIMBOLOS = ['√', 'π', '÷', '×', '±', '≤', '≥', '≠', '∞', '°', 'Δ', 'Σ', '∫', '½', '¼', '¾', 'x²', 'x³', '∈', '∅'];
@@ -275,7 +287,7 @@ function guardarPreguntaDelPanel(tipo) {
     return;
   }
 
-  let nuevaPregunta = { tipo, texto, puntos, opciones: [], contenido_json: null };
+  let nuevaPregunta = { tipo, texto, puntos, opciones: [], contenido_json: null, pide_procedimiento: false };
 
   if (tipo === 'opcion_multiple') {
     const filas = [...document.querySelectorAll('#lista-opciones .fila-opcion')];
@@ -322,6 +334,7 @@ function guardarPreguntaDelPanel(tipo) {
       return;
     }
     nuevaPregunta.contenido_json = { plantilla, respuestas };
+    nuevaPregunta.pide_procedimiento = !!document.getElementById('completar-procedimiento')?.checked;
   }
 
   if (editandoIndex !== null) {
@@ -408,6 +421,7 @@ async function guardarExamen() {
           puntos: p.puntos,
           orden: i,
           contenido_json: p.contenido_json,
+          pide_procedimiento: !!p.pide_procedimiento,
         })
         .select()
         .single();
