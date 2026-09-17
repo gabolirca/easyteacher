@@ -166,6 +166,18 @@
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="duracion">Duración (minutos)</label>
 <input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="duracion" min="1" placeholder="45" type="number"/>
 </div>
+<div class="flex flex-col mt-stack-md">
+<label class="flex items-start gap-3 cursor-pointer mb-3">
+<input type="checkbox" id="barajar-preguntas" class="mt-1"/>
+<span><span class="font-label-lg text-label-lg text-on-surface block">Orden aleatorio de preguntas</span>
+<span class="font-body-md text-body-md text-on-surface-variant">A cada alumno le tocan en distinto orden. Ver la pantalla del de al lado deja de servir.</span></span>
+</label>
+<label class="flex items-start gap-3 cursor-pointer">
+<input type="checkbox" id="barajar-opciones" class="mt-1"/>
+<span><span class="font-label-lg text-label-lg text-on-surface block">Orden aleatorio de las opciones</span>
+<span class="font-body-md text-body-md text-on-surface-variant">Solo en opción múltiple. No se aplica a verdadero o falso.</span></span>
+</label>
+</div>
 <div id="campo-periodo" class="hidden flex flex-col md:col-span-2">
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="examen-periodo">Periodo</label>
 <select id="examen-periodo" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors">

@@ -26,6 +26,38 @@ function barajar<T>(arr: T[]): T[] {
   return a;
 }
 
+// Barajado ESTABLE: la semilla sale del id del intento, asi que a cada alumno
+// le toca un orden distinto pero siempre el MISMO si recarga la pagina. No se
+// guarda nada en la base: se vuelve a calcular igual cada vez.
+function semilla(txt: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < txt.length; i++) {
+    h ^= txt.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function azarDe(sem: number) {
+  let e = sem;
+  return () => {
+    e |= 0; e = (e + 0x6D2B79F5) | 0;
+    let t = Math.imul(e ^ (e >>> 15), 1 | e);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function barajarCon<T>(arr: T[], sem: number): T[] {
+  const a = [...arr];
+  const azar = azarDe(sem);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(azar() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -50,7 +82,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: examen, error: examenError } = await callerClient
       .from("examenes")
-      .select("id, titulo, duracion_min, fecha_apertura, fecha_cierre, estado, grupo_id")
+      .select("id, titulo, duracion_min, fecha_apertura, fecha_cierre, estado, grupo_id, barajar_preguntas, barajar_opciones")
       .eq("link_token", token)
       .eq("estado", "abierto")
       .maybeSingle();
@@ -110,6 +142,9 @@ Deno.serve(async (req: Request) => {
 
     if (preguntasError) return json({ error: preguntasError.message }, 500);
 
+    const { data: perfilAlumno } = await admin
+      .from("alumnos").select("nombre, matricula").eq("id", user.id).maybeSingle();
+
     const mapeo = { ...(intento.mapeo_relacionar || {}) };
     let mapeoCambio = false;
 
@@ -118,9 +153,13 @@ Deno.serve(async (req: Request) => {
                      pide_procedimiento: !!p.pide_procedimiento };
 
       if (p.tipo === "opcion_multiple" || p.tipo === "verdadero_falso") {
-        const opciones = (p.opciones || [])
+        let opciones = (p.opciones || [])
           .sort((a: any, b: any) => a.orden - b.orden)
           .map((o: any) => ({ id: o.id, texto: o.texto }));
+        // Verdadero/falso se deja en paz: barajarlo solo confunde.
+        if (examen.barajar_opciones && p.tipo === "opcion_multiple") {
+          opciones = barajarCon(opciones, semilla(intento.id + p.id));
+        }
         return { ...base, opciones };
       }
 
@@ -162,6 +201,10 @@ Deno.serve(async (req: Request) => {
       return base;
     });
 
+    const preguntasFinales = examen.barajar_preguntas
+      ? barajarCon(preguntasSanitizadas, semilla(intento.id))
+      : preguntasSanitizadas;
+
     if (mapeoCambio) {
       await admin.from("intentos").update({ mapeo_relacionar: mapeo }).eq("id", intento.id);
     }
@@ -177,7 +220,9 @@ Deno.serve(async (req: Request) => {
       max_advertencias: MAX_ADVERTENCIAS,
       servidor_ahora: ahora.toISOString(),
       examen: { titulo: examen.titulo, duracion_min: examen.duracion_min, fecha_cierre: examen.fecha_cierre },
-      preguntas: preguntasSanitizadas,
+      preguntas: preguntasFinales,
+      // Para la marca de agua de la pantalla del examen.
+      alumno: { nombre: perfilAlumno?.nombre || "", matricula: perfilAlumno?.matricula || "" },
     });
   } catch (err) {
     return json({ error: String(err) }, 500);

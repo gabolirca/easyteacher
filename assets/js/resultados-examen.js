@@ -65,7 +65,14 @@ function etiquetasVigilancia(intento) {
   }
 
   const eventos = Array.isArray(intento.eventos_salida) ? intento.eventos_salida : [];
-  const sinRed = eventos.filter((e) => e && e.conto === false);
+
+  // La bitácora mezcla dos cosas distintas: salidas de pantalla e intentos de
+  // copiar. Hay que separarlas o la cuenta de "salidas sin red" sale inflada.
+  const TIPOS_COPIA = ['copia', 'imprpant'];
+  const salidas = eventos.filter((e) => e && !TIPOS_COPIA.includes(e.tipo));
+  const copias = eventos.filter((e) => e && TIPOS_COPIA.includes(e.tipo));
+
+  const sinRed = salidas.filter((e) => e.conto === false);
   if (sinRed.length > 0) {
     const detalle = sinRed
       .slice(-8)
@@ -76,6 +83,19 @@ function etiquetasVigilancia(intento) {
       `<span class="px-2 py-1 rounded-full text-xs font-label-lg bg-surface-container-high text-on-surface-variant" ` +
       `title="No contaron como advertencia porque el dispositivo estaba sin conexión${detalle ? ': ' + escapeHtml(detalle) : ''}">` +
       `${sinRed.length} salida${sinRed.length === 1 ? '' : 's'} sin red</span>`
+    );
+  }
+
+  if (copias.length > 0) {
+    const cuantas = copias.filter((e) => e.tipo === 'copia').length;
+    const pant = copias.length - cuantas;
+    const partes = [];
+    if (cuantas > 0) partes.push(`copió texto ${cuantas} ${cuantas === 1 ? 'vez' : 'veces'}`);
+    if (pant > 0) partes.push(`Impr Pant ×${pant}`);
+    etiquetas.push(
+      `<span class="px-2 py-1 rounded-full text-xs font-label-lg bg-tertiary-container text-on-tertiary-container" ` +
+      `title="No bloquea el examen. Es para que tú juzgues: copiar el texto de una pregunta es la forma más práctica de filtrarla.">` +
+      `${escapeHtml(partes.join(' · '))}</span>`
     );
   }
 

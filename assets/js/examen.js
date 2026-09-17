@@ -252,6 +252,8 @@ async function cargarExamen() {
   examenInfo = data.examen;
   intentoId = data.intento_id;
   preguntas = data.preguntas;
+  ponerMarcaDeAgua(data.alumno);
+  vigilarCopiado();
   advertencias = data.advertencias ?? 0;
   advertenciasLocales = advertencias;
   maxAdvertencias = data.max_advertencias ?? 1;
@@ -589,6 +591,58 @@ document.getElementById('btn-aviso-entendido')?.addEventListener('click', () => 
 document.getElementById('btn-red-entendido')?.addEventListener('click', () => cerrarModalYVolver('modal-red'));
 
 // ---------- Render de la pregunta actual ----------
+
+// ---------------------------------------------------------------------------
+// Marca de agua con el nombre y la matrícula del alumno.
+//
+// No impide la captura de pantalla: ningún sitio web puede impedirla. Lo que
+// hace es quitarle el sentido, porque cualquier captura —y también la foto que
+// alguien le tome a la pantalla con otro teléfono, que ni una app nativa puede
+// evitar— sale marcada con quién la tomó.
+// ---------------------------------------------------------------------------
+function ponerMarcaDeAgua(alumno) {
+  if (!alumno || !alumno.nombre) return;
+  if (document.getElementById('marca-agua')) return;
+
+  const texto = `${alumno.nombre} · ${alumno.matricula || ''}`.trim();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="240">
+    <text x="210" y="120" fill="#000" fill-opacity="0.055" font-size="19"
+          font-family="Inter,sans-serif" text-anchor="middle"
+          transform="rotate(-24 210 120)">${escapeHtml(texto)}</text></svg>`;
+
+  const capa = document.createElement('div');
+  capa.id = 'marca-agua';
+  capa.setAttribute('aria-hidden', 'true');
+  // pointer-events:none para que no estorbe al contestar ni al dibujar.
+  capa.style.cssText = 'position:fixed;inset:0;z-index:40;pointer-events:none;' +
+    `background-image:url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}');` +
+    'background-repeat:repeat;';
+  document.body.appendChild(capa);
+}
+
+// ---------------------------------------------------------------------------
+// Bitacora de intentos de copiado.
+//
+// No bloquea nada: copiar el texto de una pregunta es la forma mas practica de
+// filtrarla a un companero, asi que se anota con `conto: false` (no suma
+// advertencia, no cierra el examen) y el maestro lo ve en Resultados junto al
+// alumno. La tecla ImprPant no se puede impedir desde el navegador; lo unico
+// honesto es dejar constancia de que se oprimio.
+// ---------------------------------------------------------------------------
+function vigilarCopiado() {
+  const anotarIntento = (tipo) => {
+    if (!deteccionActiva || examenTerminado || enviando) return;
+    anotarEvento(tipo, false);
+  };
+
+  ['copy', 'cut'].forEach((ev) => {
+    document.addEventListener(ev, () => anotarIntento('copia'));
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (e.key === 'PrintScreen') anotarIntento('imprpant');
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Teclado de símbolos para las respuestas escritas.

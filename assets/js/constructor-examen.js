@@ -392,6 +392,8 @@ async function guardarExamen() {
       fecha_cierre: fechaCierre,
       duracion_min: duracion ? parseInt(duracion, 10) : null,
       periodo_id: periodoId,
+      barajar_preguntas: !!document.getElementById('barajar-preguntas')?.checked,
+      barajar_opciones: !!document.getElementById('barajar-opciones')?.checked,
     };
 
     if (examenId) {
@@ -443,7 +445,12 @@ async function guardarExamen() {
     document.getElementById('btn-generar-link').disabled = false;
 
     if (!linkToken) {
-      const { data: examenActual } = await supabase.from('examenes').select('link_token, estado').eq('id', examenId).single();
+      const { data: examenActual } = await supabase.from('examenes')
+        .select('link_token, estado, barajar_preguntas, barajar_opciones').eq('id', examenId).single();
+      const cbP = document.getElementById('barajar-preguntas');
+      const cbO = document.getElementById('barajar-opciones');
+      if (cbP) cbP.checked = !!examenActual.barajar_preguntas;
+      if (cbO) cbO.checked = !!examenActual.barajar_opciones;
       linkToken = examenActual.link_token;
       estadoActual = examenActual.estado;
     }
