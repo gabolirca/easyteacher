@@ -374,6 +374,37 @@ async function cerrarActividad() {
 
 // ---------- cerrar sesión ----------
 
+// Al cerrar, los alumnos que nunca escanearon se quedan SIN ninguna fila de
+// asistencia: ni presente ni falta, simplemente vacio. Asi paso el 18/09, que
+// 28 de 31 alumnos quedaron en blanco. Aqui se ofrece completarlo de una vez.
+//
+// Solo se insertan los que no tienen nada: al que ya trae presente, retardo,
+// falta o justificada no se le toca, venga de donde venga.
+async function marcarFaltasDeLosQueNoEscanearon() {
+  const { data: yaTienen } = await supabase
+    .from('asistencias').select('alumno_id')
+    .eq('grupo_id', grupoId).eq('fecha', sesion.fecha);
+
+  const conRegistro = new Set((yaTienen || []).map((a) => a.alumno_id));
+  const sinNada = roster.filter((al) => !conRegistro.has(al.id));
+  if (sinNada.length === 0) return;
+
+  const ok = confirm(
+    `${sinNada.length} alumno(s) no registraron asistencia y quedarían en blanco.\n\n` +
+    '¿Marcarlos como falta? (puedes corregirlo después en la pantalla de Asistencias)',
+  );
+  if (!ok) return;
+
+  const { error } = await supabase.from('asistencias').upsert(
+    sinNada.map((al) => ({
+      grupo_id: grupoId, alumno_id: al.id, fecha: sesion.fecha,
+      estado: 'falta', sesion_id: sesion.id,
+    })),
+    { onConflict: 'grupo_id,alumno_id,fecha', ignoreDuplicates: true },
+  );
+  if (error) aviso(`No se pudieron marcar las faltas: ${error.message}`, true);
+}
+
 async function cerrarSesion() {
   if (!confirm('¿Cerrar la clase? Ya no se podrán registrar más participaciones.')) return;
   const abiertas = actividades.filter((a) => a.abierta);
@@ -384,6 +415,8 @@ async function cerrarSesion() {
     for (const a of abiertas) {
       await llamar('cerrar-actividad', { actividad_id: a.id });
     }
+    await marcarFaltasDeLosQueNoEscanearon();
+
     const { error } = await supabase.from('sesiones')
       .update({ estado: 'cerrada', fin: new Date().toISOString() }).eq('id', sesion.id);
     if (error) throw new Error(error.message);

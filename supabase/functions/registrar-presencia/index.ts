@@ -22,14 +22,14 @@ function json(body: unknown, status = 200) {
   });
 }
 
-async function firmar(secreto: string, mensaje: string): Promise<string> {
+async function firmar(secreto: string, mensaje: string, largo = 16): Promise<string> {
   const enc = new TextEncoder();
   const llave = await crypto.subtle.importKey(
     "raw", enc.encode(secreto), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
   );
   const firma = await crypto.subtle.sign("HMAC", llave, enc.encode(mensaje));
   return Array.from(new Uint8Array(firma))
-    .map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 16);
+    .map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, largo);
 }
 
 // Comparacion en tiempo constante: no filtra por cuanto tarda en fallar.
@@ -47,8 +47,9 @@ Deno.serve(async (req: Request) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Falta el token de autorización" }, 401);
 
-    const { sesion_id, ventana, codigo } = await req.json();
-    if (!sesion_id || ventana === undefined || !codigo) {
+    const { sesion_id, ventana, codigo, pase, expira } = await req.json();
+    const traePase = Boolean(pase && expira);
+    if (!sesion_id || (!traePase && (ventana === undefined || !codigo))) {
       return json({ error: "Código QR incompleto" }, 400);
     }
 
@@ -66,7 +67,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: sesion } = await admin
       .from("sesiones")
-      .select("id, grupo_id, fecha, estado")
+      .select("id, grupo_id, fecha, estado, inicio, tolerancia_min")
       .eq("id", sesion_id)
       .maybeSingle();
 
@@ -92,18 +93,38 @@ Deno.serve(async (req: Request) => {
 
     if (!sec) return json({ error: "Esta sesión no tiene código válido" }, 500);
 
-    const ventanaActual = Math.floor(Date.now() / 1000 / VENTANA_SEG);
-    const ventanaRecibida = Number(ventana);
+    if (traePase) {
+      // Pase de entrada: lo emitio validar-qr cuando el alumno escaneo, antes
+      // de iniciar sesion. Dura unos minutos para que le de tiempo de entrar.
+      const expiraNum = Number(expira);
+      if (!Number.isFinite(expiraNum) || expiraNum * 1000 < Date.now()) {
+        return json({ error: "Tu pase de entrada venció. Vuelve a escanear el QR de la pantalla." }, 403);
+      }
+      const esperadoPase = await firmar(sec.secreto, `pase.${sesion_id}.${expiraNum}`, 32);
+      if (!igualSeguro(esperadoPase, String(pase))) {
+        return json({ error: "Pase de entrada inválido" }, 403);
+      }
+    } else {
+      const ventanaActual = Math.floor(Date.now() / 1000 / VENTANA_SEG);
+      const ventanaRecibida = Number(ventana);
 
-    if (!Number.isFinite(ventanaRecibida) ||
-        Math.abs(ventanaActual - ventanaRecibida) > MARGEN_VENTANAS) {
-      return json({ error: "Este código ya expiró. Vuelve a escanear el QR de la pantalla." }, 403);
+      if (!Number.isFinite(ventanaRecibida) ||
+          Math.abs(ventanaActual - ventanaRecibida) > MARGEN_VENTANAS) {
+        return json({ error: "Este código ya expiró. Vuelve a escanear el QR de la pantalla." }, 403);
+      }
+
+      const esperado = await firmar(sec.secreto, `${sesion_id}.${ventanaRecibida}`);
+      if (!igualSeguro(esperado, String(codigo))) {
+        return json({ error: "Código QR inválido" }, 403);
+      }
     }
 
-    const esperado = await firmar(sec.secreto, `${sesion_id}.${ventanaRecibida}`);
-    if (!igualSeguro(esperado, String(codigo))) {
-      return json({ error: "Código QR inválido" }, 403);
-    }
+    // ------- Presente o retardo -------
+    // La tolerancia se cuenta desde que arranco la clase, con el reloj del
+    // servidor: el del telefono del alumno no decide nada.
+    const tolerancia = Number(sesion.tolerancia_min ?? 5);
+    const minutosDesdeInicio = (Date.now() - new Date(sesion.inicio).getTime()) / 60000;
+    const estadoLlegada = minutosDesdeInicio > tolerancia ? "retardo" : "presente";
 
     // ------- Asistencia: una sola fuente de verdad -------
     // Si el profesor ya marco algo a mano, su criterio gana. El escaneo solo
@@ -121,14 +142,14 @@ Deno.serve(async (req: Request) => {
         grupo_id: sesion.grupo_id,
         alumno_id: user.id,
         fecha: sesion.fecha,
-        estado: "presente",
+        estado: estadoLlegada,
         sesion_id,
         origen: "qr",
       });
       if (error) return json({ error: error.message }, 500);
     } else if (previa.estado === "falta") {
       await admin.from("asistencias")
-        .update({ estado: "presente", sesion_id, origen: "qr" })
+        .update({ estado: estadoLlegada, sesion_id, origen: "qr" })
         .eq("id", previa.id);
     } else if (!previa.sesion_id) {
       // Ya estaba marcado presente/retardo/justificada: se respeta el estado,
@@ -136,7 +157,14 @@ Deno.serve(async (req: Request) => {
       await admin.from("asistencias").update({ sesion_id }).eq("id", previa.id);
     }
 
-    return json({ ok: true, sesion_id, grupo_id: sesion.grupo_id, fecha: sesion.fecha });
+    return json({
+      ok: true,
+      estado: estadoLlegada,
+      tolerancia_min: tolerancia,
+      sesion_id,
+      grupo_id: sesion.grupo_id,
+      fecha: sesion.fecha,
+    });
   } catch (err) {
     return json({ error: String(err) }, 500);
   }

@@ -1,4 +1,4 @@
-import { supabase, SUPABASE_URL } from './supabase-client.js';
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './supabase-client.js';
 
 const params = new URLSearchParams(window.location.search);
 // Parámetros que trae el QR de la clase.
@@ -16,6 +16,8 @@ let mias = {};          // { actividad_id: 'pendiente' | 'aprobada' | 'rechazada
 let sondeo = null;
 
 const LS_COLA = 'aulafacil_cola_alumno';
+const SS_PASE = 'aulafacil_pase_qr';
+const SS_YA = 'aulafacil_presencia_ok';
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 
@@ -108,18 +110,79 @@ document.getElementById('form-login')?.addEventListener('submit', async (e) => {
   await arrancar();
 });
 
+// ---------- Pase de entrada ----------
+// El QR solo vive 60 s, a proposito: asi una captura de pantalla mandada por
+// WhatsApp no le sirve a nadie. El problema es que el alumno que llega sin
+// sesion iniciada gasta mas de un minuto tecleando su matricula, y para
+// cuando termina el codigo ya expiro (el 18/09 se cayeron asi 85 de 89
+// registros de asistencia).
+//
+// Por eso el codigo se canjea AQUI, en cuanto abre el link y antes de
+// cualquier login, por un pase firmado que dura unos minutos. Escanear sigue
+// siendo obligatorio; lo unico que cambia es que ya no hay prisa despues.
+
+function leerPase() {
+  try {
+    const p = JSON.parse(sessionStorage.getItem(SS_PASE) || 'null');
+    if (!p || p.sesion_id !== qr.sesion) return null;
+    if (!p.expira || p.expira * 1000 < Date.now()) return null;
+    return p;
+  } catch { return null; }
+}
+
+async function canjearPase() {
+  if (!qr.sesion || !qr.ventana || !qr.codigo) return;
+  if (leerPase()) return;               // ya hay uno vigente
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/validar-qr`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({
+        sesion_id: qr.sesion, ventana: Number(qr.ventana), codigo: qr.codigo,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) return;               // codigo vencido o invalido: se avisa al registrar
+    sessionStorage.setItem(SS_PASE, JSON.stringify({
+      sesion_id: qr.sesion, pase: data.pase, expira: data.expira,
+    }));
+  } catch { /* sin red: se reintenta con el codigo tal cual */ }
+}
+
 // ---------- Registrar presencia con el QR ----------
 
+function cuerpoPresencia() {
+  const p = leerPase();
+  if (p) return { sesion_id: qr.sesion, pase: p.pase, expira: p.expira };
+  if (qr.ventana && qr.codigo) {
+    return { sesion_id: qr.sesion, ventana: Number(qr.ventana), codigo: qr.codigo };
+  }
+  return null;
+}
+
 async function registrarPresencia() {
-  if (!qr.sesion || !qr.ventana || !qr.codigo) return;
+  if (!qr.sesion) return;
+  // Si recarga la pagina con el mismo link, el codigo de la URL ya esta
+  // viejo. No tiene caso reintentar ni ensenarle un error: ya quedo.
+  try { if (sessionStorage.getItem(SS_YA) === qr.sesion) return; } catch { /* noop */ }
+  const cuerpo = cuerpoPresencia();
+  if (!cuerpo) return;
   try {
-    await llamar('registrar-presencia', {
-      sesion_id: qr.sesion, ventana: Number(qr.ventana), codigo: qr.codigo,
-    });
-    aviso('Presencia registrada');
+    const r = await llamar('registrar-presencia', cuerpo);
+    aviso(r?.estado === 'retardo'
+      ? `Asistencia registrada con retardo (llegaste después de los ${r.tolerancia_min} min de tolerancia)`
+      : 'Presencia registrada');
+    try {
+      sessionStorage.setItem(SS_YA, qr.sesion);
+      sessionStorage.removeItem(SS_PASE);
+    } catch { /* noop */ }
   } catch (e) {
     if (!navigator.onLine) {
-      encolar('registrar-presencia', { sesion_id: qr.sesion, ventana: Number(qr.ventana), codigo: qr.codigo });
+      encolar('registrar-presencia', cuerpo);
       aviso('Sin conexión: tu presencia se enviará sola en cuanto vuelva la señal.');
     } else {
       aviso(e.message, true);
@@ -232,6 +295,10 @@ async function reclamar(actividadId, boton) {
 // ---------- Arranque ----------
 
 async function arrancar() {
+  // Primero el canje: corre aunque todavia no haya sesion iniciada, que es
+  // justo cuando el codigo esta fresco.
+  await canjearPase();
+
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) { vista('vista-login'); return; }
 
