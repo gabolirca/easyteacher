@@ -187,6 +187,12 @@ async function cargarFichasHoy() {
   });
 }
 
+// La lista se vuelve a pintar entera cada vez que se da una ficha. Animarla
+// en cada toque hacia perder tiempo: con 30 alumnos la ultima tarjeta tardaba
+// segundo y medio en acomodarse y la lista brincaba en cada participacion.
+// La animacion se deja nada mas para la primera pintada, al abrir la pantalla.
+let primerPintado = true;
+
 function renderLista() {
   const cont = document.getElementById('lista-alumnos');
 
@@ -203,6 +209,11 @@ function renderLista() {
     return;
   }
 
+  // Se gasta aqui, ya con alumnos en pantalla: si se gastara arriba, una
+  // primera llamada con la lista todavia vacia se comeria la animacion.
+  const animar = primerPintado;
+  primerPintado = false;
+
   cont.innerHTML = visibles.map((a, i) => {
     const fichasHoy = fichasHoyPorAlumno[a.id] || [];
     const tagsHoy = fichasHoy.length ? `
@@ -218,7 +229,7 @@ function renderLista() {
       </div>` : '';
 
     return `
-    <div class="card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 flex items-center justify-between gap-4 flex-wrap" style="animation: popIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.05}s both;">
+    <div class="card-hover bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 flex items-center justify-between gap-4 flex-wrap"${animar ? ` style="animation: popIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) ${i * 0.05}s both;"` : ''}>
       <div class="flex flex-col flex-1 min-w-[160px]">
         <div class="flex items-center gap-3">
           <span class="font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</span>
