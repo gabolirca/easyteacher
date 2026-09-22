@@ -120,11 +120,15 @@ Deno.serve(async (req: Request) => {
     }
 
     // ------- Presente o retardo -------
-    // La tolerancia se cuenta desde que arranco la clase, con el reloj del
+    // tolerancia_min en NULL significa que esta clase no maneja retardos: el
+    // maestro no pidio ninguno al iniciarla, asi que nadie llega tarde. Solo
+    // cuando eligio un numero se compara, y siempre contra el reloj del
     // servidor: el del telefono del alumno no decide nada.
-    const tolerancia = Number(sesion.tolerancia_min ?? 5);
+    const tolerancia = sesion.tolerancia_min == null ? null : Number(sesion.tolerancia_min);
     const minutosDesdeInicio = (Date.now() - new Date(sesion.inicio).getTime()) / 60000;
-    const estadoLlegada = minutosDesdeInicio > tolerancia ? "retardo" : "presente";
+    const estadoLlegada = tolerancia !== null && minutosDesdeInicio > tolerancia
+      ? "retardo"
+      : "presente";
 
     // ------- Asistencia: una sola fuente de verdad -------
     // Si el profesor ya marco algo a mano, su criterio gana. El escaneo solo

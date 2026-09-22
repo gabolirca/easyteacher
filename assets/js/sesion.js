@@ -199,8 +199,13 @@ async function iniciarSesion() {
   btn.disabled = true;
   try {
     const periodoId = document.getElementById('sel-periodo').value || null;
+    // Vacio = esta clase no maneja retardos. Es lo que viene elegido: el
+    // retardo solo aplica si el maestro lo pide para esta clase.
+    const tol = document.getElementById('sel-tolerancia')?.value;
+    const toleranciaMin = tol ? Number(tol) : null;
     const { data, error } = await supabase.from('sesiones')
-      .insert({ grupo_id: grupoId, periodo_id: periodoId }).select().single();
+      .insert({ grupo_id: grupoId, periodo_id: periodoId, tolerancia_min: toleranciaMin })
+      .select().single();
     if (error) throw new Error(error.message);
     sesion = data;
     await supabase.from('sesiones_secreto').insert({ sesion_id: sesion.id, grupo_id: grupoId });

@@ -160,9 +160,29 @@
 <h1 id="grupo-nombre" class="anim-fade font-headline-md text-headline-md text-on-surface">Cargando...</h1>
 <p id="grupo-materia" class="font-body-md text-body-md text-on-surface-variant"></p>
 </div>
+<button id="btn-editar-grupo" class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center transition-colors" aria-label="Editar grupo" title="Editar nombre y materia">
+<span class="material-symbols-outlined">edit</span>
+</button>
 </div>
 </div>
 </header>
+
+<!-- ============ Editar grupo ============ -->
+<div id="dialogo-grupo" class="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center" style="display:none;">
+<div class="w-full sm:max-w-sm bg-surface-container-lowest rounded-t-DEFAULT sm:rounded-DEFAULT p-6">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-stack-md">Editar grupo</h2>
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="ed-nombre">Nombre del grupo</label>
+<input id="ed-nombre" type="text" maxlength="60" placeholder="301" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-3 font-body-md text-body-md text-on-surface"/>
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="ed-materia">Materia</label>
+<input id="ed-materia" type="text" maxlength="80" placeholder="Matemáticas" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-2 font-body-md text-body-md text-on-surface"/>
+<p id="ed-error" class="hidden text-sm text-error mb-2"></p>
+<p class="text-sm text-on-surface-variant mb-4">Solo cambia cómo se llama. Los alumnos, calificaciones y clases del grupo no se tocan.</p>
+<div class="flex gap-2">
+<button id="ed-cancelar" class="flex-1 border-2 border-outline-variant text-on-surface font-button-text text-button-text rounded-full py-3">Cancelar</button>
+<button id="ed-guardar" class="flex-1 bg-primary text-on-primary font-button-text text-button-text rounded-full py-3">Guardar</button>
+</div>
+</div>
+</div>
 <main class="max-w-5xl mx-auto px-6 py-8">
 <div id="error-box" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 

@@ -42,6 +42,17 @@ html.sin-iconos .material-symbols-outlined { display: none !important; }
 <label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="sel-periodo">Parcial</label>
 <select id="sel-periodo" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface font-body-md text-body-md text-on-surface"></select>
 </div>
+<div class="text-left mb-stack-md">
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="sel-tolerancia">Retardo</label>
+<select id="sel-tolerancia" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface font-body-md text-body-md text-on-surface">
+<option value="">Sin retardos — todos quedan presentes</option>
+<option value="5">Retardo después de 5 min</option>
+<option value="10">Retardo después de 10 min</option>
+<option value="15">Retardo después de 15 min</option>
+<option value="20">Retardo después de 20 min</option>
+</select>
+<p class="text-sm text-on-surface-variant mt-1">Se cuenta desde que inicias la clase.</p>
+</div>
 <button id="btn-iniciar" class="w-full bg-primary text-on-primary font-button-text text-button-text rounded-full py-4">Iniciar clase</button>
 </div>
 

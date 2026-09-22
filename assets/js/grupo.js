@@ -4,6 +4,8 @@ import { requireProfesor } from './auth-guard.js';
 const params = new URLSearchParams(window.location.search);
 const grupoId = params.get('id');
 
+let grupoActual = null;   // {id, nombre, materia}, para el diálogo de editar
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str ?? '';
@@ -282,6 +284,74 @@ async function cargarExamenesArchivados() {
   });
 }
 
+// ---------- Editar el grupo ----------
+// Solo el nombre y la materia: son etiquetas. Nada de esto toca alumnos,
+// calificaciones ni clases, que cuelgan del id y no del nombre.
+
+function pintarEncabezado() {
+  if (!grupoActual) return;
+  document.getElementById('grupo-nombre').textContent = grupoActual.nombre;
+  document.getElementById('grupo-materia').textContent = grupoActual.materia || '';
+  const tituloEl = document.getElementById('page-title');
+  if (tituloEl) tituloEl.textContent = `AulaFácil - ${grupoActual.nombre}`;
+}
+
+// Se abre y cierra con estilo en linea, no con la clase hidden: esta pagina
+// carga Tailwind por CDN y ahi .flex va despues de .hidden, asi que hidden
+// pierde y el modal se veria abierto desde que carga.
+function cerrarDialogoGrupo() {
+  const d = document.getElementById('dialogo-grupo');
+  if (d) d.style.display = 'none';
+  document.getElementById('ed-error')?.classList.add('hidden');
+}
+
+document.getElementById('btn-editar-grupo')?.addEventListener('click', () => {
+  if (!grupoActual) return;
+  document.getElementById('ed-nombre').value = grupoActual.nombre || '';
+  document.getElementById('ed-materia').value = grupoActual.materia || '';
+  document.getElementById('ed-error').classList.add('hidden');
+  document.getElementById('dialogo-grupo').style.display = 'flex';
+  document.getElementById('ed-nombre').focus();
+});
+
+document.getElementById('ed-cancelar')?.addEventListener('click', cerrarDialogoGrupo);
+
+document.getElementById('ed-guardar')?.addEventListener('click', async () => {
+  const err = document.getElementById('ed-error');
+  const nombre = document.getElementById('ed-nombre').value.trim();
+  const materia = document.getElementById('ed-materia').value.trim();
+
+  if (!nombre) {
+    err.textContent = 'El grupo necesita un nombre.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  const btn = document.getElementById('ed-guardar');
+  btn.disabled = true;
+  const antes = btn.textContent;
+  btn.textContent = 'Guardando...';
+
+  const { data, error } = await supabase.from('grupos')
+    .update({ nombre, materia: materia || null })
+    .eq('id', grupoId)
+    .select('id, nombre, materia')
+    .maybeSingle();
+
+  btn.disabled = false;
+  btn.textContent = antes;
+
+  if (error || !data) {
+    err.textContent = error ? `No se pudo guardar: ${error.message}` : 'No se pudo guardar.';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  grupoActual = data;
+  pintarEncabezado();
+  cerrarDialogoGrupo();
+});
+
 async function init() {
   const profesor = await requireProfesor();
   if (!profesor) return;
@@ -302,10 +372,8 @@ async function init() {
     return;
   }
 
-  document.getElementById('grupo-nombre').textContent = grupo.nombre;
-  document.getElementById('grupo-materia').textContent = grupo.materia || '';
-  const tituloEl = document.getElementById('page-title');
-  if (tituloEl) tituloEl.textContent = `AulaFácil - ${grupo.nombre}`;
+  grupoActual = grupo;
+  pintarEncabezado();
   document.getElementById('tab-asistencia')?.setAttribute('href', `asistencia.html?id=${grupoId}`);
   document.getElementById('tab-sesion')?.setAttribute('href', `sesion.html?grupo=${grupoId}`);
   document.getElementById('tab-tareas')?.setAttribute('href', `tareas.html?id=${grupoId}`);
