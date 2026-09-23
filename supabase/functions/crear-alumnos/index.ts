@@ -15,6 +15,15 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Al egresar, el correo se renombra a  local.egresado-<ciclo>@dominio  para
+// liberar el original. Al reinscribir hay que deshacer eso o el alumno se
+// queda sin poder entrar.
+function correoSinEgreso(correo: string) {
+  const [local, dominio] = (correo || "").split("@");
+  if (!local || !dominio) return "";
+  return `${local.replace(/\.egresado-[^@]*$/i, "")}@${dominio}`;
+}
+
 function normalizarNombre(n: string) {
   return (n || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/\s+/g, " ").trim();
@@ -48,7 +57,86 @@ Deno.serve(async (req: Request) => {
     const resultados = [];
 
     for (const alumno of alumnos) {
-      const { nombre, matricula, correo, genero } = alumno;
+      const { nombre, matricula, correo, genero, alumno_id } = alumno;
+
+      // ---- Camino 1: el maestro lo eligio del buscador ----
+      // Viene el id exacto, asi que no hay que adivinar nada por matricula.
+      // Sirve para volver a inscribir a alguien que ya tuvo en otro grupo o
+      // en otro ciclo, conservando su historial y su misma cuenta.
+      if (alumno_id) {
+        const { data: suyo } = await admin
+          .from("alumnos").select("id, nombre, matricula, activo, correo_login")
+          .eq("id", alumno_id).eq("profesor_id", user.id).maybeSingle();
+
+        if (!suyo) {
+          resultados.push({ matricula, ok: false, error: "Ese alumno no esta en tu lista" });
+          continue;
+        }
+
+        const { data: yaInscrito } = await admin.from("grupo_alumnos")
+          .select("grupo_id").eq("grupo_id", grupo_id).eq("alumno_id", suyo.id).maybeSingle();
+        if (yaInscrito) {
+          resultados.push({ matricula: suyo.matricula, ok: false,
+            error: `${suyo.nombre} ya esta inscrito en este grupo` });
+          continue;
+        }
+
+        let correoDevuelto = "";
+        if (!suyo.activo) {
+          // Al egresar se libero la matricula: hay que ver que nadie mas la
+          // haya tomado mientras tanto.
+          if (suyo.matricula) {
+            const { data: ocupada } = await admin.from("alumnos")
+              .select("id, nombre").eq("profesor_id", user.id)
+              .eq("matricula", suyo.matricula).eq("activo", true).maybeSingle();
+            if (ocupada) {
+              resultados.push({ matricula: suyo.matricula, ok: false,
+                error: `No se puede reinscribir a ${suyo.nombre}: su matricula ${suyo.matricula} ahora la tiene "${ocupada.nombre}". Cambiale el numero a alguno de los dos.` });
+              continue;
+            }
+          }
+
+          // Devolverle su correo de entrada, si sigue libre.
+          const { data: authUser } = await admin.auth.admin.getUserById(suyo.id);
+          const actual = authUser?.user?.email || suyo.correo_login || "";
+          const original = correoSinEgreso(actual);
+          if (original && original !== actual) {
+            const { error } = await admin.auth.admin.updateUserById(suyo.id, { email: original });
+            correoDevuelto = error ? actual : original;
+          } else {
+            correoDevuelto = actual;
+          }
+
+          const { error: errReactivar } = await admin.from("alumnos").update({
+            activo: true, ciclo_egreso: null, fecha_egreso: null,
+            correo_login: correoDevuelto || suyo.correo_login,
+          }).eq("id", suyo.id);
+          if (errReactivar) {
+            resultados.push({ matricula: suyo.matricula, ok: false, error: errReactivar.message });
+            continue;
+          }
+        }
+
+        const { error: errInscribir } = await admin
+          .from("grupo_alumnos").insert({ grupo_id, alumno_id: suyo.id });
+        if (errInscribir) {
+          resultados.push({ matricula: suyo.matricula, ok: false,
+            error: `No se pudo inscribir: ${errInscribir.message}` });
+          continue;
+        }
+
+        resultados.push({
+          matricula: suyo.matricula, ok: true, alumno_id: suyo.id,
+          reutilizado: true, reactivado: !suyo.activo,
+          correo_login: correoDevuelto || undefined,
+          aviso: !suyo.activo
+            ? `${suyo.nombre} estaba egresado. Se reactivo y entra con ${correoDevuelto || suyo.correo_login}`
+            : undefined,
+        });
+        continue;
+      }
+
+      // ---- Camino 2: alta por nombre + matricula (el de siempre) ----
       if (!nombre || !matricula) {
         resultados.push({ matricula, ok: false, error: "Falta nombre o matricula" });
         continue;

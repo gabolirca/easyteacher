@@ -1,5 +1,6 @@
 import { supabase, SUPABASE_URL } from './supabase-client.js';
 import { requireProfesor } from './auth-guard.js';
+import { montarBuscadorAlumnos } from './buscar-alumno.js';
 
 const params = new URLSearchParams(window.location.search);
 const grupoId = params.get('id');
@@ -212,6 +213,30 @@ document.getElementById('btn-generar-matricula').addEventListener('click', () =>
   document.getElementById('nuevo-id').value = generarMatriculaAleatoria();
 });
 
+// Reinscribe a un alumno que el maestro ya tenia. Se manda el id exacto, no
+// la matricula: asi no hay forma de crear un duplicado por accidente, y si
+// venia egresado la funcion lo reactiva con su mismo expediente.
+async function inscribirExistente(alumno) {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/crear-alumnos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ grupo_id: grupoId, alumnos: [{ alumno_id: alumno.id }] }),
+    });
+    const resultado = await resp.json();
+    if (!resp.ok) throw new Error(resultado.error || 'No se pudo inscribir');
+
+    const item = (resultado.resultados || [])[0];
+    if (!item?.ok) throw new Error(item?.error || 'No se pudo inscribir');
+
+    mostrarOk(item.aviso || `${alumno.nombre} quedó inscrito en este grupo con su historial.`);
+    await cargarAlumnos();
+  } catch (err) {
+    mostrarError(err.message || 'No se pudo inscribir a ese alumno');
+  }
+}
+
 document.getElementById('btn-agregar-alumno').addEventListener('click', async () => {
   const nombre = document.getElementById('nuevo-nombre').value.trim();
   const idAlumno = document.getElementById('nuevo-id').value.trim();
@@ -281,6 +306,14 @@ async function init() {
   if (tituloEl) tituloEl.textContent = `AulaFácil - Alumnos - ${grupo.nombre}`;
 
   await cargarAlumnos();
+
+  montarBuscadorAlumnos({
+    inputId: 'buscar-existente',
+    resultadosId: 'resultados-existente',
+    profesorId: profesorActual.id,
+    yaEnLista: (a) => alumnos.some((x) => x.id === a.id),
+    alSeleccionar: inscribirExistente,
+  });
 }
 
 init();

@@ -178,6 +178,14 @@ Agregar alumno a este grupo
 </button>
 </h2>
 <input id="input-excel" type="file" accept=".xlsx,.xls,.csv" class="hidden"/>
+<div class="mb-stack-md">
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="buscar-existente">¿Ya tuviste antes a este alumno?</label>
+<div class="relative">
+<input id="buscar-existente" type="text" autocomplete="off" placeholder="Escribe su nombre o su matrícula..." class="input-cpg w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors"/>
+<div id="resultados-existente" class="absolute left-0 right-0 top-full mt-1 z-30 bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden shadow-lg" style="display:none;"></div>
+</div>
+<p class="text-sm text-on-surface-variant mt-1">Si ya estuvo en otro grupo tuyo, búscalo aquí: conserva su matrícula, su cuenta y su historial. Si es de nuevo ingreso, llena los campos de abajo.</p>
+</div>
 <div class="flex flex-col md:flex-row gap-4 items-end">
 <div class="flex-1 flex flex-col">
 <label class="font-label-lg text-label-lg text-on-surface mb-2" for="nuevo-nombre">Nombre</label>

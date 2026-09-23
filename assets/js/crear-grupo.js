@@ -1,5 +1,6 @@
 import { supabase, SUPABASE_URL } from './supabase-client.js';
 import { requireProfesor } from './auth-guard.js';
+import { montarBuscadorAlumnos } from './buscar-alumno.js';
 
 let profesorActual = null;
 let alumnosPendientes = [];
@@ -40,7 +41,7 @@ function renderTabla() {
 
   tbody.innerHTML = alumnosPendientes.map((a, i) => `
     <tr class="hover:bg-surface-bright transition-colors h-[64px]">
-      <td class="py-4 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</td>
+      <td class="py-4 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}${a.alumno_id ? '<span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">ya lo tenías</span>' : ''}</td>
       <td class="py-4 px-6 font-body-md text-body-md text-on-surface-variant">${escapeHtml(a.correo || a.matricula)}</td>
       <td class="py-4 px-6 text-right">
         <button data-idx="${i}" class="btn-eliminar text-error hover:text-on-error-container p-2 rounded-full hover:bg-error-container transition-colors" aria-label="Eliminar alumno">
@@ -226,4 +227,20 @@ document.getElementById('btn-logout-sidebar').addEventListener('click', async (e
   profesorActual = await requireProfesor();
   if (!profesorActual) return;
   renderTabla();
+
+  montarBuscadorAlumnos({
+    inputId: 'buscar-existente',
+    resultadosId: 'resultados-existente',
+    profesorId: profesorActual.id,
+    yaEnLista: (a) => alumnosPendientes.some(
+      (x) => x.alumno_id === a.id
+        || (x.matricula || '').toLowerCase() === (a.matricula || '').toLowerCase(),
+    ),
+    // Se guarda el id: al crear el grupo se manda ese y no se duplica a nadie.
+    alSeleccionar: (a) => {
+      alumnosPendientes.push({ alumno_id: a.id, nombre: a.nombre, matricula: a.matricula });
+      ocultarError();
+      renderTabla();
+    },
+  });
 })();
