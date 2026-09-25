@@ -74,15 +74,20 @@ html.sin-iconos .material-symbols-outlined { display: none !important; }
 <h2 class="font-label-lg text-label-lg text-on-surface mb-3">Actividades de la clase</h2>
 <div id="lista-actividades" class="mb-stack-md"></div>
 
+<p class="text-center text-sm text-on-surface-variant mb-2">Estás dentro como <span id="panel-quien" class="text-on-surface"></span></p>
 <button id="btn-salir" class="w-full border-2 border-outline-variant text-on-surface-variant font-label-lg text-label-lg rounded-full py-2">Cerrar sesión</button>
 </div>
 
 <!-- ============ Sin clase activa ============ -->
 <div id="vista-sin-clase" class="hidden text-center py-16">
-<span class="material-symbols-outlined text-on-surface-variant" style="font-size:56px;">event_busy</span>
-<h1 class="font-headline-md text-headline-md text-on-surface mt-3 mb-2">No hay clase activa</h1>
-<p class="font-body-md text-body-md text-on-surface-variant">Cuando tu maestro inicie la clase, escanea el código que aparezca en su pantalla.</p>
-<button id="btn-salir-2" class="mt-stack-md text-primary font-label-lg text-label-lg" onclick="location.reload()">Volver a revisar</button>
+<span id="sinclase-icono" class="material-symbols-outlined text-on-surface-variant" style="font-size:56px;">event_busy</span>
+<h1 id="sinclase-titulo" class="font-headline-md text-headline-md text-on-surface mt-3 mb-2">No hay clase activa</h1>
+<p id="sinclase-texto" class="font-body-md text-body-md text-on-surface-variant">Cuando tu maestro inicie la clase, escanea el código que aparezca en su pantalla.</p>
+<button id="btn-salir-2" class="block mx-auto mt-stack-md text-primary font-label-lg text-label-lg" onclick="location.reload()">Volver a revisar</button>
+<div id="sinclase-sesion" class="mt-stack-md" style="display:none;">
+<p class="font-body-md text-body-md text-on-surface-variant">Entraste como <span id="sinclase-quien" class="font-label-lg text-on-surface"></span>.</p>
+<button id="btn-otra-cuenta-alumno" class="mt-3 border-2 border-primary text-primary font-button-text text-button-text py-3 px-6 rounded-full hover:bg-primary hover:text-on-primary transition-colors">No soy yo — entrar con otra cuenta</button>
+</div>
 </div>
 
 <!-- ============ Error ============ -->

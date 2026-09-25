@@ -9,6 +9,7 @@ const qr = {
 };
 
 let alumno = null;
+let miPerfil = null;   // {nombre, matricula} del dueño de la sesión
 let sesion = null;
 let grupo = null;
 let actividades = [];
@@ -190,6 +191,36 @@ async function registrarPresencia() {
   }
 }
 
+// ---------- Quién está usando este teléfono ----------
+// El telefono guarda la sesion de la ultima vez. Si es de otra cuenta —otra
+// prueba, otro maestro— el alumno escanea y no pasa nada, sin entender por
+// que. Antes esta pantalla decia "no hay clase activa", que era falso: si
+// habia clase, pero no para esa cuenta, y no habia manera de salirse.
+
+async function cargarMiPerfil() {
+  if (!alumno) return;
+  const { data } = await supabase
+    .from('alumnos').select('nombre, matricula').eq('id', alumno.id).maybeSingle();
+  miPerfil = data || null;
+}
+
+function mostrarQuienEntro(spanId, cajaId) {
+  const caja = document.getElementById(cajaId);
+  const span = document.getElementById(spanId);
+  if (!caja || !span) return;
+  if (!miPerfil || !miPerfil.nombre) { caja.style.display = 'none'; return; }
+  span.textContent = miPerfil.matricula
+    ? `${miPerfil.nombre} (${miPerfil.matricula})`
+    : miPerfil.nombre;
+  caja.style.display = 'block';
+}
+
+document.getElementById('btn-otra-cuenta-alumno')?.addEventListener('click', async (e) => {
+  e.currentTarget.disabled = true;
+  try { await supabase.auth.signOut(); } catch { /* da igual: se recarga */ }
+  window.location.reload();
+});
+
 // ---------- Cargar el panel ----------
 
 async function cargar() {
@@ -202,7 +233,21 @@ async function cargar() {
   const { data: sesiones } = await consulta.order('inicio', { ascending: false }).limit(1);
   sesion = (sesiones || [])[0] || null;
 
-  if (!sesion) { vista('vista-sin-clase'); return; }
+  if (!sesion) {
+    const titulo = document.getElementById('sinclase-titulo');
+    const texto = document.getElementById('sinclase-texto');
+    // Si venia escaneando una clase concreta y no la ve, no es que no haya
+    // clase: es que esta cuenta no esta en ese grupo, o ya termino.
+    if (qr.sesion && titulo && texto) {
+      document.getElementById('sinclase-icono').textContent = 'person_alert';
+      titulo.textContent = 'Esta clase no es de tu cuenta';
+      texto.textContent = 'Escaneaste el código de una clase que no le toca a esta cuenta. '
+        + 'Puede que tu maestro ya la haya cerrado, o que hayas entrado con la cuenta de otra materia.';
+    }
+    mostrarQuienEntro('sinclase-quien', 'sinclase-sesion');
+    vista('vista-sin-clase');
+    return;
+  }
   grupo = sesion.grupos;
 
   const { data: acts } = await supabase
@@ -223,6 +268,12 @@ async function cargar() {
 }
 
 function pintar() {
+  const quien = document.getElementById('panel-quien');
+  if (quien) {
+    quien.textContent = miPerfil?.nombre
+      ? (miPerfil.matricula ? `${miPerfil.nombre} (${miPerfil.matricula})` : miPerfil.nombre)
+      : '';
+  }
   document.getElementById('panel-materia').textContent = grupo?.materia || grupo?.nombre || 'Clase';
   document.getElementById('panel-grupo').textContent = grupo?.nombre || '';
   document.getElementById('panel-fecha').textContent =
@@ -303,6 +354,7 @@ async function arrancar() {
   if (!session) { vista('vista-login'); return; }
 
   alumno = session.user;
+  await cargarMiPerfil();
   await vaciarCola();
   await registrarPresencia();
   await cargar();
