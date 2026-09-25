@@ -87,11 +87,50 @@ Deno.serve(async (req: Request) => {
       .eq("estado", "abierto")
       .maybeSingle();
 
-    if (examenError || !examen) {
-      return json({ error: "Este examen no existe, no está abierto, o no perteneces al grupo" }, 404);
-    }
-
     const admin = createClient(supabaseUrl, serviceRoleKey);
+
+    // Quien esta usando la app en este telefono. Se manda siempre que algo
+    // falla: el caso mas comun es que el telefono traiga la sesion de otra
+    // cuenta (otro maestro, otra prueba) y el alumno no tenga forma de verlo.
+    const { data: quienEs } = await admin
+      .from("alumnos").select("nombre, matricula").eq("id", user.id).maybeSingle();
+    const sesionDe = quienEs
+      ? { nombre: quienEs.nombre, matricula: quienEs.matricula }
+      : { nombre: "", matricula: "" };
+
+    if (examenError || !examen) {
+      // El de arriba pasa por RLS, asi que un fallo puede ser tres cosas muy
+      // distintas. Antes las tres decian lo mismo y no habia como saber cual
+      // era, ni desde el telefono ni desde los registros.
+      const { data: real } = await admin
+        .from("examenes").select("id, titulo, estado, grupo_id, grupos(nombre)")
+        .eq("link_token", token).maybeSingle();
+
+      if (!real) {
+        return json({
+          error: "Este link no corresponde a ningún examen. Pídele a tu maestro que te lo vuelva a mandar.",
+          motivo: "link_desconocido", sesion_de: sesionDe,
+        }, 404);
+      }
+
+      if (real.estado !== "abierto") {
+        const comoEsta = real.estado === "borrador"
+          ? "Tu maestro todavía no publica este examen."
+          : "Este examen ya está cerrado.";
+        return json({
+          error: `${comoEsta} No es problema de tu conexión.`,
+          motivo: "no_publicado", estado_examen: real.estado, sesion_de: sesionDe,
+        }, 409);
+      }
+
+      // El examen existe y esta abierto: entonces es que esta cuenta no
+      // pertenece a ese grupo.
+      const grupo = (real as any).grupos?.nombre || "otro grupo";
+      return json({
+        error: `Este examen es del grupo ${grupo} y la cuenta con la que entraste no está en ese grupo.`,
+        motivo: "otro_grupo", grupo, sesion_de: sesionDe,
+      }, 403);
+    }
 
     // ¿Ya existe un intento de este alumno para este examen?
     let { data: intento } = await admin

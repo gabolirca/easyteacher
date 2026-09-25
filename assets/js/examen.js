@@ -64,11 +64,35 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-function mostrarErrorFatal(mensaje) {
+// Cuando el examen no abre, lo primero que hay que saber es CON QUE CUENTA
+// se entro. El telefono guarda la sesion de la ultima prueba —a veces de otro
+// maestro, a veces del propio maestro en su tablero— y la app la usaba sin
+// decir nada: el alumno veia "no perteneces al grupo" sin entender por que, y
+// sin manera de salirse. De ahi venia el truco de la ventana de incognito.
+function mostrarErrorFatal(mensaje, sesionDe) {
   const el = document.getElementById('error-mensaje');
   if (el) el.textContent = mensaje;
+
+  const caja = document.getElementById('error-sesion');
+  const quien = document.getElementById('error-quien');
+  if (caja && quien) {
+    const nombre = (sesionDe && sesionDe.nombre) ? sesionDe.nombre : '';
+    if (nombre) {
+      quien.textContent = sesionDe.matricula ? `${nombre} (${sesionDe.matricula})` : nombre;
+      caja.style.display = 'block';
+    } else {
+      caja.style.display = 'none';
+    }
+  }
   mostrarVista('vista-error');
 }
+
+document.getElementById('btn-otra-cuenta')?.addEventListener('click', async () => {
+  const btn = document.getElementById('btn-otra-cuenta');
+  btn.disabled = true;
+  try { await supabase.auth.signOut(); } catch { /* da igual: se recarga */ }
+  window.location.reload();
+});
 
 function ahoraServidor() {
   return Date.now() + desfaseReloj;
@@ -226,7 +250,7 @@ async function cargarExamen() {
     });
     data = await resp.json();
     if (!resp.ok) {
-      mostrarErrorFatal(data.error || 'No se pudo cargar el examen.');
+      mostrarErrorFatal(data.error || 'No se pudo cargar el examen.', data.sesion_de);
       return;
     }
   } catch {

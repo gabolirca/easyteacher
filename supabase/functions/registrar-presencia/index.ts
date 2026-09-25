@@ -15,6 +15,13 @@ const corsHeaders = {
 const VENTANA_SEG = 20;
 const MARGEN_VENTANAS = 1;
 
+// Los codigos HTTP van distintos a proposito: en los registros del servidor
+// un 403 no se distingue de otro, y por eso no se podia saber si los rechazos
+// eran codigos vencidos, firmas malas o clases ya cerradas.
+//   409 = la clase ya no esta activa
+//   410 = el codigo (o el pase) ya vencio
+//   422 = la firma no cuadra: QR de otra clase, alterado o inventado
+//   403 = el alumno no es de ese grupo
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -72,7 +79,9 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (!sesion) return json({ error: "Esta sesión no existe" }, 404);
-    if (sesion.estado !== "activa") return json({ error: "Esta clase ya terminó" }, 403);
+    if (sesion.estado !== "activa") {
+      return json({ error: "Esta clase ya terminó", motivo: "clase_cerrada" }, 409);
+    }
 
     // El alumno tiene que estar inscrito en el grupo de la sesion.
     const { data: inscrito } = await admin
@@ -82,7 +91,7 @@ Deno.serve(async (req: Request) => {
       .eq("alumno_id", user.id)
       .maybeSingle();
 
-    if (!inscrito) return json({ error: "No perteneces a este grupo" }, 403);
+    if (!inscrito) return json({ error: "No perteneces a este grupo", motivo: "otro_grupo" }, 403);
 
     // Validacion del QR rotativo.
     const { data: sec } = await admin
@@ -98,11 +107,11 @@ Deno.serve(async (req: Request) => {
       // de iniciar sesion. Dura unos minutos para que le de tiempo de entrar.
       const expiraNum = Number(expira);
       if (!Number.isFinite(expiraNum) || expiraNum * 1000 < Date.now()) {
-        return json({ error: "Tu pase de entrada venció. Vuelve a escanear el QR de la pantalla." }, 403);
+        return json({ error: "Tu pase de entrada venció. Vuelve a escanear el QR de la pantalla.", motivo: "pase_vencido" }, 410);
       }
       const esperadoPase = await firmar(sec.secreto, `pase.${sesion_id}.${expiraNum}`, 32);
       if (!igualSeguro(esperadoPase, String(pase))) {
-        return json({ error: "Pase de entrada inválido" }, 403);
+        return json({ error: "Pase de entrada inválido", motivo: "pase_invalido" }, 422);
       }
     } else {
       const ventanaActual = Math.floor(Date.now() / 1000 / VENTANA_SEG);
@@ -110,12 +119,12 @@ Deno.serve(async (req: Request) => {
 
       if (!Number.isFinite(ventanaRecibida) ||
           Math.abs(ventanaActual - ventanaRecibida) > MARGEN_VENTANAS) {
-        return json({ error: "Este código ya expiró. Vuelve a escanear el QR de la pantalla." }, 403);
+        return json({ error: "Este código ya expiró. Vuelve a escanear el QR de la pantalla.", motivo: "expirado" }, 410);
       }
 
       const esperado = await firmar(sec.secreto, `${sesion_id}.${ventanaRecibida}`);
       if (!igualSeguro(esperado, String(codigo))) {
-        return json({ error: "Código QR inválido" }, 403);
+        return json({ error: "Código QR inválido", motivo: "firma_invalida" }, 422);
       }
     }
 
