@@ -1,59 +1,65 @@
-const { d, numbering, P, H1, H2, LI, PASO, NOTA, TABLA, PORTADA, SECCION } = require('./comun.js');
+const { d, numbering, T, P, H1, H2, LI, PASO, NOTA, TABLA, SECCION, ROJO, GRIS } = require('./comun.js');
 const fs = require('fs');
 
-const doc = new d.Document({ numbering, sections: [SECCION([
-  ...PORTADA('Manual del alumno', 'Cómo usar AulaFácil', 'Versión 1.1 · Septiembre 2026'),
+// Una sola hoja, para imprimir y pegar en el salon. Sin portada ni indice:
+// un alumno no lee un documento de ocho paginas, lee media cartulina.
+const ENCABEZADO = [
+  new d.Paragraph({
+    alignment: d.AlignmentType.CENTER, spacing: { after: 40 },
+    children: [new d.TextRun({ text: 'AulaFácil', font: 'Calibri', size: 44, bold: true, color: ROJO })],
+  }),
+  new d.Paragraph({
+    alignment: d.AlignmentType.CENTER, spacing: { after: 160 },
+    children: [new d.TextRun({ text: 'Guía rápida del alumno  ·  Colegio Pedro de Gante', font: 'Calibri', size: 20, color: GRIS })],
+  }),
+];
 
-  H1('Cómo entrar'),
-  P('AulaFácil se abre en el navegador de tu celular o computadora. No tienes que instalar nada.'),
-  LI('Tu usuario es la matrícula que te dio tu maestro. Casi siempre es el número tal cual, pero a veces trae algo extra al final; usa exactamente el que te haya pasado.'),
-  LI('Tu contraseña inicial es esa misma matrícula.'),
-  LI('Cámbiala la primera vez que entres, desde tu perfil.'),
-  P('Si llevas clase con varios maestros, es normal que tengas un usuario distinto en cada materia. No están revueltos: cada maestro lleva su propia lista. Apunta cuál te sirve para cuál clase.'),
-  NOTA('Si quieres tenerla como aplicación, abre el sitio y usa "Agregar a pantalla de inicio" en tu teléfono.'),
+const HOJA = (hijos) => ({
+  properties: { page: { size: { width: 12240, height: 15840 },
+    margin: { top: 1000, bottom: 800, left: 1100, right: 1100 } } },
+  children: hijos,
+});
 
-  H1('Presentar un examen'),
-  P('Tu maestro te dará un link o un código QR. Si es QR, escanéalo con la cámara de tu teléfono y se abre solo.'),
-  H2('Antes de empezar'),
-  P('Verás el título del examen, cuántas preguntas tiene y cuánto tiempo tienes. Léelo con calma: el cronómetro empieza a correr cuando presionas "Comenzar examen".'),
-  H2('Las reglas'),
-  P('Si sales de la pantalla del examen (cambias de aplicación o de pestaña) recibes un aviso. Si vuelves a salir, tu examen se cierra y se entrega con lo que llevabas contestado.'),
-  NOTA('Si se te cae el internet, eso NO cuenta como salida. El sistema lo distingue. Te aparecerá un mensaje diciéndotelo y puedes seguir contestando con normalidad.'),
-  H2('Si se te va el internet'),
-  P('No te asustes y no cierres la pantalla.'),
-  LI('Aparece una barra naranja que dice "Sin conexión". Puedes seguir contestando: tus respuestas se guardan en tu propio teléfono.'),
-  LI('Si recargas sin querer, o se apaga el teléfono, al volver a entrar recuperas lo que ya habías contestado y el tiempo sigue donde iba.'),
-  LI('Al entregar, si no hay señal, verás "Entregando tu examen" con reintentos. Espera. En cuanto vuelva el internet se entrega solo.'),
-  NOTA('Nunca cierres la pantalla mientras diga "Entregando". Tu examen todavía no ha llegado a tu maestro.'),
-  H2('Cuando terminas'),
-  P('Verás la pantalla de "¡Examen entregado!". Solo cuando aparezca ese mensaje tu examen quedó guardado de verdad.'),
+const doc = new d.Document({ numbering, sections: [HOJA([
+  ...ENCABEZADO,
 
-  H1('Clase en vivo'),
-  P('Algunos maestros registran la participación con AulaFácil. Funciona así:'),
-  PASO('Tu maestro muestra un código QR en su pantalla al empezar la clase.'),
-  PASO('Escanéalo con la cámara de tu teléfono. Con eso queda registrada tu asistencia.'),
-  PASO('Cuando hagas un ejercicio, entra a tu panel y toca "Yo la hice" en esa actividad.'),
-  PASO('Tu maestro revisa y valida. Cuando cierra la actividad, tus puntos aparecen.'),
-  NOTA('El código QR cambia cada 20 segundos, así que tiene que escanearse en el salón. Mandárselo a un compañero que no vino no funciona: para cuando le llega, ya expiró.'),
-  H2('Qué significa cada estado'),
-  TABLA(['Lo que ves', 'Qué quiere decir'], [
-    ['Yo la hice', 'Puedes reclamar esa actividad; todavía no la has marcado'],
-    ['Esperando a tu maestro', 'Ya reclamaste. Tus puntos aparecen cuando él valide'],
-    ['+40 puntos', 'Tu maestro validó y ya tienes los puntos'],
-    ['No contabilizada', 'Tu maestro decidió que esa no cuenta'],
-    ['Cerrada', 'La actividad ya se cerró y no puedes reclamarla'],
-  ], [3000, 6360]),
-  P('Arriba de tu panel ves cuántos puntos llevas en la clase de hoy.'),
+  H2('Cómo entrar'),
+  P('Abre el link que te dio tu maestro. Tu usuario es tu matrícula y tu contraseña también, hasta que la cambies.'),
+  P('Con cada maestro tienes una cuenta distinta, aunque la matrícula sea la misma. Si entras con la de otra materia, la app no te va a dejar.'),
 
-  H1('Problemas comunes'),
-  TABLA(['Si pasa esto', 'Haz esto'], [
-    ['No puedo entrar', 'Revisa que sea el usuario de esa materia, escrito sin espacios'],
-    ['Me sirve en una clase pero no en otra', 'Es normal: cada maestro te da un usuario. Pídele el suyo'],
-    ['El QR no me deja entrar', 'Vuelve a escanear: el código cambia cada 20 segundos'],
-    ['No me deja marcar que participé', 'Escanea primero el QR de la clase para registrar tu presencia'],
-    ['Se me cerró el examen por error', 'Avísale a tu maestro: él puede reactivarlo'],
-    ['La página se ve rara o desactualizada', 'Usa el botón "Recargar" de la esquina superior derecha'],
-  ], [3400, 5960]),
+  H2('Si dice que la clase o el examen no es de tu cuenta'),
+  P('No es tu internet. Abajo del mensaje dice con qué cuenta entraste y hay un botón que dice "No soy yo — entrar con otra cuenta". Úsalo y entra con la de esa materia.'),
+
+  H2('Registrar tu asistencia'),
+  P('Escanea con la cámara el código que tu maestro proyecta. Una vez basta: si todavía no habías iniciado sesión, te da tiempo de hacerlo.'),
+  P('Si escaneas tarde, puede quedarte retardo en vez de asistencia. El código cambia cada 20 segundos, así que una captura que te manden no sirve.'),
+
+  H2('Presentar un examen'),
+  P('Antes de empezar, ten batería y conéctate al wifi. Una vez que entras, corre el tiempo.'),
+  LI('Tu nombre aparece muy tenue sobre la pantalla. Si tomas una captura, sale con tu nombre.'),
+  LI('Si te sales de la pantalla del examen, te avisa una vez. A la segunda, se cierra y se entrega con lo que lleves.'),
+  LI('Si copias el texto de una pregunta, queda anotado y tu maestro lo ve.'),
+  LI('En las preguntas de matemáticas tienes un teclado con los símbolos que tu celular no trae.'),
+  LI('Si te piden el procedimiento, escríbelo con el dedo en la pizarra que aparece.'),
+
+  NOTA('Si se te va el internet, no cierres nada. Lo que contestaste se guarda en tu teléfono y se manda solo cuando vuelve la señal. Cerrar la página es lo único que sí te puede costar el examen.'),
+
+  H2('Problemas comunes'),
+  TABLA(['Lo que ves', 'Qué hacer'], [
+    ['Matrícula o contraseña incorrectas', 'Revisa que sea la cuenta de ESA materia'],
+    ['Este código ya expiró', 'Vuelve a escanear el de la pantalla, no una captura'],
+    ['Esta clase no es de tu cuenta', 'Usa el botón "No soy yo" y entra con la correcta'],
+    ['Tu maestro todavía no publica este examen', 'Avísale. No es tu teléfono'],
+    ['No hay clase activa', 'Tu maestro todavía no la inicia'],
+  ], [3900, 5460]),
+
+  new d.Paragraph({
+    alignment: d.AlignmentType.CENTER, spacing: { before: 120 },
+    children: [new d.TextRun({ text: 'Versión 2.0 · Septiembre 2026', font: 'Calibri', size: 18, color: '727784' })],
+  }),
 ])] });
 
-d.Packer.toBuffer(doc).then((b) => { fs.writeFileSync('Manual-del-alumno-AulaFacil.docx', b); console.log('Manual del alumno:', b.length, 'bytes'); });
+d.Packer.toBuffer(doc).then((b) => {
+  fs.writeFileSync(__dirname + '/../Manual-del-alumno-AulaFacil.docx', b);
+  console.log('Guía del alumno (una hoja) generada');
+});
