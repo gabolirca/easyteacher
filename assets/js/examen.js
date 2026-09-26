@@ -37,6 +37,10 @@ let ultimoCambioRed = 0;
 // El teclado en pantalla y algunos menús nativos también roban el foco un
 // instante; ignoramos blur justo después de tocar un campo.
 let ultimoFocoInput = 0;
+// En iPad, abrir el teclado en pantalla TUMBA la pantalla completa. Cuando
+// eso pasa una vez, dejamos de confiar en "esta fuera de pantalla completa"
+// como senal por si sola: en ese aparato no dice nada.
+let tecladoTumboFullscreen = false;
 
 const LS_PREFIX = 'aulafacil_examen_';
 
@@ -486,6 +490,28 @@ function onCambioVisibilidad() {
   registrarSalida('visibilitychange');
 }
 
+// Si hay un campo de texto con el foco, el teclado esta arriba. En iPad eso
+// saca a la pagina de pantalla completa y disparaba fullscreenchange, que se
+// contaba como salida: el alumno abria el teclado para contestar una pregunta
+// de completar y se le cerraba el examen sin deberla.
+function escribiendoEnUnCampo() {
+  const el = document.activeElement;
+  if (!el || !el.matches) return false;
+  try {
+    return el.matches('input, textarea, [contenteditable="true"]');
+  } catch { return false; }
+}
+
+// Volver a pantalla completa en el siguiente toque. Sin esto, una vez que el
+// teclado la tumbo el alumno se queda fuera para siempre, y entonces
+// CUALQUIER evento posterior contaria como salida.
+document.addEventListener('pointerup', () => {
+  if (!deteccionActiva || examenTerminado || enviando || pausadoPorAviso) return;
+  if (!usaFullscreen || document.fullscreenElement) return;
+  if (escribiendoEnUnCampo()) return;
+  document.documentElement.requestFullscreen?.().catch(() => { /* iPad a veces dice que no */ });
+});
+
 function onPosibleSalida(tipo) {
   if (!deteccionActiva || examenTerminado || enviando || pausadoPorAviso) return;
 
@@ -500,6 +526,13 @@ function onPosibleSalida(tipo) {
     // Si acaba de tocar un campo de texto, el blur es del teclado: no cuenta.
     if (tipo === 'blur' && Date.now() - ultimoFocoInput < 2000) return;
 
+    // El alumno esta escribiendo: el teclado tapa la pantalla y en iPad la
+    // saca de pantalla completa. No es una salida.
+    if (escribiendoEnUnCampo()) {
+      if (tipo === 'fullscreenchange') tecladoTumboFullscreen = true;
+      return;
+    }
+
     // Si la pagina esta oculta, de esto se encarga onCambioVisibilidad cuando
     // el alumno regrese. Aqui solo interesan las salidas con la pagina a la
     // vista: salir de pantalla completa, o cambiar de ventana en escritorio.
@@ -508,7 +541,11 @@ function onPosibleSalida(tipo) {
     const fueraDeFullscreen = usaFullscreen && !document.fullscreenElement;
     const sinFoco = typeof document.hasFocus === 'function' ? !document.hasFocus() : false;
 
-    const salio = fueraDeFullscreen || (tipo === 'blur' && sinFoco);
+    // En un aparato donde el teclado tumba la pantalla completa, estar fuera
+    // de ella ya no prueba nada: se exige ademas haber perdido el foco.
+    const salio = tecladoTumboFullscreen
+      ? (sinFoco && (fueraDeFullscreen || tipo === 'blur'))
+      : (fueraDeFullscreen || (tipo === 'blur' && sinFoco));
     if (!salio) return;
 
     registrarSalida(tipo);
