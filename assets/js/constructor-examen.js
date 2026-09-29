@@ -1,5 +1,6 @@
 import { supabase } from './supabase-client.js';
 import { requireProfesor } from './auth-guard.js';
+import { dibujarQRConLogo } from './qr-con-logo.js';
 
 const params = new URLSearchParams(window.location.search);
 const grupoIdParam = params.get('grupo_id');
@@ -485,13 +486,13 @@ function mostrarLink() {
   document.getElementById('seccion-link').classList.remove('hidden');
 
   const qrContenedor = document.getElementById('qr-container');
-  qrContenedor.innerHTML = '';
-  new window.QRCode(qrContenedor, {
-    text: urlExamen,
-    width: 220,
-    height: 220,
-    correctLevel: window.QRCode.CorrectLevel.M,
-  });
+  let lienzo = qrContenedor.querySelector('canvas');
+  if (!lienzo) {
+    lienzo = document.createElement('canvas');
+    qrContenedor.innerHTML = '';
+    qrContenedor.appendChild(lienzo);
+  }
+  dibujarQRConLogo(lienzo, urlExamen, { ancho: 240, correccion: 'Q' });
 }
 
 document.getElementById('btn-guardar-examen').addEventListener('click', guardarExamen);

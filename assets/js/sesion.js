@@ -1,6 +1,6 @@
 import { supabase, SUPABASE_URL } from './supabase-client.js';
 import { requireProfesor } from './auth-guard.js';
-import { toCanvas } from '../vendor/qrcode.js';
+import { dibujarQRConLogo } from './qr-con-logo.js';
 
 const params = new URLSearchParams(window.location.search);
 const grupoId = params.get('grupo');
@@ -96,7 +96,7 @@ async function pintarQR() {
   const url = urlDelAlumno(ventana, codigo);
 
   const lienzo = document.getElementById('qr-canvas');
-  await toCanvas(lienzo, url, { width: 260, margin: 1, errorCorrectionLevel: 'M' });
+  await dibujarQRConLogo(lienzo, url, { ancho: 300, correccion: 'Q' });
 
   const restante = VENTANA_SEG - (Math.floor(Date.now() / 1000) % VENTANA_SEG);
   const cuenta = document.getElementById('qr-cuenta');
