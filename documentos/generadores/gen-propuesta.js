@@ -18,18 +18,20 @@ const BLOQUE = (titulo, porque, horas) => [
 ];
 
 const doc = new d.Document({ numbering, sections: [SECCION([
-  ...PORTADA('Propuesta de mejoras', 'Trabajos sugeridos para la entrega formal', 'Versión 1.0 · Septiembre 2026'),
+  ...PORTADA('Propuesta de mejoras', 'Trabajos sugeridos para la entrega formal', 'Versión 1.1 · Septiembre 2026'),
 
   H1('De qué se trata'),
   P('AulaFácil está en operación y cubre lo que se necesita para el día a día: exámenes, asistencia, participación, calificaciones y clase en vivo. Este documento no propone rehacer nada de eso.'),
   P('Lo que se lista aquí son trabajos que conviene hacer antes de considerar el sistema formalmente entregado, más algunos que amplían su alcance. Cada uno se cotiza a la misma tarifa del convenio: $450.00 M.N. por hora, nivel desarrollador junior.'),
   NOTA('Ninguno de estos trabajos es urgente para que la escuela siga operando hoy. Están ordenados por lo que más riesgo quita, no por lo que más se nota.'),
 
+  H2('Ya resuelto, sin costo'),
+  P('Dos puntos que figuraban en la versión anterior de esta propuesta quedaron atendidos y salen del alcance:'),
+  LI('Manual técnico actualizado a la versión 2.0, con las funciones de servidor, las 32 migraciones, el flujo del pase de entrada y los riesgos operativos detectados en campo.'),
+  LI('Comportamiento del teclado en tablet durante los exámenes: corregido y verificado en iPad el 28 de septiembre, con un examen de cuatro preguntas abiertas y sin una sola advertencia registrada.'),
+
   H1('1. Necesarios para la entrega'),
   P('Sin estos, la entrega queda incompleta o con un riesgo que alguien va a heredar.'),
-
-  ...BLOQUE('Manual técnico actualizado',
-    'El manual técnico quedó en la versión anterior del sistema: no documenta las funciones de servidor que se agregaron, las migraciones nuevas ni el flujo del código de entrada. Es el documento que va a leer quien dé mantenimiento después. Sin él, la primera falla se convierte en una investigación desde cero.', 6),
 
   ...BLOQUE('Aviso de privacidad y registro de tratamiento de datos',
     'El sistema guarda nombre, matrícula, asistencia y calificaciones de menores de edad. La legislación mexicana exige un aviso de privacidad y dejar constancia de cómo se tratan esos datos. Hoy no existe ese documento. Es el punto que más expone a la institución.', 5),
@@ -37,16 +39,11 @@ const doc = new d.Document({ numbering, sections: [SECCION([
   ...BLOQUE('Correo propio para el registro de maestros',
     'El servicio de correo que se usa hoy entrega un máximo de dos mensajes por hora. Con los maestros que se han ido sumando, el día que dos se registren juntos el segundo no recibe su correo de confirmación, sin ningún aviso de por qué. Se resuelve conectando un servicio de correo propio y el límite sube a treinta por hora.', 4),
 
-  ...BLOQUE('Cierre de la revisión en tablet',
-    'Queda una revisión pendiente del comportamiento del teclado en iPad durante los exámenes. Incluye la prueba en el aparato y la corrección que resulte.', 4),
-
   H2('Subtotal de esta sección'),
   TABLA(['Concepto', 'Horas', 'Importe'], [
-    ['Manual técnico actualizado', '6', imp(6)],
     ['Aviso de privacidad y registro de tratamiento', '5', imp(5)],
     ['Correo propio para el registro de maestros', '4', imp(4)],
-    ['Cierre de la revisión en tablet', '4', imp(4)],
-    ['SUBTOTAL', '19', imp(19)],
+    ['SUBTOTAL', '9', imp(9)],
   ], [5760, 1400, 2200]),
 
   H1('2. Recomendados'),
@@ -81,10 +78,10 @@ const doc = new d.Document({ numbering, sections: [SECCION([
 
   H1('Resumen'),
   TABLA(['Sección', 'Horas', 'Importe'], [
-    ['1. Necesarios para la entrega', '19', imp(19)],
+    ['1. Necesarios para la entrega', '9', imp(9)],
     ['2. Recomendados', '23', imp(23)],
     ['3. Crecimiento', '16', imp(16)],
-    ['TOTAL', '58', imp(58)],
+    ['TOTAL', '48', imp(48)],
   ], [5760, 1400, 2200]),
 
   P('Las secciones se pueden contratar por separado. La sección 1 es la que se sugiere resolver antes de firmar la entrega; las otras dos pueden quedar para después.'),

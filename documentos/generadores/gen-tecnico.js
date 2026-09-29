@@ -2,7 +2,7 @@ const { d, numbering, P, H1, H2, H3, LI, PASO, NOTA, TABLA, PORTADA, SECCION } =
 const fs = require('fs');
 
 const doc = new d.Document({ numbering, sections: [SECCION([
-  ...PORTADA('Manual técnico', 'Arquitectura, seguridad y mantenimiento', 'Versión 1.1 · Septiembre 2026'),
+  ...PORTADA('Manual técnico', 'Arquitectura, seguridad y mantenimiento', 'Versión 2.0 · Septiembre 2026'),
 
   H1('1. Qué es AulaFácil'),
   P('AulaFácil es una aplicación web que sustituye el trabajo administrativo repetitivo de un maestro: aplicar exámenes, pasar lista, registrar participación y calcular calificaciones finales.'),
@@ -51,6 +51,14 @@ const doc = new d.Document({ numbering, sections: [SECCION([
   P('Como auth.users sí exige correo único globalmente, crear-alumnos prueba sufijos hasta encontrar uno libre y guarda el resultado en alumnos.correo_login, que es lo que la interfaz le muestra al maestro para que se lo dé al alumno.'),
   NOTA('Efecto lateral deseable: un alumno tiene credenciales distintas en cada materia, así que una contraseña prestada solo compromete esa clase. El costo es que la misma persona aparece como varias filas; es aceptable porque el sistema es el control del maestro, no el del colegio.'),
 
+  H2('La sesión guardada en el teléfono'),
+  P('examen.js y panel-alumno.js toman la sesión que el navegador tenga guardada. Si es de otra cuenta —otra materia, otro maestro, o el propio tablero del maestro en un aparato compartido— la aplicación cargaba con esa identidad sin decirlo, RLS rechazaba, y el alumno veía "no perteneces al grupo" sin saber por qué ni cómo salirse. El 23 de septiembre eso produjo 64 respuestas 404 contra un solo intento de login fallido.'),
+  P('Ambas pantallas ahora muestran con qué cuenta se entró y ofrecen un botón para cerrar sesión y cambiarla. En el panel del alumno, además, escanear una clase que no le corresponde ya no dice "No hay clase activa" —que era falso— sino que la clase no es de esa cuenta.'),
+
+  H2('Reinscribir a un alumno de otro ciclo'),
+  P('buscar-alumno.js es un buscador compartido por la pantalla de crear grupo y la de alumnos del grupo. Busca entre los alumnos del maestro por nombre o matrícula, incluidos los egresados, y al elegir uno manda su alumno_id exacto a crear-alumnos en lugar de nombre y matrícula. Así no hay forma de duplicar a nadie por accidente.'),
+  P('Si el alumno venía egresado, crear-alumnos lo reactiva: comprueba que su matrícula no la haya tomado otro alumno activo mientras tanto, y le devuelve su correo de entrada, que el egreso había renombrado a local.egresado-ciclo@dominio. Sin ese paso el alumno recuperaba su expediente pero se quedaba sin poder entrar.'),
+
   H2('Egreso: liberar matrículas sin borrar historia'),
   P('Las columnas activo y ciclo_egreso de alumnos implementan el ciclo de vida. Al egresar, la Edge Function egresar-alumnos marca activo en falso, registra el ciclo y libera el correo de Auth, de modo que el índice único parcial deja de considerar esa matrícula y el número queda disponible otra vez.'),
   P('Ningún dato académico se borra: intentos, respuestas, asistencias, participaciones y calificaciones siguen apuntando al mismo identificador y se consultan desde los grupos archivados. Solo se exige que el alumno ya no esté en ningún grupo activo, para evitar egresar a alguien que sigue en clase.'),
@@ -76,17 +84,45 @@ const doc = new d.Document({ numbering, sections: [SECCION([
     ['iniciar-examen', 'Entrega el examen sin respuestas correctas y ancla el cronómetro al reloj del servidor'],
     ['enviar-respuestas', 'Califica en el servidor. Es idempotente, para tolerar reintentos sin duplicar'],
     ['registrar-advertencia', 'Lleva la cuenta de avisos anti-copia del lado del servidor'],
-    ['registrar-presencia', 'Valida el código del QR rotativo y marca asistencia'],
+    ['validar-qr', 'Canjea el código del QR por un pase de entrada firmado. Es la única PÚBLICA: corre antes de que el alumno inicie sesión'],
+    ['registrar-presencia', 'Valida el pase (o el código) y marca asistencia, como presente o retardo según la tolerancia de la sesión'],
     ['reclamar-participacion', 'Registra el reclamo del alumno como pendiente y sin puntos'],
     ['cerrar-actividad', 'Convierte en puntos la lista definitiva que aprobó el maestro'],
     ['egresar-alumnos', 'Marca el egreso y libera el correo de Auth para reciclar la matrícula'],
-    ['crear-alumno', 'Obsoleta. Versión de un solo alumno, reemplazada por crear-alumnos. Puede eliminarse'],
   ], [2900, 6460]),
   P('Consecuencia práctica: el alumno nunca recibe las respuestas correctas de un examen, no puede escribir su propia calificación y no puede otorgarse puntos de participación.'),
 
   H2('El QR rotativo'),
   P('El código del QR se recalcula cada 20 segundos. Contiene una firma HMAC-SHA256 del identificador de la sesión y la ventana de tiempo, calculada en el navegador del maestro con el secreto que solo él puede leer. El servidor revalida aceptando la ventana actual y una de margen a cada lado, es decir unos 60 segundos de vida útil.'),
   P('Esto resuelve el problema de que un alumno fotografíe el código y se lo mande a un compañero que está en su casa: para cuando llega, ya expiró.'),
+
+  H2('El pase de entrada'),
+  P('Los 60 segundos de vida del código chocaban con la realidad: el alumno que llegaba sin sesión iniciada gastaba más que eso tecleando matrícula y contraseña, y su petición llegaba con el código ya vencido. El 18 de septiembre se rechazaron así 85 de 89 registros de asistencia, y como reclamar-participacion exige asistencia previa, los reclamos cayeron en cascada.'),
+  P('La solución fue separar las dos cosas. La función validar-qr es pública —se despliega con --no-verify-jwt— y corre en cuanto el teléfono abre el enlace, antes de cualquier login, que es cuando el código todavía está fresco. Si es válido devuelve un pase firmado con HMAC sobre el secreto de la sesión, vigente diez minutos. Al terminar de iniciar sesión, registrar-presencia cobra ese pase en lugar del código.'),
+  P('El pase no se guarda en ninguna tabla: se verifica recalculando la firma. Escanear sigue siendo obligatorio, porque sin haber apuntado la cámara a la pantalla nunca se obtiene uno.'),
+  NOTA('Si validar-qr se vuelve a crear desde cero, hay que desplegarla con --no-verify-jwt. Si queda pidiendo sesión iniciada, el pase deja de funcionar y se regresa al problema original.'),
+
+  H2('Por qué los códigos HTTP están diferenciados'),
+  P('Un 403 no se distingue de otro en los registros del servidor, y eso volvía imposible saber si los rechazos eran códigos vencidos, firmas inválidas o clases ya cerradas. validar-qr y registrar-presencia responden con códigos distintos a propósito:'),
+  TABLA(['Código', 'Motivo'], [
+    ['409', 'La clase ya no está activa'],
+    ['410', 'El código o el pase ya vencieron'],
+    ['422', 'La firma no cuadra: código de otra clase, alterado o inventado'],
+    ['403', 'El alumno no pertenece a ese grupo'],
+  ], [1800, 7560]),
+  P('iniciar-examen aplica el mismo criterio: 404 si el enlace no corresponde a ningún examen, 409 si existe pero está en borrador o cerrado, y 403 si la cuenta con la que se entró no está en ese grupo. Además devuelve de quién es la sesión, para que la pantalla pueda decirlo.'),
+
+  H2('Lo que protege el examen'),
+  P('El navegador no puede impedir una captura de pantalla ni una foto tomada con otro teléfono. En vez de fingir que sí, el sistema apuesta por dejar rastro y por quitar el incentivo:'),
+  LI('Marca de agua: sobre la pantalla del examen se dibuja, muy tenue, el nombre y la matrícula del alumno. Es un SVG repetido como fondo, con pointer-events en none para no estorbar. Cualquier captura o foto sale identificada.'),
+  LI('Barajado estable: examenes.barajar_preguntas y barajar_opciones. El orden sale de una semilla derivada del id del intento (FNV-1a más mulberry32 más Fisher-Yates), así que a cada alumno le toca uno distinto pero siempre el mismo si recarga. No se guarda nada: se recalcula igual cada vez. Verdadero o falso no se baraja.'),
+  LI('Bitácora de copiado: los eventos copy, cut y la tecla ImprPant se anotan con conto en false. No suman advertencia ni bloquean; se muestran al maestro en Resultados, separados de las salidas de pantalla para que no inflen esa cuenta.'),
+  LI('Salidas de pantalla: se miden al regresar, restando Date.now(), no con un setTimeout programado al salir. El navegador estrangula los temporizadores en segundo plano y en iOS suspende la página entera, así que un temporizador nunca llegaba a ejecutarse.'),
+
+  H3('El teclado en pantalla y la pantalla completa'),
+  P('En iPad, abrir el teclado saca a la página de pantalla completa. Eso disparaba fullscreenchange y se contaba como salida: con MAX_ADVERTENCIAS en 1, el alumno tocaba el campo de una pregunta de completar y se le entregaba el examen solo.'),
+  P('La detección ahora consulta document.activeElement: si un campo de texto tiene el foco, el teclado está arriba y no es una salida. Además se vuelve a pantalla completa en el siguiente toque, porque si no el alumno quedaría fuera para siempre y cualquier evento posterior contaría. Y en un aparato donde el teclado ya la tumbó, estar fuera de pantalla completa deja de bastar por sí solo: se exige también haber perdido el foco. En escritorio no cambia nada.'),
+  NOTA('En iPhone requestFullscreen falla y usaFullscreen queda en false, así que toda esa rama está muerta ahí. Probar este comportamiento en iPhone no prueba nada: hay que hacerlo en iPad.'),
 
   H1('5. Resistencia a la red'),
   P('La red del colegio falla con frecuencia y eso rompía los exámenes. Las medidas implementadas:'),
@@ -100,7 +136,7 @@ const doc = new d.Document({ numbering, sections: [SECCION([
   NOTA('Detección en iOS: Safari congela los temporizadores de una página en segundo plano, de modo que un setTimeout programado al salir puede no ejecutarse nunca. Por eso la salida se mide al regresar, restando con reloj de pared. Si alguien modifica esta lógica, debe conservar ese enfoque o la detección dejará de funcionar en iPhone.'),
 
   H1('6. Versionado del esquema'),
-  P('El esquema no se administra a mano desde el panel de Supabase: cada cambio es una migración con nombre y fecha. A la fecha de este documento hay 27 migraciones, desde la creación del esquema hasta la identidad por maestro, y viven en supabase/migrations dentro del repositorio.'),
+  P('El esquema no se administra a mano desde el panel de Supabase: cada cambio es una migración con nombre y fecha. A la fecha de este documento hay 32 migraciones, desde la creación del esquema hasta la tolerancia de retardo opcional, y viven en supabase/migrations dentro del repositorio.'),
   P('Esto es lo que hace reproducible el sistema. Con el repositorio y una cuenta de Supabase vacía se puede levantar una instancia idéntica sin depender del proyecto actual:'),
   PASO('npx supabase link --project-ref <identificador del proyecto nuevo>', 1),
   PASO('npx supabase db push, que aplica las migraciones en orden', 1),
@@ -131,6 +167,12 @@ const doc = new d.Document({ numbering, sections: [SECCION([
   LI('La clase "rounded-DEFAULT" aparece en el HTML pero Tailwind no genera esa clase. Las esquinas redondeadas que se pretendían nunca se aplicaron. Corregirlo cambiaría el aspecto de toda la aplicación.'),
   LI('La barra lateral del panel principal tiene etiquetas en inglés mezcladas con el resto en español.'),
   LI('El borrado definitivo de un alumno no se hace desde la aplicación: requiere eliminar la cuenta en auth.users, y el borrado cascadea a todo su historial. La operación normal es el egreso, que conserva los datos.'),
+  LI('auth.users es el PADRE, no el hijo: alumnos.id y profesores.id apuntan a él con ON DELETE CASCADE, y grupos cuelga de profesores igual. Borrar la cuenta de un maestro se lleva sus grupos, alumnos, exámenes y calificaciones sin preguntar. Cualquier borrado en auth.users debe llevar guardas que excluyan a quien tenga ficha de maestro o de alumno.'),
+  LI('Quitar a un alumno de un grupo no borra su ficha ni su cuenta de acceso. Se acumulan invisibles: ya se limpiaron a mano dos veces, 77 cuentas la primera y 37 la segunda.'),
+  LI('El servicio de correo integrado de Supabase entrega dos mensajes por hora. Con varios maestros registrándose el mismo día, del tercero en adelante el correo de confirmación no llega y no hay aviso de por qué. Se resuelve configurando SMTP propio, que sube el límite a treinta.'),
+  LI('Dieciocho de las veintidós pantallas cargan Tailwind desde cdn.tailwindcss.com en vez del app.css compilado que el repositorio ya trae. Si la red del colegio bloquea ese dominio, esas pantallas se ven sin estilos. Además, en ese build la clase flex va después de hidden, así que hidden pierde: los diálogos de esas páginas se abren y cierran con estilo en línea, no con la clase.'),
+  LI('El service worker sirve el código con red primero y cae a la copia guardada si la red tarda más de 3 segundos (LIMITE_MS). En un salón con wifi saturado eso puede entregar JavaScript viejo.'),
+  LI('El código del QR se genera con el reloj de la computadora del maestro pero lo valida el reloj del servidor. Si esa computadora se desfasa más de unos 20 segundos, la asistencia deja de funcionar por completo y sin mensaje que lo explique.'),
   H2('Auditoría de seguridad'),
   P('El analizador de Supabase no reporta ningún error sobre el proyecto: no hay tablas sin RLS ni políticas permisivas. Las advertencias abiertas son menores: las funciones auxiliares es_profesor_del_grupo y alumno_en_grupo quedan expuestas como RPC, aunque solo devuelven un booleano sobre el propio usuario, y la verificación de contraseñas filtradas de Supabase Auth está desactivada.'),
 
@@ -144,4 +186,4 @@ const doc = new d.Document({ numbering, sections: [SECCION([
   NOTA('La transferencia del proyecto de Supabase es preferible a crear uno nuevo y migrar. Recrear los usuarios generaría identificadores distintos y dejaría huérfano todo el historial de calificaciones, asistencia y participación, que apunta a los identificadores actuales.'),
 ])] });
 
-d.Packer.toBuffer(doc).then((b) => { fs.writeFileSync('Manual-tecnico-AulaFacil.docx', b); console.log('Manual técnico:', b.length, 'bytes'); });
+d.Packer.toBuffer(doc).then((b) => { fs.writeFileSync(__dirname + '/../Manual-tecnico-AulaFacil.docx', b); console.log('Manual técnico:', b.length, 'bytes'); });
