@@ -194,7 +194,7 @@
 <script type="module" src="assets/js/calificaciones.js"></script>
 
 <!-- Diálogo: ajustar la calificación de un alumno -->
-<div id="dialogo-ajuste" class="hidden fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center px-0 sm:px-4">
+<div id="dialogo-ajuste" class="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center px-0 sm:px-4" style="display:none;">
 <div class="w-full sm:max-w-md bg-surface-container-lowest rounded-t-DEFAULT sm:rounded-DEFAULT p-6">
 <h2 class="font-headline-md text-headline-md text-on-surface mb-1">Ajustar calificación</h2>
 <p id="ajuste-alumno" class="font-body-md text-body-md text-on-surface-variant mb-stack-md"></p>
@@ -215,6 +215,32 @@
 <button id="btn-cancelar-ajuste" class="flex-1 border-2 border-outline-variant text-on-surface font-button-text text-button-text rounded-full py-3">Cancelar</button>
 <button id="btn-quitar-ajuste" class="hidden flex-1 border-2 border-error text-error font-button-text text-button-text rounded-full py-3">Quitar ajuste</button>
 <button id="btn-guardar-ajuste" class="flex-1 bg-primary text-on-primary font-button-text text-button-text rounded-full py-3">Guardar</button>
+</div>
+</div>
+</div>
+
+<!-- Diálogo: capturar a mano la calificación de Exámenes -->
+<div id="dialogo-captura" class="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center px-0 sm:px-4" style="display:none;">
+<div class="w-full sm:max-w-md bg-surface-container-lowest rounded-t-DEFAULT sm:rounded-DEFAULT p-6">
+<h2 id="captura-titulo" class="font-headline-md text-headline-md text-on-surface mb-1">Capturar Exámenes</h2>
+<p id="captura-alumno" class="font-body-md text-body-md text-on-surface-variant mb-stack-md"></p>
+
+<div class="bg-surface-container-high rounded-DEFAULT p-4 mb-stack-md">
+<p class="font-body-md text-body-md text-on-surface-variant">Lo que calcula el sistema</p>
+<p id="captura-app" class="font-body-md text-body-md text-on-surface">—</p>
+</div>
+
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="captura-valor">Calificación (0 a 10)</label>
+<input id="captura-valor" type="number" inputmode="decimal" min="0" max="10" step="0.1" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-3 font-body-md text-body-md text-on-surface"/>
+
+<label class="font-label-lg text-label-lg text-on-surface mb-2 block" for="captura-nota">Nota (opcional)</label>
+<input id="captura-nota" type="text" maxlength="200" placeholder="Ej: examen del primer parcial, en papel" class="w-full px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface mb-2 font-body-md text-body-md text-on-surface"/>
+<p class="font-body-md text-on-surface-variant mb-4" style="font-size:13px;">Esta calificación es la que cuenta para el promedio. Si el alumno también presentó exámenes en la app, escribe aquí el promedio que quieres que valga: lo que calculó el sistema no se borra, se sigue viendo al lado y en el Excel.</p>
+
+<div class="flex flex-col sm:flex-row gap-2">
+<button id="btn-cancelar-captura" class="flex-1 border-2 border-outline-variant text-on-surface font-button-text text-button-text rounded-full py-3">Cancelar</button>
+<button id="btn-quitar-captura" class="hidden flex-1 border-2 border-error text-error font-button-text text-button-text rounded-full py-3">Quitar</button>
+<button id="btn-guardar-captura" class="flex-1 bg-primary text-on-primary font-button-text text-button-text rounded-full py-3">Guardar</button>
 </div>
 </div>
 </div>

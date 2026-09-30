@@ -14,6 +14,7 @@ let resultadosPorPeriodo = {}; // { periodoKey: filasCalculadas }  ('sin' = sin 
 let vistaActual = 'sin'; // 'sin' | 'ciclo' | periodo.id
 let profesorId = null;
 let filaEnAjuste = null;
+let filaEnCaptura = null;
 
 function claveDePeriodo(periodoId) {
   return periodoId || 'sin';
@@ -250,6 +251,18 @@ async function calcularParaPeriodo(periodoId) {
   const ajustePorAlumno = {};
   (ajustes || []).forEach((x) => { ajustePorAlumno[x.alumno_id] = x; });
 
+  // Calificacion de examenes capturada a mano. Algunos maestros traian su
+  // registro en papel de antes de que existiera el sistema, y Examenes era el
+  // unico componente que no se podia escribir. Tampoco pisa el calculo: el
+  // promedio de los examenes presentados en la app se sigue viendo al lado.
+  let qCapturas = supabase.from('examenes_capturados')
+    .select('alumno_id, calificacion, nota').eq('grupo_id', grupoId);
+  qCapturas = periodoId ? qCapturas.eq('periodo_id', periodoId) : qCapturas.is('periodo_id', null);
+  const { data: capturas, error: errorCapturas } = await qCapturas;
+  if (errorCapturas) throw new Error(`${etiquetas.examenes} capturados: ${errorCapturas.message}`);
+  const capturaPorAlumno = {};
+  (capturas || []).forEach((c) => { capturaPorAlumno[c.alumno_id] = c; });
+
   const pesoExamenes = Number(grupoInfo.peso_examenes) || 0;
   const pesoTareas = Number(grupoInfo.peso_tareas) || 0;
   const pesoParticipacion = Number(grupoInfo.peso_participacion) || 0;
@@ -257,7 +270,14 @@ async function calcularParaPeriodo(periodoId) {
   return alumnosGrupo.map((a) => {
     const notasExamenes = examenesPorAlumno[a.id] || [];
     const promExamenes100 = notasExamenes.length ? notasExamenes.reduce((s, v) => s + v, 0) / notasExamenes.length : null;
-    const promExamenes = promExamenes100 !== null ? promExamenes100 / 10 : null;
+    const promExamenesApp = promExamenes100 !== null ? promExamenes100 / 10 : null;
+
+    // Si el maestro capturo la calificacion a mano, esa es la que cuenta.
+    const cap = capturaPorAlumno[a.id];
+    const examenCapturado = cap
+      ? { valor: num(Number(cap.calificacion)), nota: cap.nota || '' }
+      : null;
+    const promExamenes = examenCapturado ? examenCapturado.valor : promExamenesApp;
 
     const notasTareas = tareasPorAlumno[a.id] || [];
     const sumaPesoTareas = notasTareas.reduce((s, t) => s + t.peso, 0);
@@ -308,6 +328,9 @@ async function calcularParaPeriodo(periodoId) {
       alumnoId: a.id,
       nombre: a.nombre,
       promExamenes: num(promExamenes),
+      promExamenesApp: num(promExamenesApp),
+      examenCapturado,
+      examenesPresentados: notasExamenes.length,
       promTareas: num(promTareas),
       puntosParticipacion,
       participacionDiez: num(participacionDiez),
@@ -401,7 +424,17 @@ function renderTablaPeriodo(filas) {
         ${filas.map((f, i) => `
           <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
             <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(f.nombre)}</td>
-            <td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${f.promExamenes ?? '—'}</td>
+            <td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">
+              <div class="flex items-center justify-center gap-2">
+                <span class="${f.examenCapturado ? 'text-primary font-bold' : ''}">${f.promExamenes ?? '—'}</span>
+                <button class="btn-capturar-examen text-on-surface-variant hover:text-primary" data-alumno="${f.alumnoId}" title="Capturar a mano">
+                  <span class="material-symbols-outlined" style="font-size:18px;">edit_note</span>
+                </button>
+              </div>
+              ${f.examenCapturado
+                ? `<p class="text-sm text-primary mt-1"${f.examenCapturado.nota ? ` title="${escapeHtml(f.examenCapturado.nota)}"` : ''}>capturado${f.promExamenesApp !== null ? ` · app: ${f.promExamenesApp}` : ''}</p>`
+                : ''}
+            </td>
             <td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${f.promTareas ?? '—'}</td>
             <td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${f.etiquetaParticipacion}</td>
             ${rubrosPeriodo.map((r) => `<td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${f.valoresPorRubro[r.id] ?? '—'}</td>`).join('')}
@@ -420,6 +453,10 @@ function renderTablaPeriodo(filas) {
 
   contenedor.querySelectorAll('.btn-ajustar').forEach((b) => {
     b.addEventListener('click', () => abrirAjuste(b.dataset.alumno));
+  });
+
+  contenedor.querySelectorAll('.btn-capturar-examen').forEach((b) => {
+    b.addEventListener('click', () => abrirCaptura(b.dataset.alumno));
   });
 }
 
@@ -443,12 +480,12 @@ function abrirAjuste(alumnoId) {
   document.getElementById('ajuste-valor').value = f.ajuste ? f.ajuste.valor : (f.promedioCalculado ?? '');
   document.getElementById('ajuste-motivo').value = f.ajuste ? f.ajuste.motivo : '';
   document.getElementById('btn-quitar-ajuste').classList.toggle('hidden', !f.ajuste);
-  document.getElementById('dialogo-ajuste').classList.remove('hidden');
+  document.getElementById('dialogo-ajuste').style.display = 'flex';
 }
 
 function cerrarAjuste() {
   filaEnAjuste = null;
-  document.getElementById('dialogo-ajuste').classList.add('hidden');
+  document.getElementById('dialogo-ajuste').style.display = 'none';
 }
 
 async function guardarAjuste() {
@@ -517,6 +554,96 @@ document.getElementById('btn-guardar-ajuste')?.addEventListener('click', guardar
 document.getElementById('btn-quitar-ajuste')?.addEventListener('click', quitarAjuste);
 document.getElementById('btn-cancelar-ajuste')?.addEventListener('click', cerrarAjuste);
 
+// ---------- Captura manual de Examenes ----------
+// Varios maestros llevaban su registro en papel mientras el sistema se
+// terminaba. Tareas y los rubros siempre se pudieron escribir a mano; este
+// era el unico componente que no. Lo capturado manda sobre lo calculado,
+// pero el promedio de los examenes presentados en la app se sigue mostrando
+// para que se vea que no se borro nada.
+
+function abrirCaptura(alumnoId) {
+  const filas = resultadosPorPeriodo[vistaActual] || [];
+  const f = filas.find((x) => x.alumnoId === alumnoId);
+  if (!f) return;
+  filaEnCaptura = f;
+  document.getElementById('captura-titulo').textContent = `Capturar ${etiquetas.examenes}`;
+  document.getElementById('captura-alumno').textContent = f.nombre;
+  document.getElementById('captura-app').textContent = f.promExamenesApp !== null
+    ? `${f.promExamenesApp} (promedio de ${f.examenesPresentados} presentado${f.examenesPresentados === 1 ? '' : 's'} en la app)`
+    : 'Sin exámenes presentados en la app';
+  document.getElementById('captura-valor').value = f.examenCapturado ? f.examenCapturado.valor : '';
+  document.getElementById('captura-nota').value = f.examenCapturado ? f.examenCapturado.nota : '';
+  document.getElementById('btn-quitar-captura').classList.toggle('hidden', !f.examenCapturado);
+  document.getElementById('dialogo-captura').style.display = 'flex';
+}
+
+function cerrarCaptura() {
+  filaEnCaptura = null;
+  document.getElementById('dialogo-captura').style.display = 'none';
+}
+
+async function guardarCaptura() {
+  if (!filaEnCaptura) return;
+  const valor = parseFloat(document.getElementById('captura-valor').value);
+  const nota = document.getElementById('captura-nota').value.trim();
+
+  if (!Number.isFinite(valor) || valor < 0 || valor > 10) {
+    mostrarError('La calificación debe ser un número entre 0 y 10');
+    return;
+  }
+
+  const btn = document.getElementById('btn-guardar-captura');
+  btn.disabled = true;
+  try {
+    const periodoId = periodoDeLaVista();
+    // Borrar y reinsertar: los indices unicos son parciales por el caso
+    // "sin periodo", asi que un upsert normal no los aprovecharia.
+    let q = supabase.from('examenes_capturados').delete()
+      .eq('grupo_id', grupoId).eq('alumno_id', filaEnCaptura.alumnoId);
+    q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
+    const { error: errorBorrar } = await q;
+    if (errorBorrar) throw new Error(errorBorrar.message);
+
+    const { error } = await supabase.from('examenes_capturados').insert({
+      grupo_id: grupoId,
+      alumno_id: filaEnCaptura.alumnoId,
+      periodo_id: periodoId,
+      calificacion: valor,
+      nota: nota || null,
+      capturado_por: profesorId,
+    });
+    if (error) throw new Error(error.message);
+
+    cerrarCaptura();
+    mostrarOk(`${etiquetas.examenes} capturado. Queda marcado como tal en pantalla y en el Excel.`);
+    await recalcularTodo();
+  } catch (e) {
+    mostrarError(`No se pudo guardar: ${e.message}`);
+  } finally { btn.disabled = false; }
+}
+
+async function quitarCaptura() {
+  if (!filaEnCaptura) return;
+  if (!window.confirm('¿Quitar la calificación capturada y volver a la que calcula el sistema?')) return;
+  try {
+    const periodoId = periodoDeLaVista();
+    let q = supabase.from('examenes_capturados').delete()
+      .eq('grupo_id', grupoId).eq('alumno_id', filaEnCaptura.alumnoId);
+    q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
+    const { error } = await q;
+    if (error) throw new Error(error.message);
+    cerrarCaptura();
+    mostrarOk('Calificación capturada eliminada.');
+    await recalcularTodo();
+  } catch (e) {
+    mostrarError(`No se pudo quitar: ${e.message}`);
+  }
+}
+
+document.getElementById('btn-guardar-captura')?.addEventListener('click', guardarCaptura);
+document.getElementById('btn-quitar-captura')?.addEventListener('click', quitarCaptura);
+document.getElementById('btn-cancelar-captura')?.addEventListener('click', cerrarCaptura);
+
 function promedioCiclo(alumnoId) {
   const valores = periodos
     .map((p) => resultadosPorPeriodo[p.id]?.find((f) => f.alumnoId === alumnoId)?.promedioFinal)
@@ -576,6 +703,9 @@ document.getElementById('btn-exportar').addEventListener('click', () => {
       fila['Promedio Final (0-10)'] = f.promedioFinal ?? '';
       fila['Calculado por el sistema'] = f.promedioCalculado ?? '';
       fila['Motivo del ajuste'] = f.ajuste ? f.ajuste.motivo : '';
+      fila[`${etiquetas.examenes} capturado a mano`] = f.examenCapturado ? 'Sí' : '';
+      fila[`${etiquetas.examenes} calculado por la app`] = f.examenCapturado ? (f.promExamenesApp ?? '') : '';
+      fila['Nota de la captura'] = f.examenCapturado ? f.examenCapturado.nota : '';
       return fila;
     });
     window.XLSX.utils.book_append_sheet(libro, window.XLSX.utils.json_to_sheet(datos), 'Calificaciones');
@@ -594,6 +724,9 @@ document.getElementById('btn-exportar').addEventListener('click', () => {
         fila['Promedio (0-10)'] = f.promedioFinal ?? '';
         fila['Calculado por el sistema'] = f.promedioCalculado ?? '';
         fila['Motivo del ajuste'] = f.ajuste ? f.ajuste.motivo : '';
+        fila[`${etiquetas.examenes} capturado a mano`] = f.examenCapturado ? 'Sí' : '';
+        fila[`${etiquetas.examenes} calculado por la app`] = f.examenCapturado ? (f.promExamenesApp ?? '') : '';
+        fila['Nota de la captura'] = f.examenCapturado ? f.examenCapturado.nota : '';
         return fila;
       });
       const nombreHoja = p.nombre.replace(/[\\/*?:[\]]/g, '').slice(0, 31) || 'Periodo';
