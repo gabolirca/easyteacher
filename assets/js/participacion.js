@@ -12,6 +12,7 @@ let valoresFicha = { verde: 1, azul: 2, roja: 5, blanca: 10 };
 let alumnos = []; // [{id, nombre}]
 let totales = {}; // { alumno_id: suma de participaciones que siguen contando }
 let ultimoCorteId = null;
+let ultimoCorteDiarioId = null;
 let periodos = []; // [{id, nombre}]
 let fichasHoyPorAlumno = {}; // { alumno_id: [{id, tipo_ficha, valor}] } — de la fecha seleccionada
 let terminoBusqueda = '';
@@ -718,14 +719,66 @@ async function abrirCorteDiario() {
 
 async function mostrarUltimoCorteDiario() {
   const periodoId = document.getElementById('diario-periodo').value || null;
-  let consulta = supabase.from('cortes_participacion').select('fecha, media, created_at').eq('grupo_id', grupoId);
+  let consulta = supabase.from('cortes_participacion').select('id, fecha, media, created_at').eq('grupo_id', grupoId);
   consulta = periodoId ? consulta.eq('periodo_id', periodoId) : consulta.is('periodo_id', null);
   const { data: ultimoCorte } = await consulta.order('created_at', { ascending: false }).limit(1).maybeSingle();
 
+  ultimoCorteDiarioId = ultimoCorte?.id ?? null;
   document.getElementById('ultimo-corte-diario-info').textContent = ultimoCorte
     ? `Último corte de este periodo: ${ultimoCorte.fecha} con referencia de ${ultimoCorte.media} pts.`
     : 'Aún no se ha hecho corte para este periodo.';
+
+  pintarBotonLimpiarDiario();
 }
+
+// Mismo "empezar de nuevo" que en fichas, pero acotado a los registros del
+// modo diario, que son los que suma este ranking.
+
+function pintarBotonLimpiarDiario() {
+  const btn = document.getElementById('btn-limpiar-puntos-diario');
+  const nota = document.getElementById('limpiar-diario-nota');
+  if (!btn) return;
+  const total = Object.values(totalesDiario).reduce((s, v) => s + Number(v || 0), 0);
+  btn.disabled = total === 0;
+  if (nota) {
+    nota.textContent = total === 0
+      ? 'No hay puntos acumulados: el siguiente periodo ya arranca en cero.'
+      : `Hay ${total} puntos acumulados. Al limpiarlos el ranking vuelve a cero y el próximo corte arranca parejo. Los registros no se borran: quedan guardados con su fecha.`;
+  }
+}
+
+async function limpiarPuntosDiario() {
+  const total = Object.values(totalesDiario).reduce((s, v) => s + Number(v || 0), 0);
+  if (total === 0) return;
+
+  const ok = window.confirm(
+    `¿Poner en cero los ${total} puntos acumulados del grupo?\n\n` +
+    'Los registros NO se borran: se guardan como historia y dejan de contar ' +
+    'para el ranking. El corte que ya aplicaste conserva su calificación.'
+  );
+  if (!ok) return;
+
+  const btn = document.getElementById('btn-limpiar-puntos-diario');
+  btn.disabled = true;
+  try {
+    const { error } = await supabase
+      .from('participaciones')
+      .update({ cerrada_en: new Date().toISOString(), corte_id: ultimoCorteDiarioId })
+      .eq('grupo_id', grupoId)
+      .eq('tipo_ficha', 'diario')
+      .is('cerrada_en', null);
+    if (error) throw error;
+
+    await cargarDiario();
+    await abrirCorteDiario();
+    mostrarOk('Puntos en cero. Los registros anteriores quedan guardados como historia.');
+  } catch (err) {
+    mostrarError(err.message || 'No se pudieron limpiar los puntos');
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('btn-limpiar-puntos-diario')?.addEventListener('click', limpiarPuntosDiario);
 
 document.getElementById('diario-periodo')?.addEventListener('change', mostrarUltimoCorteDiario);
 
