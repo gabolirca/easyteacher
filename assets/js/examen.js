@@ -91,6 +91,27 @@ function mostrarErrorFatal(mensaje, sesionDe) {
   mostrarVista('vista-error');
 }
 
+function mostrarQuienContesta(alumno) {
+  const caja = document.getElementById('entrada-quien');
+  if (!caja) return;
+  if (!alumno || !alumno.nombre) { caja.style.display = 'none'; return; }
+
+  document.getElementById('entrada-quien-nombre').textContent = alumno.nombre;
+  const mat = document.getElementById('entrada-quien-matricula');
+  if (mat) mat.textContent = alumno.matricula ? `Matrícula ${alumno.matricula}` : '';
+  caja.style.display = 'block';
+}
+
+async function salirYVolverAEntrar(btn) {
+  if (btn) btn.disabled = true;
+  try { await supabase.auth.signOut(); } catch { /* da igual: se recarga */ }
+  window.location.reload();
+}
+
+document.getElementById('btn-no-soy-yo')?.addEventListener('click', (e) => {
+  salirYVolverAEntrar(e.currentTarget);
+});
+
 document.getElementById('btn-otra-cuenta')?.addEventListener('click', async () => {
   const btn = document.getElementById('btn-otra-cuenta');
   btn.disabled = true;
@@ -361,6 +382,15 @@ async function cargarExamen() {
 
   const versionEl = document.getElementById('entrada-version');
   if (versionEl) versionEl.textContent = VERSION_APP;
+
+  // Con quien va a contestar, ANTES de empezar.
+  //
+  // En un aparato compartido el navegador se queda con la sesion del alumno
+  // anterior. Si los dos son del mismo grupo, el examen es legitimo para esa
+  // cuenta y nada lo detiene: el examen se guarda a nombre del que se quedo
+  // firmado, y el maestro descubre dias despues que a alguien le falta la
+  // calificacion. Ponerle el nombre enfrente lo corta en un segundo.
+  mostrarQuienContesta(data.alumno);
 
   mostrarVista('vista-entrada');
 }
