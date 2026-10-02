@@ -211,7 +211,10 @@ async function calcularParaPeriodo(periodoId) {
       participacionPorAlumno = await puntosDeSesiones(periodoId);
       maxParticipacion = Math.max(0, ...Object.values(participacionPorAlumno));
     } else {
-      let qPart = supabase.from('participaciones').select('alumno_id, valor').eq('grupo_id', grupoId);
+      // Las fichas que ya se llevo un corte no vuelven a contar aqui, igual
+      // que en el ranking de la pantalla de participacion.
+      let qPart = supabase.from('participaciones').select('alumno_id, valor')
+        .eq('grupo_id', grupoId).is('cerrada_en', null);
       const { data: participaciones, error: errorPart } = await qPart;
       if (errorPart) throw new Error(`Participación: ${errorPart.message}`);
       (participaciones || []).forEach((p) => {

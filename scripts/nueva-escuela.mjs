@@ -24,8 +24,11 @@ import { stdin as entrada, stdout as salida } from 'node:process';
 
 const RAIZ = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
-// Lo que NO se copia a la escuela nueva.
-const EXCLUIR = new Set(['.git', 'node_modules', 'Claude outputs', '.vercel']);
+// Lo que NO se copia: ademas de lo obvio, 'documentos' se queda fuera a
+// proposito. Ahi viven el convenio con las tarifas y los manuales del
+// colegio anterior, y ninguna de las dos cosas tiene por que acabar en la
+// carpeta ni en el repositorio de un cliente nuevo.
+const EXCLUIR = new Set(['.git', 'node_modules', 'Claude outputs', '.vercel', 'documentos']);
 const EXCLUIR_REL = new Set([path.join('supabase', '.temp')]);
 
 // Archivos que produce el generador y a donde va cada uno.
@@ -148,8 +151,14 @@ cd ${rutaDestino}
 npm.cmd install
 npx.cmd supabase link --project-ref ${ref}
 npx.cmd supabase db push
-foreach ($f in (Get-ChildItem supabase\\functions -Directory)) { npx.cmd supabase functions deploy $f.Name }
+foreach ($f in (Get-ChildItem supabase\\functions -Directory | Where-Object { $_.Name -notlike '_*' })) {
+  npx.cmd supabase functions deploy $f.Name
+}
 \`\`\`
+
+Las carpetas que empiezan con guion bajo (\`_compartido\`) NO son funciones:
+son codigo que las demas importan. Por eso el bucle las salta. Si intentas
+desplegarlas, truena.
 
 ## 2. Restringir quién puede crear cuenta de maestro
 
@@ -168,12 +177,25 @@ Sin este renglón cualquiera que llegue a login.html puede crearse cuenta de mae
 npm.cmd run css
 \`\`\`
 
-## 4. Publicar
+Esto reescribe assets/css/app.css con los colores del colegio. Hay que correrlo
+ANTES de subir a GitHub: Vercel no compila nada, publica los archivos tal cual,
+asi que app.css tiene que ir ya hecho en el commit.
 
-Crea el repositorio en GitHub, sube esta carpeta y activa GitHub Pages.
-Luego, en Supabase → Authentication → URL Configuration, pon esa dirección
-como **Site URL** y agrégala a **Redirect URLs**. Si no, los correos de
-recuperación de contraseña mandan a localhost.
+## 4. Publicar en Vercel
+
+1. Crea el repositorio en GitHub, **privado**, y sube esta carpeta.
+2. vercel.com → Add New → Project → importa ese repositorio.
+3. Framework Preset: **Other**. Build Command: vacio. Output Directory: vacio.
+   Es un sitio estatico, no hay nada que compilar en el servidor.
+4. Deploy. Te queda una direccion tipo \`nombre.vercel.app\`.
+
+Despues, en Supabase → Authentication → URL Configuration:
+
+- **Site URL**: la direccion de Vercel
+- **Redirect URLs**: la misma
+
+Sin esto, el correo de confirmacion que recibe un maestro al registrarse
+apunta a otro lado y no puede entrar.
 
 ## 5. Comprobar
 
@@ -182,6 +204,15 @@ recuperación de contraseña mandan a localhost.
 - [ ] Crea un grupo y sube dos alumnos
 - [ ] Haz un examen de una pregunta y contéstalo desde el teléfono
 - [ ] Revisa que el logo y los colores sean los del colegio
+- [ ] Abre la app desde un celular y comprueba que se puede "instalar" (PWA)
+
+## 6. Antes de que lo use un grupo completo
+
+El plan gratis de Supabase manda **2 correos por hora**. Si el dia de la
+capacitacion se registran cinco maestros seguidos, a partir del tercero el
+correo de confirmacion no llega y parece que la app fallo. Opciones: registrar
+a los maestros de dos en dos con una hora de separacion, o configurar un SMTP
+propio en Supabase → Authentication → Emails.
 `);
 
 console.log(`

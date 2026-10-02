@@ -10,7 +10,8 @@ const COLORES_FICHA = { verde: '#2c694e', azul: '#0b5fae', roja: '#ba1a1a', blan
 let modoParticipacion = 'simple';
 let valoresFicha = { verde: 1, azul: 2, roja: 5, blanca: 10 };
 let alumnos = []; // [{id, nombre}]
-let totales = {}; // { alumno_id: suma de participaciones }
+let totales = {}; // { alumno_id: suma de participaciones que siguen contando }
+let ultimoCorteId = null;
 let periodos = []; // [{id, nombre}]
 let fichasHoyPorAlumno = {}; // { alumno_id: [{id, tipo_ficha, valor}] } — de la fecha seleccionada
 let terminoBusqueda = '';
@@ -148,10 +149,13 @@ async function cargarAlumnosYTotales() {
 
   alumnos = (alumnosData || []).map((row) => row.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
+  // Solo las fichas que siguen contando. Las que ya se llevo un corte quedan
+  // guardadas con cerrada_en, pero fuera del ranking de hoy.
   const { data: participaciones, error: errorPart } = await supabase
     .from('participaciones')
     .select('alumno_id, valor')
-    .eq('grupo_id', grupoId);
+    .eq('grupo_id', grupoId)
+    .is('cerrada_en', null);
 
   if (errorPart) {
     mostrarError(`No se pudieron cargar los totales: ${errorPart.message}`);
@@ -443,14 +447,72 @@ async function abrirCorte() {
 
 async function mostrarUltimoCorte() {
   const periodoId = document.getElementById('corte-periodo').value || null;
-  let consulta = supabase.from('cortes_participacion').select('fecha, media, created_at').eq('grupo_id', grupoId);
+  let consulta = supabase.from('cortes_participacion').select('id, fecha, media, created_at').eq('grupo_id', grupoId);
   consulta = periodoId ? consulta.eq('periodo_id', periodoId) : consulta.is('periodo_id', null);
   const { data: ultimoCorte } = await consulta.order('created_at', { ascending: false }).limit(1).maybeSingle();
 
+  ultimoCorteId = ultimoCorte?.id ?? null;
   document.getElementById('ultimo-corte-info').textContent = ultimoCorte
     ? `Último corte de este periodo: ${ultimoCorte.fecha} con referencia de ${ultimoCorte.media} pts.`
     : 'Aún no se ha hecho corte para este periodo.';
+
+  pintarBotonLimpiar();
 }
+
+// -------- Limpiar puntos --------
+// Los puntos se acumulan desde siempre, asi que despues de un corte el
+// siguiente arranca con todo lo anterior encima y hay que subir la referencia
+// cada vez. Esto los regresa a cero SIN borrar nada: las fichas se marcan con
+// cerrada_en y se quedan de historia, fuera del ranking.
+
+function puntosVivos() {
+  return Object.values(totales).reduce((s, v) => s + Number(v || 0), 0);
+}
+
+function pintarBotonLimpiar() {
+  const btn = document.getElementById('btn-limpiar-puntos');
+  const nota = document.getElementById('limpiar-nota');
+  if (!btn) return;
+  const total = puntosVivos();
+  btn.disabled = total === 0;
+  if (nota) {
+    nota.textContent = total === 0
+      ? 'No hay puntos acumulados: el siguiente periodo ya arranca en cero.'
+      : `Hay ${total} puntos acumulados. Al limpiarlos el ranking vuelve a cero y el próximo corte arranca parejo. Las fichas no se borran: quedan guardadas con su fecha y su color.`;
+  }
+}
+
+async function limpiarPuntos() {
+  const total = puntosVivos();
+  if (total === 0) return;
+
+  const ok = window.confirm(
+    `¿Poner en cero los ${total} puntos acumulados del grupo?\n\n` +
+    'Las fichas NO se borran: se guardan como historia y dejan de contar para ' +
+    'el ranking. El corte que ya aplicaste conserva su calificación.'
+  );
+  if (!ok) return;
+
+  const btn = document.getElementById('btn-limpiar-puntos');
+  btn.disabled = true;
+  try {
+    const { error } = await supabase
+      .from('participaciones')
+      .update({ cerrada_en: new Date().toISOString(), corte_id: ultimoCorteId })
+      .eq('grupo_id', grupoId)
+      .is('cerrada_en', null);
+    if (error) throw error;
+
+    await cargarAlumnosYTotales();   // vuelve a leer: ahora los totales dan cero
+    await abrirCorte();              // repinta el ranking y el boton
+    mostrarOk('Puntos en cero. Las fichas anteriores quedan guardadas como historia.');
+  } catch (err) {
+    mostrarError(err.message || 'No se pudieron limpiar los puntos');
+    btn.disabled = false;
+  }
+}
+
+document.getElementById('btn-limpiar-puntos')?.addEventListener('click', limpiarPuntos);
 
 document.getElementById('corte-periodo')?.addEventListener('change', mostrarUltimoCorte);
 
@@ -488,7 +550,7 @@ document.getElementById('btn-aplicar-corte').addEventListener('click', async () 
       if (errorFilas) throw errorFilas;
     }
 
-    mostrarOk('Corte aplicado. Las calificaciones finales ya usan este resultado para participación.');
+    mostrarOk('Corte aplicado. Las calificaciones finales ya usan este resultado. Si vas a empezar un periodo nuevo, abajo puedes poner los puntos en cero.');
     await abrirCorte();
   } catch (err) {
     mostrarError(err.message || 'No se pudo aplicar el corte');
@@ -526,7 +588,8 @@ async function cargarDiario() {
     .from('participaciones')
     .select('alumno_id, valor')
     .eq('grupo_id', grupoId)
-    .eq('tipo_ficha', 'diario');
+    .eq('tipo_ficha', 'diario')
+    .is('cerrada_en', null);
 
   if (errorTodas) {
     mostrarError(`No se pudieron cargar los totales: ${errorTodas.message}`);
