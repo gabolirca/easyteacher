@@ -51,7 +51,7 @@ async function cargarRubros() {
 
   const { data: rubros, error } = await supabase
     .from('rubros_evaluacion')
-    .select('id, nombre, peso, calificaciones_rubro(count), periodos(nombre)')
+    .select('id, nombre, peso, frecuencia, calificaciones_rubro(count), periodos(nombre)')
     .eq('grupo_id', grupoId)
     .order('created_at', { ascending: true });
 
@@ -74,7 +74,7 @@ async function cargarRubros() {
         </div>
         <div class="flex-1">
           <h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">${escapeHtml(r.nombre)}</h3>
-          <p class="font-body-md text-body-md text-on-surface-variant mt-1">Peso actual: ${r.peso}% · ${calificados} alumno(s) calificados${r.periodos?.nombre ? ` · ${escapeHtml(r.periodos.nombre)}` : ''}</p>
+          <p class="font-body-md text-body-md text-on-surface-variant mt-1">Peso actual: ${r.peso}% · ${r.frecuencia === 'diario' ? `Diario · ${calificados} calificación(es) capturadas` : `${calificados} alumno(s) calificados`}${r.periodos?.nombre ? ` · ${escapeHtml(r.periodos.nombre)}` : ''}</p>
         </div>
         <div class="flex gap-2 shrink-0">
           <button class="btn-eliminar-rubro text-error hover:bg-error-container p-2 rounded-full transition-colors" data-rubro-id="${r.id}" aria-label="Eliminar rubro">
@@ -112,6 +112,7 @@ document.getElementById('btn-cancelar-rubro').addEventListener('click', () => {
 document.getElementById('btn-guardar-rubro').addEventListener('click', async () => {
   const nombre = document.getElementById('rubro-nombre').value.trim();
   const periodoId = document.getElementById('rubro-periodo').value || null;
+  const frecuencia = document.getElementById('rubro-frecuencia').value === 'diario' ? 'diario' : 'periodo';
   if (!nombre) {
     mostrarError('Ponle un nombre al rubro');
     return;
@@ -120,7 +121,7 @@ document.getElementById('btn-guardar-rubro').addEventListener('click', async () 
   const btn = document.getElementById('btn-guardar-rubro');
   btn.disabled = true;
 
-  const { error } = await supabase.from('rubros_evaluacion').insert({ grupo_id: grupoId, nombre, peso: 0, periodo_id: periodoId });
+  const { error } = await supabase.from('rubros_evaluacion').insert({ grupo_id: grupoId, nombre, peso: 0, periodo_id: periodoId, frecuencia });
 
   btn.disabled = false;
 
@@ -130,6 +131,7 @@ document.getElementById('btn-guardar-rubro').addEventListener('click', async () 
   }
 
   document.getElementById('rubro-nombre').value = '';
+  document.getElementById('rubro-frecuencia').value = 'periodo';
   document.getElementById('form-nuevo-rubro').classList.add('hidden');
   mostrarOk('Rubro creado. Ajusta su peso desde "Calificaciones finales".');
   await cargarRubros();

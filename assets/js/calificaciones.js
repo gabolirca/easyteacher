@@ -172,11 +172,20 @@ async function calcularParaPeriodo(periodoId) {
 
   const rubrosPeriodo = rubrosTodos.filter((r) => (r.periodo_id || null) === periodoId);
   const idsRubros = rubrosPeriodo.map((r) => r.id);
-  const { data: califRubros, error: errorRubros } = await supabase
-    .from('calificaciones_rubro')
-    .select('alumno_id, calificacion, rubro_id')
-    .in('rubro_id', idsRubros.length ? idsRubros : ['00000000-0000-0000-0000-000000000000']);
-  if (errorRubros) throw new Error(`Rubros: ${errorRubros.message}`);
+  // Paginado: un rubro diario junta un renglon por alumno por dia y rebasa
+  // pronto el tope de mil que devuelve Supabase por consulta.
+  const califRubros = [];
+  for (let desde = 0; idsRubros.length; desde += 1000) {
+    const { data: pagina, error: errorRubros } = await supabase
+      .from('calificaciones_rubro')
+      .select('alumno_id, calificacion, rubro_id')
+      .in('rubro_id', idsRubros)
+      .order('id', { ascending: true })
+      .range(desde, desde + 999);
+    if (errorRubros) throw new Error(`Rubros: ${errorRubros.message}`);
+    califRubros.push(...(pagina || []));
+    if (!pagina || pagina.length < 1000) break;
+  }
 
   // Participación
   let participacionPorAlumno = {};
@@ -237,11 +246,20 @@ async function calcularParaPeriodo(periodoId) {
     (tareasPorAlumno[c.alumno_id] ||= []).push({ calif: Number(c.calificacion), peso });
   });
 
-  const rubroPorAlumno = {};
+  // Un rubro de periodo tiene una calificacion por alumno; uno diario tiene
+  // una por dia. En los dos casos el rubro vale el promedio de lo capturado
+  // (en el de periodo es un promedio de un solo numero).
+  const sumaRubro = {};
   (califRubros || []).forEach((c) => {
     if (c.calificacion === null) return;
-    rubroPorAlumno[c.rubro_id] ||= {};
-    rubroPorAlumno[c.rubro_id][c.alumno_id] = Number(c.calificacion);
+    const s = ((sumaRubro[c.rubro_id] ||= {})[c.alumno_id] ||= { total: 0, n: 0 });
+    s.total += Number(c.calificacion);
+    s.n += 1;
+  });
+  const rubroPorAlumno = {};
+  Object.entries(sumaRubro).forEach(([rid, porAlumno]) => {
+    rubroPorAlumno[rid] = {};
+    Object.entries(porAlumno).forEach(([aid, s]) => { rubroPorAlumno[rid][aid] = s.total / s.n; });
   });
 
   // Ajustes manuales del maestro. No sustituyen el calculo: se guardan aparte

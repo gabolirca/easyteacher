@@ -29,7 +29,7 @@ async function cargarPeriodos() {
 
   const { data: periodos, error } = await supabase
     .from('periodos')
-    .select('id, nombre, examenes(count), tareas(count)')
+    .select('id, nombre, fecha_inicio, fecha_fin, examenes(count), tareas(count)')
     .eq('grupo_id', grupoId)
     .order('orden', { ascending: true })
     .order('created_at', { ascending: true });
@@ -53,12 +53,36 @@ async function cargarPeriodos() {
         <div class="flex-1">
           <h3 class="font-body-lg text-body-lg text-on-surface">${escapeHtml(p.nombre)}</h3>
           <p class="font-body-md text-body-md text-on-surface-variant mt-1">${numExamenes} examen(es) · ${numTareas} tarea(s)</p>
+          <div class="flex items-center gap-2 mt-2 flex-wrap text-sm text-on-surface-variant">
+            <input type="date" class="fecha-periodo px-2 py-1 rounded-DEFAULT border border-outline-variant bg-surface text-on-surface" data-id="${p.id}" data-campo="fecha_inicio" value="${p.fecha_inicio ?? ''}" aria-label="Fecha de inicio"/>
+            <span>a</span>
+            <input type="date" class="fecha-periodo px-2 py-1 rounded-DEFAULT border border-outline-variant bg-surface text-on-surface" data-id="${p.id}" data-campo="fecha_fin" value="${p.fecha_fin ?? ''}" aria-label="Fecha de fin"/>
+            ${!p.fecha_inicio || !p.fecha_fin ? '<span class="text-tertiary">Sin fechas: el corte de asistencia no puede usar este periodo</span>' : ''}
+          </div>
         </div>
         <button class="btn-eliminar-periodo text-error hover:bg-error-container p-2 rounded-full transition-colors" data-id="${p.id}" aria-label="Eliminar">
           <span class="material-symbols-outlined">delete</span>
         </button>
       </div>`;
   }).join('');
+
+  contenedor.querySelectorAll('.fecha-periodo').forEach((input) => {
+    input.addEventListener('change', async () => {
+      const { error: errorFecha } = await supabase
+        .from('periodos')
+        .update({ [input.dataset.campo]: input.value || null })
+        .eq('id', input.dataset.id);
+      if (errorFecha) {
+        mostrarError(errorFecha.message.includes('periodo_fechas_en_orden')
+          ? 'La fecha de fin no puede ser antes que la de inicio'
+          : `No se pudo guardar la fecha: ${errorFecha.message}`);
+        await cargarPeriodos();
+        return;
+      }
+      mostrarOk('Fechas del periodo guardadas.');
+      await cargarPeriodos();
+    });
+  });
 
   contenedor.querySelectorAll('.btn-eliminar-periodo').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -76,15 +100,23 @@ async function cargarPeriodos() {
 
 document.getElementById('btn-agregar-periodo').addEventListener('click', async () => {
   const nombre = document.getElementById('periodo-nombre').value.trim();
+  const fechaInicio = document.getElementById('periodo-inicio').value || null;
+  const fechaFin = document.getElementById('periodo-fin').value || null;
   if (!nombre) {
     mostrarError('Ponle un nombre al periodo');
+    return;
+  }
+  if (fechaInicio && fechaFin && fechaFin < fechaInicio) {
+    mostrarError('La fecha de fin no puede ser antes que la de inicio');
     return;
   }
 
   const { data: existentes } = await supabase.from('periodos').select('orden').eq('grupo_id', grupoId).order('orden', { ascending: false }).limit(1);
   const siguienteOrden = (existentes?.[0]?.orden ?? -1) + 1;
 
-  const { error } = await supabase.from('periodos').insert({ grupo_id: grupoId, nombre, orden: siguienteOrden });
+  const { error } = await supabase.from('periodos').insert({
+    grupo_id: grupoId, nombre, orden: siguienteOrden, fecha_inicio: fechaInicio, fecha_fin: fechaFin,
+  });
 
   if (error) {
     mostrarError(`No se pudo guardar: ${error.message}`);
@@ -92,6 +124,8 @@ document.getElementById('btn-agregar-periodo').addEventListener('click', async (
   }
 
   document.getElementById('periodo-nombre').value = '';
+  document.getElementById('periodo-inicio').value = '';
+  document.getElementById('periodo-fin').value = '';
   mostrarOk('Periodo creado.');
   await cargarPeriodos();
 });

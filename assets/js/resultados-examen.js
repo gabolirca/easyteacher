@@ -1,4 +1,4 @@
-import { supabase } from './supabase-client.js';
+import { supabase, SUPABASE_URL } from './supabase-client.js';
 import { requireProfesor } from './auth-guard.js';
 
 const params = new URLSearchParams(window.location.search);
@@ -161,6 +161,78 @@ function renderLista() {
     });
   });
 }
+
+// ---------- Recalificar ----------
+// Primero pregunta al servidor que cambiaria (sin tocar nada) y lo muestra;
+// solo al confirmar se manda de nuevo con aplicar: true.
+async function llamarRecalificar(aplicar) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/recalificar-examen`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token ?? ''}` },
+    body: JSON.stringify({ examen_id: examenId, aplicar }),
+  });
+  let data = {};
+  try { data = await resp.json(); } catch { /* respuesta vacia */ }
+  if (!resp.ok) throw new Error(data.error || `El servidor respondió ${resp.status}`);
+  return data;
+}
+
+function cerrarPanelRecalificar() {
+  document.getElementById('panel-recalificar').style.display = 'none';
+}
+
+const fmt = (n) => `${(Number(n) / 10).toFixed(1)}`;
+
+document.getElementById('btn-recalificar').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-recalificar');
+  btn.disabled = true;
+  try {
+    const r = await llamarRecalificar(false);
+    if (!r.cambios.length) {
+      cerrarPanelRecalificar();
+      mostrarOk(`Revisé ${r.revisados} examen(es) entregados: todos ya están calificados con la clave actual. No hay nada que cambiar.`);
+      return;
+    }
+    document.getElementById('recalificar-resumen').textContent =
+      `Con la clave actual cambiaría la calificación de ${r.cambios.length} de ${r.revisados} examen(es). Revisa y confirma:`;
+    document.getElementById('recalificar-lista').innerHTML = r.cambios.map((c) => {
+      const sube = c.despues > c.antes;
+      const detalle = c.preguntas.map((p) => `P${p.numero}: ${p.antes} → ${p.despues}`).join(' · ');
+      return `<div class="flex items-center justify-between gap-3 py-2 border-b border-outline-variant">
+          <div><span class="text-on-surface">${escapeHtml(c.nombre)}</span>
+          ${detalle ? `<div class="text-xs text-on-surface-variant">${escapeHtml(detalle)}</div>` : ''}</div>
+          <span class="font-label-lg whitespace-nowrap ${sube ? 'text-secondary' : 'text-error'}">${fmt(c.antes)} → ${fmt(c.despues)}</span>
+        </div>`;
+    }).join('');
+    document.getElementById('panel-recalificar').style.display = '';
+    document.getElementById('panel-recalificar').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (e) {
+    mostrarError(`No se pudo revisar: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('btn-recalificar-cancelar').addEventListener('click', cerrarPanelRecalificar);
+
+document.getElementById('btn-recalificar-aplicar').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-recalificar-aplicar');
+  btn.disabled = true;
+  const texto = btn.textContent;
+  btn.textContent = 'Aplicando...';
+  try {
+    const r = await llamarRecalificar(true);
+    cerrarPanelRecalificar();
+    mostrarOk(`Listo: ${r.cambios.length} examen(es) recalificados con la clave actual.`);
+    await cargarResultados();
+  } catch (e) {
+    mostrarError(`No se pudo recalificar: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = texto;
+  }
+});
 
 document.getElementById('buscador-alumnos').addEventListener('input', (e) => {
   terminoBusqueda = e.target.value;

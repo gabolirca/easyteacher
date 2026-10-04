@@ -28,7 +28,7 @@ create index if not exists sesiones_grupo_fecha on public.sesiones (grupo_id, fe
 create table if not exists public.sesiones_secreto (
   sesion_id uuid primary key references public.sesiones(id) on delete cascade,
   grupo_id  uuid not null references public.grupos(id) on delete cascade,
-  secreto   text not null default encode(gen_random_bytes(32), 'hex')
+  secreto   text not null default encode(extensions.gen_random_bytes(32), 'hex')
 );
 
 -- Lo que el maestro hizo en clase. Sin contenido: solo nombre y valor.

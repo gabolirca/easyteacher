@@ -160,6 +160,15 @@
 <div id="error-box" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 <div id="ok-box" class="hidden bg-secondary-container text-on-secondary-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 
+<div id="bloque-fecha-rubro" class="mb-stack-md" style="display:none">
+<div class="flex flex-col md:flex-row md:items-end gap-4">
+<div class="flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="fecha-rubro">Día que estás calificando</label>
+<input id="fecha-rubro" type="date" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary outline-none font-body-md text-body-md text-on-surface"/>
+</div>
+<p id="dias-rubro" class="font-body-md text-body-md text-on-surface-variant md:pb-3"></p>
+</div>
+</div>
 <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-stack-md">
 <input id="buscador-alumnos" type="text" placeholder="Buscar alumno..." class="buscador-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors w-full md:max-w-sm"/>
 <span id="contador-calificados" class="font-label-lg text-label-lg text-on-surface-variant whitespace-nowrap"></span>
@@ -171,6 +180,7 @@
 <tr>
 <th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Alumno</th>
 <th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Calificación (0-10)</th>
+<th id="th-promedio" class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface" style="display:none">Promedio</th>
 </tr>
 </thead>
 <tbody id="tabla-alumnos-body">

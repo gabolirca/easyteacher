@@ -163,7 +163,22 @@
 <div id="error-box" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 <div id="ok-box" class="hidden bg-secondary-container text-on-secondary-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 
-<input id="buscador-alumnos" type="text" placeholder="Buscar alumno..." class="buscador-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors w-full max-w-sm mb-stack-md"/>
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-stack-md">
+<input id="buscador-alumnos" type="text" placeholder="Buscar alumno..." class="buscador-cpg px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface outline-none font-body-md text-body-md text-on-surface transition-colors w-full md:max-w-sm"/>
+<button id="btn-recalificar" class="border-2 border-primary text-primary font-button-text text-button-text py-2 px-5 rounded-full hover:bg-primary hover:text-on-primary transition-colors flex items-center gap-2 whitespace-nowrap" title="Vuelve a calificar los exámenes entregados con la clave de respuestas actual">
+<span class="material-symbols-outlined text-lg">autorenew</span> Recalificar
+</button>
+</div>
+
+<div id="panel-recalificar" class="bg-surface-container-lowest border-2 border-primary-fixed rounded-DEFAULT p-5 mb-stack-md" style="display:none">
+<h2 class="font-headline-md text-headline-md text-on-surface mb-1">Recalificar con la clave actual</h2>
+<p id="recalificar-resumen" class="font-body-md text-body-md text-on-surface-variant mb-3"></p>
+<div id="recalificar-lista" class="flex flex-col gap-1 mb-4 max-h-80 overflow-y-auto"></div>
+<div class="flex gap-3 flex-wrap">
+<button id="btn-recalificar-aplicar" class="bg-primary text-on-primary font-button-text text-button-text py-2 px-6 rounded-full hover:opacity-90 transition-opacity">Aplicar cambios</button>
+<button id="btn-recalificar-cancelar" class="text-on-surface-variant font-button-text text-button-text py-2 px-6 rounded-full hover:bg-surface-container-high transition-colors">Cancelar</button>
+</div>
+</div>
 
 <div id="lista-resultados" class="flex flex-col gap-2">
 <p class="text-on-surface-variant">Cargando resultados...</p>

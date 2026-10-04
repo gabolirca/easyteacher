@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" href="assets/img/icon-180.png"/>
 <link rel="manifest" href="manifest.json"/>
 <meta name="theme-color" content="#d02b2f"/>
-<title id="page-title">AulaFácil - Periodos</title>
+<title id="page-title">AulaFácil - Corte de asistencia</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
@@ -107,88 +107,94 @@
     </script>
 
 <style>
-  :root { --cpg-red: #d02b2f; --cpg-red-dark: #97262c; --cpg-gray: #3a3b3e; }
-
-  @keyframes popIn {
-    from { opacity: 0; transform: translateY(22px) scale(0.94); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-12px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .anim-fade { animation: fadeIn 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
-  .anim-pop { animation: popIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
-
-  .card-hover {
-    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
-  }
-  .card-hover:hover {
-    transform: translateY(-4px) scale(1.012);
-    box-shadow: 0 14px 28px rgba(208, 43, 47, 0.14);
-  }
-
-  .badge-periodo {
-    width: 48px;
-    height: 48px;
+  .pill-contador {
+    padding: 0.35rem 0.9rem;
     border-radius: 9999px;
-    display: flex;
+    font-weight: 600;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    background: #fbe1db;
-    color: var(--cpg-red);
-    font-weight: 800;
-    font-size: 1.1rem;
-    transition: transform 0.2s cubic-bezier(0.22,1,0.36,1);
+    gap: 0.35rem;
   }
-  .card-hover:hover .badge-periodo { transform: scale(1.12); }
+  @media print {
+    header, .no-imprimir, #buscador-alumnos, #error-box, #ok-box { display: none !important; }
+    body { background: #fff !important; }
+    main { padding-top: 0 !important; }
+    .titulo-impresion { display: block !important; }
+  }
+  .titulo-impresion { display: none; }
 </style>
 </head>
 <body class="bg-background text-on-background min-h-screen font-body-md">
 <header class="bg-surface border-b border-outline-variant sticky top-0 z-40">
-<div class="max-w-3xl mx-auto px-6 py-4 flex items-center gap-4">
+<div class="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
 <a id="link-volver" href="dashboard.html" class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center transition-colors">
 <span class="material-symbols-outlined">arrow_back</span>
 </a>
 <a href="dashboard.html" class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full flex items-center justify-center transition-colors" title="Ir al inicio" aria-label="Ir al inicio">
 <span class="material-symbols-outlined">home</span>
 </a>
-<div>
-<h1 class="anim-fade font-headline-md text-headline-md text-on-surface">Periodos / Parciales</h1>
+<div class="flex-1">
+<h1 class="font-headline-md text-headline-md text-on-surface">Corte de asistencia</h1>
 <p id="grupo-nombre" class="font-body-md text-body-md text-on-surface-variant"></p>
 </div>
+<a id="link-pasar-lista" href="#" class="text-primary font-label-lg text-label-lg hover:underline whitespace-nowrap">Pasar lista</a>
 </div>
 </header>
-
-<main class="max-w-3xl mx-auto px-6 py-8">
+<main class="max-w-4xl mx-auto px-6 py-8">
 <div id="error-box" class="hidden bg-error-container text-on-error-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 <div id="ok-box" class="hidden bg-secondary-container text-on-secondary-container rounded-DEFAULT p-4 mb-stack-md font-body-md text-body-md"></div>
 
-<p class="anim-fade font-body-md text-body-md text-on-surface-variant mb-stack-md">Divide el ciclo en parciales (ej. "Parcial 1", "Parcial 2", "Parcial 3") o déjalo sin periodos si prefieres un solo promedio para todo el ciclo (común en primaria). Al crear un examen o tarea podrás elegir a qué periodo pertenece. Las fechas son opcionales, pero el corte de asistencia las necesita para saber qué días cuentan en cada periodo.</p>
+<p class="no-imprimir font-body-md text-body-md text-on-surface-variant mb-stack-md">
+Quién tiene derecho a examen según su asistencia. El porcentaje cuenta los retardos como asistencia y solo los días en que se pasó lista. Esto solo marca: no bloquea ningún examen.
+</p>
 
-<div class="flex gap-4 mb-stack-md items-end flex-wrap">
-<div class="flex-1 flex flex-col min-w-[12rem]">
-<label class="font-label-lg text-label-lg text-on-surface mb-2" for="periodo-nombre">Nombre del periodo</label>
-<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="periodo-nombre" placeholder="Ej: Parcial 1" type="text"/>
+<div class="no-imprimir flex flex-col md:flex-row md:items-end gap-4 mb-stack-md">
+<div class="flex flex-col flex-1">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="corte-periodo">Periodo</label>
+<select id="corte-periodo" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary outline-none font-body-md text-body-md text-on-surface"></select>
 </div>
 <div class="flex flex-col">
-<label class="font-label-lg text-label-lg text-on-surface mb-2" for="periodo-inicio">Inicia</label>
-<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="periodo-inicio" type="date"/>
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="asistencia-minima">Mínimo para derecho (%)</label>
+<div class="flex gap-2">
+<input id="asistencia-minima" type="number" min="0" max="100" step="1" class="w-24 px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary outline-none font-body-md text-body-md text-on-surface"/>
+<button id="btn-guardar-minimo" class="px-4 py-3 rounded-DEFAULT border border-primary text-primary font-label-lg text-label-lg hover:bg-primary hover:text-on-primary transition-colors">Guardar</button>
 </div>
-<div class="flex flex-col">
-<label class="font-label-lg text-label-lg text-on-surface mb-2" for="periodo-fin">Termina</label>
-<input class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors" id="periodo-fin" type="date"/>
 </div>
-<button id="btn-agregar-periodo" class="card-hover h-[50px] px-6 bg-primary text-on-primary font-button-text text-button-text rounded-DEFAULT hover:opacity-90 transition-colors flex items-center gap-2 whitespace-nowrap">
-<span class="material-symbols-outlined">add</span> Agregar
-</button>
 </div>
 
-<div id="periodos-container" class="flex flex-col gap-2">
-<p class="text-on-surface-variant">Cargando periodos...</p>
+<div class="titulo-impresion mb-4">
+<h2 class="font-headline-md text-headline-md">Corte de asistencia</h2>
+</div>
+<p id="rango-corte" class="font-label-lg text-label-lg text-on-surface-variant mb-2"></p>
+<div id="resumen-corte" class="flex gap-2 mb-stack-md flex-wrap"></div>
+
+<div class="no-imprimir flex flex-col md:flex-row md:items-center justify-between gap-4 mb-stack-md">
+<input id="buscador-alumnos" type="text" placeholder="Buscar alumno..." class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary outline-none font-body-md text-body-md text-on-surface w-full md:max-w-sm"/>
+<div class="flex gap-2">
+<button id="btn-descargar" class="px-4 py-2 rounded-full border border-outline-variant text-on-surface font-label-lg text-label-lg hover:bg-surface-container-high transition-colors flex items-center gap-1"><span class="material-symbols-outlined text-lg">download</span> Excel (CSV)</button>
+<button id="btn-imprimir" class="px-4 py-2 rounded-full border border-outline-variant text-on-surface font-label-lg text-label-lg hover:bg-surface-container-high transition-colors flex items-center gap-1"><span class="material-symbols-outlined text-lg">print</span> Imprimir</button>
+</div>
+</div>
+
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-x-auto">
+<table class="w-full min-w-[640px]">
+<thead class="bg-surface-container-high">
+<tr>
+<th class="text-left py-3 px-4 font-label-lg text-label-lg text-on-surface">Alumno</th>
+<th class="text-center py-3 px-2 font-label-lg text-label-lg text-on-surface">Asist.</th>
+<th class="text-center py-3 px-2 font-label-lg text-label-lg text-on-surface">Retardos</th>
+<th class="text-center py-3 px-2 font-label-lg text-label-lg text-on-surface">Faltas</th>
+<th class="text-center py-3 px-2 font-label-lg text-label-lg text-on-surface">%</th>
+<th class="text-center py-3 px-2 font-label-lg text-label-lg text-on-surface">Derecho a examen</th>
+<th class="py-3 px-4"></th>
+</tr>
+</thead>
+<tbody id="tabla-corte-body">
+<tr><td colspan="7" class="py-6 px-4 text-center text-on-surface-variant">Cargando...</td></tr>
+</tbody>
+</table>
 </div>
 </main>
-<script type="module" src="assets/js/periodos.js"></script>
+<script type="module" src="assets/js/corte-asistencia.js"></script>
 <script type="module" src="assets/js/recargar.js"></script>
 </body></html>

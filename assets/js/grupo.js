@@ -375,6 +375,7 @@ async function init() {
   grupoActual = grupo;
   pintarEncabezado();
   document.getElementById('tab-asistencia')?.setAttribute('href', `asistencia.html?id=${grupoId}`);
+  document.getElementById('tab-corte')?.setAttribute('href', `corte-asistencia.html?id=${grupoId}`);
   document.getElementById('tab-sesion')?.setAttribute('href', `sesion.html?grupo=${grupoId}`);
   document.getElementById('tab-tareas')?.setAttribute('href', `tareas.html?id=${grupoId}`);
   document.getElementById('tab-participacion')?.setAttribute('href', `participacion.html?id=${grupoId}`);

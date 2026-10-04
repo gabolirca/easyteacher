@@ -54,7 +54,7 @@ create table examenes (
   fecha_apertura timestamptz,
   fecha_cierre timestamptz,
   duracion_min int,
-  link_token text not null unique default encode(gen_random_bytes(6), 'hex'),
+  link_token text not null unique default encode(extensions.gen_random_bytes(6), 'hex'),
   estado text not null default 'borrador' check (estado in ('borrador','abierto','cerrado')),
   created_at timestamptz not null default now()
 );

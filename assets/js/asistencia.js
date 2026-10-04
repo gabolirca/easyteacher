@@ -200,6 +200,7 @@ async function init() {
 
   document.getElementById('grupo-nombre').textContent = grupo.nombre;
   document.getElementById('link-volver').href = `grupo.html?id=${grupoId}`;
+  document.getElementById('link-corte').href = `corte-asistencia.html?id=${grupoId}`;
   const tituloEl = document.getElementById('page-title');
   if (tituloEl) tituloEl.textContent = `AulaFácil - Asistencia - ${grupo.nombre}`;
 

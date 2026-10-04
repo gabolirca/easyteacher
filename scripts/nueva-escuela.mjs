@@ -119,6 +119,11 @@ for (const [nombre, subcarpeta] of DEL_GENERADOR) {
   fs.mkdirSync(path.dirname(a), { recursive: true });
   fs.copyFileSync(path.join(descargas, nombre), a);
 }
+// El QR de asistencia lleva al centro assets/img/marca-qr.png. El generador no
+// lo produce, y si no se reemplaza el QR de la escuela nueva sale con el logo
+// del colegio anterior. El canvas lo escala, asi que basta el logo tal cual.
+fs.copyFileSync(path.join(descargas, 'logo-escuela.png'),
+                path.join(rutaDestino, 'assets', 'img', 'marca-qr.png'));
 
 console.log('  Apuntando a la base de la escuela ...');
 const rutaCliente = path.join(rutaDestino, 'assets', 'js', 'supabase-client.js');
@@ -151,14 +156,24 @@ cd ${rutaDestino}
 npm.cmd install
 npx.cmd supabase link --project-ref ${ref}
 npx.cmd supabase db push
+$sinJwt = @('validar-qr')
 foreach ($f in (Get-ChildItem supabase\\functions -Directory | Where-Object { $_.Name -notlike '_*' })) {
-  npx.cmd supabase functions deploy $f.Name
+  if ($sinJwt -contains $f.Name) { npx.cmd supabase functions deploy $f.Name --no-verify-jwt }
+  else { npx.cmd supabase functions deploy $f.Name }
 }
 \`\`\`
 
 Las carpetas que empiezan con guion bajo (\`_compartido\`) NO son funciones:
 son codigo que las demas importan. Por eso el bucle las salta. Si intentas
 desplegarlas, truena.
+
+\`validar-qr\` se despliega con \`--no-verify-jwt\` porque la llama quien escanea
+el QR sin haber iniciado sesion. Si se despliega sin esa bandera, el pase por
+QR falla con 401. Si algun dia otra funcion necesita lo mismo, agregala a
+\`$sinJwt\`.
+
+Para revisar: Supabase → Edge Functions → validar-qr → Details, "Verify JWT"
+debe decir OFF. Todas las demas, ON.
 
 ## 2. Restringir quién puede crear cuenta de maestro
 

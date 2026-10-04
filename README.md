@@ -105,9 +105,13 @@ assets/vendor/             SDK de Supabase y qrcode, sin CDN
 El código vive en `supabase/functions/`. Para bajar una versión desplegada:
 `npx supabase functions download <nombre>`, y para subir: `npx supabase functions deploy <nombre>`.
 
+**Excepción:** `validar-qr` se sube con `npx supabase functions deploy validar-qr --no-verify-jwt`
+(la llama quien escanea el QR sin sesión). Sin la bandera, el pase por QR responde 401.
+
 | Función | Qué hace |
 |---|---|
 | `crear-alumnos` | Alta en lote; la matrícula es única por maestro, y negocia un correo libre |
+| `recalificar-examen` | Botón *Recalificar* en resultados: vuelve a calificar los intentos entregados con la clave actual. Primero muestra qué cambiaría; guarda solo al confirmar |
 | `egresar-alumnos` | Marca el egreso y libera la matrícula para reciclarla |
 | `iniciar-examen` | Entrega el examen sin respuestas correctas, ancla el cronómetro |
 | `enviar-respuestas` | Califica en el servidor; idempotente para tolerar reintentos |
