@@ -913,6 +913,7 @@ function renderPregunta() {
 
   cont.innerHTML = `
     <span class="inline-block bg-surface-container-high text-on-surface-variant text-sm px-3 py-1 rounded-full mb-3">${p.puntos} pts</span>
+    ${p.instrucciones ? `<p class="font-body-md text-body-md text-on-surface-variant mb-2">${escapeHtml(p.instrucciones)}</p>` : ''}
     <p class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface mb-stack-md">${escapeHtml(p.texto)}</p>
     ${p.imagen_url ? `<img src="${escapeHtml(p.imagen_url)}" class="rounded-DEFAULT mb-stack-md w-full"/>` : ''}
     <div>${camposHtml}</div>

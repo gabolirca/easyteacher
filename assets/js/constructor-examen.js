@@ -63,6 +63,7 @@ function renderPreguntas() {
     <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 flex items-start justify-between gap-4">
       <div>
         <span class="inline-block bg-surface-container-high text-on-surface-variant text-sm px-3 py-1 rounded-full mb-2">${ETIQUETAS_TIPO[p.tipo]} · ${p.puntos} pts</span>
+        ${p.instrucciones ? `<p class="font-body-md text-on-surface-variant mb-1" style="font-size:13px;">${escapeHtml(p.instrucciones)}</p>` : ''}
         <p class="font-body-md text-body-md text-on-surface">${escapeHtml(p.texto)}</p>
       </div>
       <div class="flex gap-1 shrink-0">
@@ -103,6 +104,7 @@ function abrirPanel(tipo, existente = null, idx = null) {
   document.getElementById('selector-tipo').classList.add('hidden');
 
   const textoInicial = existente?.texto || '';
+  const instruccionesIniciales = existente?.instrucciones || '';
   const puntosInicial = existente?.puntos ?? 1;
 
   let camposEspecificos = '';
@@ -171,7 +173,13 @@ function abrirPanel(tipo, existente = null, idx = null) {
   panel.innerHTML = `
     <h3 class="font-headline-md text-headline-md text-primary mb-stack-md">${existente ? 'Editar' : 'Nueva'} pregunta — ${ETIQUETAS_TIPO[tipo]}</h3>
     <div class="flex flex-col mb-4">
-      <label class="font-label-lg text-label-lg text-on-surface mb-2">${tipo === 'relacionar' ? 'Instrucciones' : 'Pregunta'}</label>
+      <label class="font-label-lg text-label-lg text-on-surface mb-2" for="pregunta-instrucciones">Instrucciones (opcional)</label>
+      <input id="pregunta-instrucciones" class="${inputBase()}" type="text" maxlength="300"
+             placeholder="Ej: Lee y elige la respuesta correcta" value="${escapeHtml(instruccionesIniciales)}"/>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-2">Se muestra arriba del enunciado, mas chica. Sirve para no repetir la misma indicacion dentro de cada pregunta.</p>
+    </div>
+    <div class="flex flex-col mb-4">
+      <label class="font-label-lg text-label-lg text-on-surface mb-2">${tipo === 'relacionar' ? 'Enunciado' : 'Pregunta'}</label>
       ${toolbarSimbolos}
       <textarea id="pregunta-texto" class="${inputBase()}" rows="2" placeholder="Escribe la pregunta">${escapeHtml(textoInicial)}</textarea>
     </div>
@@ -281,6 +289,7 @@ function cerrarPanel() {
 
 function guardarPreguntaDelPanel(tipo) {
   const texto = document.getElementById('pregunta-texto').value.trim();
+  const instrucciones = document.getElementById('pregunta-instrucciones')?.value.trim() || '';
   const puntos = parseFloat(document.getElementById('pregunta-puntos').value) || 0;
 
   if (!texto) {
@@ -288,7 +297,7 @@ function guardarPreguntaDelPanel(tipo) {
     return;
   }
 
-  let nuevaPregunta = { tipo, texto, puntos, opciones: [], contenido_json: null, pide_procedimiento: false };
+  let nuevaPregunta = { tipo, texto, instrucciones: instrucciones || null, puntos, opciones: [], contenido_json: null, pide_procedimiento: false };
 
   if (tipo === 'opcion_multiple') {
     const filas = [...document.querySelectorAll('#lista-opciones .fila-opcion')];
@@ -421,6 +430,7 @@ async function guardarExamen() {
           examen_id: examenId,
           tipo: p.tipo,
           texto: p.texto,
+          instrucciones: p.instrucciones || null,
           puntos: p.puntos,
           orden: i,
           contenido_json: p.contenido_json,
@@ -551,11 +561,16 @@ async function cargarExamenExistente() {
     return;
   }
 
+  // Al guardar, el examen se reescribe entero: se borran las preguntas y se
+  // vuelven a insertar. Por eso TODO campo que exista en la base tiene que
+  // venir en este mapeo, o al editar el examen se pierde sin avisar.
   preguntas = (preguntasGuardadas || []).map((p) => ({
     tipo: p.tipo,
     texto: p.texto,
+    instrucciones: p.instrucciones || '',
     puntos: p.puntos,
     contenido_json: p.contenido_json,
+    pide_procedimiento: !!p.pide_procedimiento,
     opciones: (p.opciones || []).sort((a, b) => a.orden - b.orden).map((o) => ({ texto: o.texto, es_correcta: o.es_correcta })),
   }));
 

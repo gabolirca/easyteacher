@@ -429,11 +429,15 @@ function renderTablaPeriodo(filas) {
   const rubrosPeriodo = filas[0]?.rubrosPeriodo || rubrosDeVista();
   const columnasRubros = rubrosPeriodo.map((r) => `<th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">${escapeHtml(r.nombre)}</th>`).join('');
 
+  // Con varios rubros la tabla se pasa del ancho de la pantalla. Va dentro de
+  // un carril con scroll horizontal, y la columna del alumno se queda fija
+  // para no perder de vista de quien es el renglon al deslizar.
   contenedor.innerHTML = `
-    <table class="w-full">
+    <div class="overflow-x-auto">
+    <table class="w-full min-w-max">
       <thead class="bg-surface-container-high">
         <tr>
-          <th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Alumno</th>
+          <th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface bg-surface-container-high" style="position:sticky;left:0;z-index:2;">Alumno</th>
           <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">${escapeHtml(etiquetas.examenes)} (0-10)</th>
           <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">${escapeHtml(etiquetas.tareas)} (0-10)</th>
           <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">${escapeHtml(etiquetas.participacion)}</th>
@@ -444,7 +448,7 @@ function renderTablaPeriodo(filas) {
       <tbody>
         ${filas.map((f, i) => `
           <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
-            <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(f.nombre)}</td>
+            <td class="py-3 px-6 font-body-md text-body-md text-on-surface bg-surface-container-lowest" style="position:sticky;left:0;z-index:1;">${escapeHtml(f.nombre)}</td>
             <td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">
               <div class="flex items-center justify-center gap-2">
                 <span class="${f.examenCapturado ? 'text-primary font-bold' : ''}">${f.promExamenes ?? '—'}</span>
@@ -470,7 +474,8 @@ function renderTablaPeriodo(filas) {
             </td>
           </tr>`).join('')}
       </tbody>
-    </table>`;
+    </table>
+    </div>`;
 
   contenedor.querySelectorAll('.btn-ajustar').forEach((b) => {
     b.addEventListener('click', () => abrirAjuste(b.dataset.alumno));
@@ -665,30 +670,80 @@ document.getElementById('btn-guardar-captura')?.addEventListener('click', guarda
 document.getElementById('btn-quitar-captura')?.addEventListener('click', quitarCaptura);
 document.getElementById('btn-cancelar-captura')?.addEventListener('click', cerrarCaptura);
 
+// Promedio del ciclo.
+//
+// Antes era el promedio simple de los parciales: todos valian igual. En la
+// escuela no es asi — el primero vale 25, el segundo 30 y el tercero el resto.
+// Si el grupo tiene pesos puestos se pondera; si estan todos en cero se sigue
+// usando el promedio simple de siempre, para no cambiarle la calificacion a
+// ningun grupo que ya venia trabajando.
+//
+// Se normaliza entre los parciales que SI tienen calificacion: a un alumno que
+// llego a mitad del ciclo no se le cuenta como cero el parcial que no cursó.
+function hayPesosDePeriodo() {
+  return periodos.some((p) => (Number(p.peso) || 0) > 0);
+}
+
 function promedioCiclo(alumnoId) {
-  const valores = periodos
-    .map((p) => resultadosPorPeriodo[p.id]?.find((f) => f.alumnoId === alumnoId)?.promedioFinal)
-    .filter((v) => v !== null && v !== undefined);
-  if (valores.length === 0) return null;
-  return num(valores.reduce((s, v) => s + v, 0) / valores.length);
+  const partes = periodos
+    .map((p) => ({
+      peso: Number(p.peso) || 0,
+      valor: resultadosPorPeriodo[p.id]?.find((f) => f.alumnoId === alumnoId)?.promedioFinal,
+    }))
+    .filter((x) => x.valor !== null && x.valor !== undefined);
+
+  if (partes.length === 0) return null;
+
+  if (!hayPesosDePeriodo()) {
+    return num(partes.reduce((s, x) => s + x.valor, 0) / partes.length);
+  }
+
+  const pesoUsado = partes.reduce((s, x) => s + x.peso, 0);
+  if (pesoUsado <= 0) return null;
+  return num(partes.reduce((s, x) => s + x.valor * x.peso, 0) / pesoUsado);
 }
 
 function renderTablaCiclo() {
   const contenedor = document.getElementById('tabla-container');
+  const ponderado = hayPesosDePeriodo();
 
   contenedor.innerHTML = `
-    <table class="w-full">
+    <div class="p-6 border-b border-outline-variant">
+      <h3 class="font-label-lg text-label-lg text-on-surface mb-1">Cuánto vale cada parcial (%)</h3>
+      <p class="font-body-md text-body-md text-on-surface-variant mb-3">
+        Déjalos todos en 0 y el promedio del ciclo es el promedio simple de los parciales.
+        En cuanto pongas uno, se pondera.
+      </p>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-gutter">
+        ${periodos.map((p) => `
+          <div class="flex flex-col">
+            <label class="font-label-lg text-label-lg text-on-surface mb-2" for="peso-periodo-${p.id}">${escapeHtml(p.nombre)}</label>
+            <input id="peso-periodo-${p.id}" type="number" min="0" step="1" value="${Number(p.peso) || 0}"
+                   class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors"/>
+          </div>`).join('')}
+      </div>
+      <div class="flex flex-wrap items-center gap-4 mt-3">
+        <button id="btn-guardar-pesos-periodo" class="bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-3 px-6 hover:bg-primary hover:text-on-primary transition-colors">Guardar</button>
+        <p id="suma-pesos-periodo" class="font-body-md text-body-md text-on-surface-variant"></p>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+    <table class="w-full min-w-max">
       <thead class="bg-surface-container-high">
         <tr>
-          <th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface">Alumno</th>
-          ${periodos.map((p) => `<th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">${escapeHtml(p.nombre)}</th>`).join('')}
+          <th class="text-left py-3 px-6 font-label-lg text-label-lg text-on-surface bg-surface-container-high" style="position:sticky;left:0;z-index:2;">Alumno</th>
+          ${periodos.map((p) => {
+            const peso = Number(p.peso) || 0;
+            return `<th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">${escapeHtml(p.nombre)}${ponderado ? `<span class="block font-body-md text-on-surface-variant" style="font-size:12px;">${peso}%</span>` : ''}</th>`;
+          }).join('')}
           <th class="text-center py-3 px-6 font-label-lg text-label-lg text-on-surface">Promedio del ciclo</th>
         </tr>
       </thead>
       <tbody>
         ${alumnosGrupo.map((a, i) => `
           <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
-            <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</td>
+            <td class="py-3 px-6 font-body-md text-body-md text-on-surface bg-surface-container-lowest" style="position:sticky;left:0;z-index:1;">${escapeHtml(a.nombre)}</td>
             ${periodos.map((p) => {
               const val = resultadosPorPeriodo[p.id]?.find((f) => f.alumnoId === a.id)?.promedioFinal;
               return `<td class="py-3 px-6 text-center font-body-md text-body-md text-on-surface-variant">${val ?? '—'}</td>`;
@@ -696,7 +751,46 @@ function renderTablaCiclo() {
             <td class="py-3 px-6 text-center font-headline-lg-mobile text-on-surface font-bold">${promedioCiclo(a.id) ?? '—'}</td>
           </tr>`).join('')}
       </tbody>
-    </table>`;
+    </table>
+    </div>`;
+
+  const sumaPesos = () => {
+    const total = periodos.reduce((s, p) =>
+      s + (parseFloat(document.getElementById(`peso-periodo-${p.id}`)?.value) || 0), 0);
+    const el = document.getElementById('suma-pesos-periodo');
+    if (el) {
+      el.textContent = total === 0
+        ? 'Todos en 0: se usa el promedio simple.'
+        : `Suma: ${total}%` + (total === 100 ? ' ✓' : ' (no tiene que dar 100, se reparte en proporción)');
+    }
+  };
+
+  periodos.forEach((p) => {
+    document.getElementById(`peso-periodo-${p.id}`)?.addEventListener('input', sumaPesos);
+  });
+  sumaPesos();
+
+  document.getElementById('btn-guardar-pesos-periodo')?.addEventListener('click', guardarPesosDePeriodo);
+}
+
+async function guardarPesosDePeriodo() {
+  const btn = document.getElementById('btn-guardar-pesos-periodo');
+  btn.disabled = true;
+  try {
+    for (const p of periodos) {
+      const valor = parseFloat(document.getElementById(`peso-periodo-${p.id}`)?.value) || 0;
+      if (valor < 0) throw new Error(`El peso de "${p.nombre}" no puede ser negativo`);
+      const { error } = await supabase.from('periodos').update({ peso: valor }).eq('id', p.id);
+      if (error) throw new Error(error.message);
+      p.peso = valor;
+    }
+    mostrarOk('Listo. El promedio del ciclo ya usa estos pesos.');
+    renderVistaActual();
+  } catch (e) {
+    mostrarError(`No se pudo guardar: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ---------- Exportar a Excel ----------
@@ -754,10 +848,14 @@ document.getElementById('btn-exportar').addEventListener('click', () => {
       window.XLSX.utils.book_append_sheet(libro, window.XLSX.utils.json_to_sheet(datos), nombreHoja);
     });
 
+    const ponderado = hayPesosDePeriodo();
     const resumen = alumnosGrupo.map((a) => {
       const fila = { Alumno: a.nombre };
       periodos.forEach((p) => {
-        fila[p.nombre] = resultadosPorPeriodo[p.id]?.find((f) => f.alumnoId === a.id)?.promedioFinal ?? '';
+        // Si el ciclo esta ponderado, el encabezado dice cuanto vale cada
+        // parcial: si no, quien abre el Excel no puede reproducir el promedio.
+        const col = ponderado ? `${p.nombre} (${Number(p.peso) || 0}%)` : p.nombre;
+        fila[col] = resultadosPorPeriodo[p.id]?.find((f) => f.alumnoId === a.id)?.promedioFinal ?? '';
       });
       fila['Promedio del ciclo'] = promedioCiclo(a.id) ?? '';
       return fila;
@@ -824,7 +922,7 @@ async function init() {
   }
   alumnosGrupo = (alumnosData || []).map((r) => r.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-  const { data: periodosData } = await supabase.from('periodos').select('id, nombre').eq('grupo_id', grupoId).order('orden', { ascending: true });
+  const { data: periodosData } = await supabase.from('periodos').select('id, nombre, peso').eq('grupo_id', grupoId).order('orden', { ascending: true });
   periodos = periodosData || [];
   vistaActual = periodos.length > 0 ? 'ciclo' : 'sin';
 
