@@ -15,6 +15,9 @@ let linkToken = null;
 // Cada pregunta en memoria: { tipo, texto, puntos, opciones: [{texto, es_correcta}], contenido_json }
 let preguntas = [];
 let editandoIndex = null; // índice de la pregunta que se está editando, o null si es nueva
+// Preguntas que tenia el examen al abrirlo. Sirve para avisar si al guardar
+// se va a quitar alguna que los alumnos ya contestaron.
+let idsAlAbrir = [];
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -237,7 +240,7 @@ function abrirPanel(tipo, existente = null, idx = null) {
 
 function filaOpcion(o, i) {
   return `
-    <div class="fila-opcion flex items-center gap-2" data-i="${i}">
+    <div class="fila-opcion flex items-center gap-2" data-i="${i}" data-id="${o.id || ''}">
       <input type="radio" name="opcion-correcta" class="radio-correcta" ${o.es_correcta ? 'checked' : ''}/>
       <input type="text" class="input-texto-opcion ${inputBase()}" placeholder="Opción ${i + 1}" value="${escapeHtml(o.texto)}"/>
       <button type="button" class="btn-quitar-opcion text-error hover:bg-error-container p-2 rounded-full transition-colors" aria-label="Quitar">
@@ -301,7 +304,11 @@ function guardarPreguntaDelPanel(tipo) {
 
   if (tipo === 'opcion_multiple') {
     const filas = [...document.querySelectorAll('#lista-opciones .fila-opcion')];
+    // El id viaja con la fila: la respuesta del alumno guarda el id de la
+    // opcion, asi que si al guardar le toca uno nuevo, su respuesta queda
+    // huerfana y se califica como mala.
     const opciones = filas.map((f) => ({
+      id: f.dataset.id || null,
       texto: f.querySelector('.input-texto-opcion').value.trim(),
       es_correcta: f.querySelector('.radio-correcta').checked,
     }));
@@ -316,9 +323,11 @@ function guardarPreguntaDelPanel(tipo) {
     nuevaPregunta.opciones = opciones;
   } else if (tipo === 'verdadero_falso') {
     const correcta = document.querySelector('input[name="vf-correcta"]:checked')?.value || 'Verdadero';
+    const previas = (editandoIndex !== null ? preguntas[editandoIndex]?.opciones : null) || [];
+    const idDe = (t) => previas.find((o) => o.texto === t)?.id || null;
     nuevaPregunta.opciones = [
-      { texto: 'Verdadero', es_correcta: correcta === 'Verdadero' },
-      { texto: 'Falso', es_correcta: correcta === 'Falso' },
+      { id: idDe('Verdadero'), texto: 'Verdadero', es_correcta: correcta === 'Verdadero' },
+      { id: idDe('Falso'), texto: 'Falso', es_correcta: correcta === 'Falso' },
     ];
   } else if (tipo === 'relacionar') {
     const filas = [...document.querySelectorAll('#lista-pares .fila-par')];
@@ -348,6 +357,9 @@ function guardarPreguntaDelPanel(tipo) {
   }
 
   if (editandoIndex !== null) {
+    // Conserva el id: sin el, al guardar se insertaria como pregunta nueva
+    // y las respuestas de los alumnos se quedarian colgando de la vieja.
+    nuevaPregunta.id = preguntas[editandoIndex]?.id || null;
     preguntas[editandoIndex] = nuevaPregunta;
   } else {
     preguntas.push(nuevaPregunta);
@@ -373,6 +385,27 @@ async function guardarExamen() {
   if (preguntas.length === 0) {
     mostrarError('Agrega al menos una pregunta antes de guardar');
     return;
+  }
+
+  // Si ya hay alumnos que contestaron y el maestro quito preguntas, esas
+  // respuestas se pierden al guardar (cuelgan de la pregunta). Eso si hay que
+  // avisarlo: lo demas ya no destruye nada.
+  if (examenId && idsAlAbrir.length > 0) {
+    const siguen = new Set(preguntas.map((p) => p.id).filter(Boolean));
+    const quitadas = idsAlAbrir.filter((id) => !siguen.has(id));
+    if (quitadas.length > 0) {
+      const { count } = await supabase
+        .from('intentos').select('id', { count: 'exact', head: true }).eq('examen_id', examenId);
+      if ((count || 0) > 0) {
+        const ok = window.confirm(
+          `Quitaste ${quitadas.length} pregunta${quitadas.length === 1 ? '' : 's'} de un examen que ` +
+          `${count} alumno${count === 1 ? '' : 's'} ya contestó.\n\n` +
+          'Lo que hayan respondido en esas preguntas se borra y no se puede recuperar. ' +
+          'El resto de sus respuestas no se toca.\n\n¿Guardar de todos modos?'
+        );
+        if (!ok) return;
+      }
+    }
   }
 
   const btn = document.getElementById('btn-guardar-examen');
@@ -409,11 +442,16 @@ async function guardarExamen() {
     if (examenId) {
       const { error } = await supabase.from('examenes').update(payloadExamen).eq('id', examenId);
       if (error) throw error;
-      // Enfoque simple: al re-guardar, se borran las preguntas anteriores y se
-      // insertan las actuales (evita tener que calcular diffs). Los intentos de
-      // alumnos que ya hayan respondido no se tocan por este flujo.
-      const { error: errorBorrar } = await supabase.from('preguntas').delete().eq('examen_id', examenId);
-      if (errorBorrar) throw errorBorrar;
+      // OJO: aqui NO se borran las preguntas.
+      //
+      // Antes se borraban todas y se volvian a insertar, porque era mas simple
+      // que calcular diferencias. El problema es que respuestas.pregunta_id
+      // cuelga de preguntas con ON DELETE CASCADE: ese borrado se llevaba en
+      // cascada TODAS las respuestas de TODOS los alumnos del examen, sin
+      // avisar. El maestro corregia un acento y perdia el examen del grupo.
+      //
+      // Ahora se actualiza en su lugar: lo que ya existe se actualiza por su
+      // id, lo nuevo se inserta, y solo se borra lo que de verdad se quito.
     } else {
       const { data: nuevoExamen, error } = await supabase.from('examenes').insert(payloadExamen).select().single();
       if (error) throw error;
@@ -422,36 +460,70 @@ async function guardarExamen() {
       estadoActual = nuevoExamen.estado;
     }
 
+    const idsDePreguntaQueQuedan = [];
+
     for (let i = 0; i < preguntas.length; i++) {
       const p = preguntas[i];
-      const { data: preguntaGuardada, error: errorPregunta } = await supabase
-        .from('preguntas')
-        .insert({
-          examen_id: examenId,
-          tipo: p.tipo,
-          texto: p.texto,
-          instrucciones: p.instrucciones || null,
-          puntos: p.puntos,
-          orden: i,
-          contenido_json: p.contenido_json,
-          pide_procedimiento: !!p.pide_procedimiento,
-        })
-        .select()
-        .single();
-      if (errorPregunta) throw errorPregunta;
+      const fila = {
+        examen_id: examenId,
+        tipo: p.tipo,
+        texto: p.texto,
+        instrucciones: p.instrucciones || null,
+        puntos: p.puntos,
+        orden: i,
+        contenido_json: p.contenido_json,
+        pide_procedimiento: !!p.pide_procedimiento,
+      };
 
-      if (p.opciones && p.opciones.length > 0) {
-        const filasOpciones = p.opciones.map((o, oi) => ({
-          pregunta_id: preguntaGuardada.id,
-          texto: o.texto,
-          es_correcta: o.es_correcta,
-          orden: oi,
-        }));
-        const { error: errorOpciones } = await supabase.from('opciones').insert(filasOpciones);
-        if (errorOpciones) throw errorOpciones;
+      let preguntaId = p.id || null;
+      if (preguntaId) {
+        const { error } = await supabase.from('preguntas').update(fila).eq('id', preguntaId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from('preguntas').insert(fila).select('id').single();
+        if (error) throw error;
+        preguntaId = data.id;
       }
+      p.id = preguntaId;                 // por si vuelve a guardar sin recargar
+      idsDePreguntaQueQuedan.push(preguntaId);
+
+      // --- opciones de esta pregunta ---
+      // Su id tambien se conserva: la respuesta del alumno a una de opcion
+      // multiple guarda el id de la opcion que eligio.
+      const idsDeOpcionQueQuedan = [];
+      const opciones = p.opciones || [];
+      for (let oi = 0; oi < opciones.length; oi++) {
+        const o = opciones[oi];
+        const filaOpcion = { pregunta_id: preguntaId, texto: o.texto, es_correcta: o.es_correcta, orden: oi };
+        if (o.id) {
+          const { error } = await supabase.from('opciones').update(filaOpcion).eq('id', o.id);
+          if (error) throw error;
+          idsDeOpcionQueQuedan.push(o.id);
+        } else {
+          const { data, error } = await supabase.from('opciones').insert(filaOpcion).select('id').single();
+          if (error) throw error;
+          o.id = data.id;
+          idsDeOpcionQueQuedan.push(data.id);
+        }
+      }
+
+      let borrarOpciones = supabase.from('opciones').delete().eq('pregunta_id', preguntaId);
+      if (idsDeOpcionQueQuedan.length > 0) {
+        borrarOpciones = borrarOpciones.not('id', 'in', `(${idsDeOpcionQueQuedan.join(',')})`);
+      }
+      const { error: errorBorrarOpciones } = await borrarOpciones;
+      if (errorBorrarOpciones) throw errorBorrarOpciones;
     }
 
+    // Solo se van las preguntas que el maestro quito de verdad.
+    let borrarPreguntas = supabase.from('preguntas').delete().eq('examen_id', examenId);
+    if (idsDePreguntaQueQuedan.length > 0) {
+      borrarPreguntas = borrarPreguntas.not('id', 'in', `(${idsDePreguntaQueQuedan.join(',')})`);
+    }
+    const { error: errorBorrarPreguntas } = await borrarPreguntas;
+    if (errorBorrarPreguntas) throw errorBorrarPreguntas;
+
+    idsAlAbrir = preguntas.map((p) => p.id).filter(Boolean);
     mostrarOk('Examen guardado correctamente.');
     document.getElementById('btn-generar-link').disabled = false;
 
@@ -564,14 +636,16 @@ async function cargarExamenExistente() {
   // Al guardar, el examen se reescribe entero: se borran las preguntas y se
   // vuelven a insertar. Por eso TODO campo que exista en la base tiene que
   // venir en este mapeo, o al editar el examen se pierde sin avisar.
+  idsAlAbrir = (preguntasGuardadas || []).map((p) => p.id);
   preguntas = (preguntasGuardadas || []).map((p) => ({
+    id: p.id,
     tipo: p.tipo,
     texto: p.texto,
     instrucciones: p.instrucciones || '',
     puntos: p.puntos,
     contenido_json: p.contenido_json,
     pide_procedimiento: !!p.pide_procedimiento,
-    opciones: (p.opciones || []).sort((a, b) => a.orden - b.orden).map((o) => ({ texto: o.texto, es_correcta: o.es_correcta })),
+    opciones: (p.opciones || []).sort((a, b) => a.orden - b.orden).map((o) => ({ id: o.id, texto: o.texto, es_correcta: o.es_correcta })),
   }));
 
   renderPreguntas();

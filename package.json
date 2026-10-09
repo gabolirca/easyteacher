@@ -7,7 +7,8 @@
     "css:watch": "tailwindcss -c tailwind.config.js -i assets/css/entrada.css -o assets/css/app.css --watch",
     "vendor": "esbuild .entry-supabase.js --bundle --format=esm --minify --target=es2020 --outfile=assets/vendor/supabase.js",
     "fuentes": "node scripts/bajar-fuentes.mjs",
-    "vendor:marca": "esbuild .entry-marca.js --bundle --format=iife --global-name=MC --minify --target=es2020 --outfile=herramientas/vendor/material-color.js"
+    "vendor:marca": "esbuild .entry-marca.js --bundle --format=iife --global-name=MC --minify --target=es2020 --outfile=herramientas/vendor/material-color.js",
+    "donde": "node scripts/donde-estoy.mjs"
   },
   "repository": {
     "type": "git",

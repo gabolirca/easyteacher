@@ -188,7 +188,12 @@ Deno.serve(async (req: Request) => {
     let mapeoCambio = false;
 
     const preguntasSanitizadas = (preguntas || []).map((p: any) => {
-      const base = { id: p.id, tipo: p.tipo, texto: p.texto, imagen_url: p.imagen_url, puntos: p.puntos,
+      // Lista blanca a proposito: al alumno solo le llega lo que necesita para
+      // contestar, nunca las respuestas correctas. Todo campo nuevo de la
+      // tabla hay que agregarlo AQUI, o el navegador no lo recibe aunque
+      // exista en la base.
+      const base = { id: p.id, tipo: p.tipo, texto: p.texto, instrucciones: p.instrucciones || null,
+                     imagen_url: p.imagen_url, puntos: p.puntos,
                      pide_procedimiento: !!p.pide_procedimiento };
 
       if (p.tipo === "opcion_multiple" || p.tipo === "verdadero_falso") {
