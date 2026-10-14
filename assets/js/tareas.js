@@ -84,11 +84,49 @@ async function cargarTareas() {
           <h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">${escapeHtml(t.titulo)}</h3>
           <p class="font-body-md text-body-md text-on-surface-variant mt-1">${formatoFecha(t.fecha_limite)} · peso ${t.peso_ponderacion} · ${calificados} alumno(s) calificados${t.periodos?.nombre ? ` · ${escapeHtml(t.periodos.nombre)}` : ''}</p>
         </div>
-        <a class="border-2 border-primary text-primary font-button-text text-button-text py-2 px-6 rounded-full hover:bg-primary hover:text-on-primary transition-colors shrink-0" href="calificar-tarea.html?tarea_id=${t.id}">
-          Calificar
-        </a>
+        <div class="flex gap-2 shrink-0">
+          <button class="btn-eliminar-tarea text-error hover:bg-error-container p-2 rounded-full transition-colors" data-tarea-id="${t.id}" data-titulo="${escapeHtml(t.titulo)}" data-calificados="${calificados}" aria-label="Eliminar tarea">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+          <a class="border-2 border-primary text-primary font-button-text text-button-text py-2 px-6 rounded-full hover:bg-primary hover:text-on-primary transition-colors" href="calificar-tarea.html?tarea_id=${t.id}">
+            Calificar
+          </a>
+        </div>
       </div>`;
   }).join('');
+
+  // Borrar una tarea se lleva sus calificaciones: calificaciones_tareas.tarea_id
+  // cuelga de tareas con ON DELETE CASCADE. Por eso el aviso dice cuantas son,
+  // en vez de un "se borran tambien" generico que no deja medir el daño.
+  contenedor.querySelectorAll('.btn-eliminar-tarea').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const titulo = btn.dataset.titulo;
+      const calificados = Number(btn.dataset.calificados) || 0;
+      const aviso = calificados > 0
+        ? `¿Eliminar la tarea "${titulo}"?\n\nTiene ${calificados} calificación(es) capturadas y se borran junto con ella. Esto no se puede deshacer.`
+        : `¿Eliminar la tarea "${titulo}"?\n\nTodavía no tiene calificaciones capturadas.`;
+      if (!window.confirm(aviso)) return;
+
+      btn.disabled = true;
+      const { data: borradas, error: errorBorrar } = await supabase
+        .from('tareas').delete().eq('id', btn.dataset.tareaId).select('id');
+      btn.disabled = false;
+
+      if (errorBorrar) {
+        mostrarError(`No se pudo eliminar: ${errorBorrar.message}`);
+        return;
+      }
+      // Sin error pero sin filas = la RLS no dejo borrar. Sin esto, el boton
+      // "funciona" y la tarea sigue ahi.
+      if (!borradas || borradas.length === 0) {
+        mostrarError('No se eliminó nada: parece que esta tarea no es de uno de tus grupos.');
+        return;
+      }
+
+      mostrarOk(`Tarea "${titulo}" eliminada.`);
+      await cargarTareas();
+    });
+  });
 }
 
 document.getElementById('btn-nueva-tarea').addEventListener('click', () => {
