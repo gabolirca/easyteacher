@@ -222,10 +222,22 @@ async function calcularParaPeriodo(periodoId) {
     } else {
       // Las fichas que ya se llevo un corte no vuelven a contar aqui, igual
       // que en el ranking de la pantalla de participacion.
-      let qPart = supabase.from('participaciones').select('alumno_id, valor')
-        .eq('grupo_id', grupoId).is('cerrada_en', null);
-      const { data: participaciones, error: errorPart } = await qPart;
-      if (errorPart) throw new Error(`Participación: ${errorPart.message}`);
+      // Modo diario con un periodo que tiene fechas: cuentan los registros
+      // dentro de esas fechas (el periodo hace de corte). Lo demas, igual.
+      const periodoActual = (periodos || []).find((p) => p.id === periodoId);
+      const porFechas = modoParticipacion === 'diario' && periodoActual?.fecha_inicio && periodoActual?.fecha_fin;
+      const participaciones = [];
+      for (let desde = 0; ; desde += 1000) {
+        let qPart = supabase.from('participaciones').select('alumno_id, valor')
+          .eq('grupo_id', grupoId).order('id', { ascending: true }).range(desde, desde + 999);
+        qPart = porFechas
+          ? qPart.eq('tipo_ficha', 'diario').gte('fecha', periodoActual.fecha_inicio).lte('fecha', periodoActual.fecha_fin)
+          : qPart.is('cerrada_en', null);
+        const { data: pagina, error: errorPart } = await qPart;
+        if (errorPart) throw new Error(`Participación: ${errorPart.message}`);
+        participaciones.push(...(pagina || []));
+        if (!pagina || pagina.length < 1000) break;
+      }
       (participaciones || []).forEach((p) => {
         participacionPorAlumno[p.alumno_id] = (participacionPorAlumno[p.alumno_id] || 0) + Number(p.valor);
       });
@@ -922,7 +934,7 @@ async function init() {
   }
   alumnosGrupo = (alumnosData || []).map((r) => r.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-  const { data: periodosData } = await supabase.from('periodos').select('id, nombre, peso').eq('grupo_id', grupoId).order('orden', { ascending: true });
+  const { data: periodosData } = await supabase.from('periodos').select('id, nombre, peso, fecha_inicio, fecha_fin').eq('grupo_id', grupoId).order('orden', { ascending: true });
   periodos = periodosData || [];
   vistaActual = periodos.length > 0 ? 'ciclo' : 'sin';
 

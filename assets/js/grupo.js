@@ -392,6 +392,7 @@ async function init() {
   document.getElementById('tab-alumnos')?.setAttribute('href', `alumnos.html?id=${grupoId}`);
   document.getElementById('tab-rubros')?.setAttribute('href', `rubros.html?id=${grupoId}`);
   document.getElementById('tab-periodos')?.setAttribute('href', `periodos.html?id=${grupoId}`);
+  document.getElementById('tab-planeacion')?.setAttribute('href', `planeacion.html?id=${grupoId}`);
 
   // Cada maestro ve solo la via de participacion que eligio en su perfil.
   // Tener "Participacion" y "Clase en vivo" al mismo tiempo es redundante y

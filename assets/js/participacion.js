@@ -585,22 +585,49 @@ async function cargarDiario() {
 
   alumnosDiario = (alumnosData || []).map((row) => row.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-  const { data: todas, error: errorTodas } = await supabase
-    .from('participaciones')
-    .select('alumno_id, valor')
-    .eq('grupo_id', grupoId)
-    .eq('tipo_ficha', 'diario')
-    .is('cerrada_en', null);
+  await cargarTotalesDiario();
+  await cargarValoresDeHoy();
+}
 
-  if (errorTodas) {
-    mostrarError(`No se pudieron cargar los totales: ${errorTodas.message}`);
-    return;
+// Que cuenta el "total acumulado" del modo diario:
+//  - Si el periodo elegido tiene fechas, los registros ENTRE esas fechas. El
+//    periodo es el corte: no hace falta acordarse de "limpiar puntos" al
+//    cambiar de parcial, y un dia del parcial siguiente nunca se cuela.
+//  - Si no tiene fechas (o no hay periodos), como siempre: todo lo que no se
+//    ha limpiado.
+function periodoDiarioElegido() {
+  const id = document.getElementById('diario-periodo')?.value || '';
+  return periodos.find((p) => p.id === id) || null;
+}
+
+async function cargarTotalesDiario() {
+  const periodo = periodoDiarioElegido();
+  const conFechas = periodo?.fecha_inicio && periodo?.fecha_fin;
+  const filas = [];
+  for (let desde = 0; ; desde += 1000) {
+    let q = supabase.from('participaciones').select('alumno_id, valor')
+      .eq('grupo_id', grupoId).eq('tipo_ficha', 'diario')
+      .order('id', { ascending: true }).range(desde, desde + 999);
+    q = conFechas ? q.gte('fecha', periodo.fecha_inicio).lte('fecha', periodo.fecha_fin) : q.is('cerrada_en', null);
+    const { data, error } = await q;
+    if (error) {
+      mostrarError(`No se pudieron cargar los totales: ${error.message}`);
+      return;
+    }
+    filas.push(...(data || []));
+    if (!data || data.length < 1000) break;
   }
 
   totalesDiario = {};
-  (todas || []).forEach((p) => { totalesDiario[p.alumno_id] = (totalesDiario[p.alumno_id] || 0) + Number(p.valor); });
+  filas.forEach((p) => { totalesDiario[p.alumno_id] = (totalesDiario[p.alumno_id] || 0) + Number(p.valor); });
 
-  await cargarValoresDeHoy();
+  const aviso = document.getElementById('diario-rango');
+  if (aviso) {
+    const corta = (f) => new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    aviso.textContent = conFechas
+      ? `El total cuenta solo lo registrado en ${periodo.nombre}: del ${corta(periodo.fecha_inicio)} al ${corta(periodo.fecha_fin)}.`
+      : (periodo ? `${periodo.nombre} no tiene fechas: el total cuenta todo lo acumulado desde la última vez que limpiaste los puntos. Ponle fechas en Periodos para que se corte solo.` : '');
+  }
 }
 
 async function cargarValoresDeHoy() {
@@ -679,7 +706,8 @@ document.getElementById('btn-guardar-diario').addEventListener('click', async ()
     }
 
     mostrarOk('Registro del día guardado.');
-    await cargarDiario();
+    await cargarTotalesDiario();
+    renderDiario();
   } catch (err) {
     mostrarError(err.message || 'No se pudo guardar el registro');
   } finally {
@@ -780,7 +808,12 @@ async function limpiarPuntosDiario() {
 
 document.getElementById('btn-limpiar-puntos-diario')?.addEventListener('click', limpiarPuntosDiario);
 
-document.getElementById('diario-periodo')?.addEventListener('change', mostrarUltimoCorteDiario);
+document.getElementById('diario-periodo')?.addEventListener('change', async () => {
+  await cargarTotalesDiario();
+  renderDiario();
+  if (!document.getElementById('corte-diario-container').classList.contains('hidden')) await abrirCorteDiario();
+  else await mostrarUltimoCorteDiario();
+});
 
 document.getElementById('btn-aplicar-corte-diario').addEventListener('click', async () => {
   const media = parseFloat(document.getElementById('corte-diario-media').value);
@@ -827,7 +860,7 @@ document.getElementById('btn-aplicar-corte-diario').addEventListener('click', as
 // ================= INICIO =================
 
 async function cargarPeriodosParticipacion() {
-  const { data } = await supabase.from('periodos').select('id, nombre').eq('grupo_id', grupoId).order('orden', { ascending: true });
+  const { data } = await supabase.from('periodos').select('id, nombre, fecha_inicio, fecha_fin').eq('grupo_id', grupoId).order('orden', { ascending: true });
   periodos = data || [];
   if (periodos.length === 0) return;
 
@@ -850,6 +883,10 @@ async function cargarPeriodosParticipacion() {
   if (selectDiario) {
     selectDiario.innerHTML = opciones;
     document.getElementById('campo-periodo-diario').classList.remove('hidden');
+    // Por defecto, el periodo en el que cae la fecha de hoy.
+    const hoy = hoyLocal();
+    const actual = periodos.find((p) => p.fecha_inicio && p.fecha_fin && p.fecha_inicio <= hoy && hoy <= p.fecha_fin);
+    if (actual) selectDiario.value = actual.id;
   }
 }
 
