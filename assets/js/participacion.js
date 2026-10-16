@@ -13,6 +13,7 @@ let alumnos = []; // [{id, nombre}]
 let totales = {}; // { alumno_id: suma de participaciones que siguen contando }
 let ultimoCorteId = null;
 let ultimoCorteDiarioId = null;
+let ultimoCorteSimpleId = null;
 let periodos = []; // [{id, nombre}]
 let fichasHoyPorAlumno = {}; // { alumno_id: [{id, tipo_ficha, valor}] } — de la fecha seleccionada
 let terminoBusqueda = '';
@@ -88,7 +89,7 @@ async function cargarModoSimple() {
 
 document.getElementById('simple-periodo').addEventListener('change', cargarModoSimple);
 
-document.getElementById('btn-guardar-simple').addEventListener('click', async () => {
+async function guardarSimple() {
   const periodoId = document.getElementById('simple-periodo').value || null;
   const filas = [...document.querySelectorAll('.input-simple')].map((el) => ({
     grupo_id: grupoId,
@@ -96,20 +97,125 @@ document.getElementById('btn-guardar-simple').addEventListener('click', async ()
     periodo_id: periodoId,
     calificacion: el.value === '' ? null : parseFloat(el.value),
   }));
-
-  const btn = document.getElementById('btn-guardar-simple');
-  btn.disabled = true;
-
+  if (!filas.length) return true;
   const { error } = await supabase.from('participacion_simple').upsert(filas, { onConflict: 'grupo_id,alumno_id,periodo_id' });
-
-  btn.disabled = false;
-
   if (error) {
     mostrarError(`No se pudo guardar: ${error.message}`);
-    return;
+    return false;
   }
+  return true;
+}
 
-  mostrarOk('Calificaciones de participación guardadas.');
+document.getElementById('btn-guardar-simple').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-guardar-simple');
+  btn.disabled = true;
+  const ok = await guardarSimple();
+  btn.disabled = false;
+  if (ok) mostrarOk('Calificaciones de participación guardadas.');
+});
+
+// -------- Corte (formato tarea) --------
+// Igual que en fichas y clase en vivo: un corte es una foto fija que queda
+// ligada a un periodo, y Calificaciones finales lo usa para ese periodo. Aqui
+// no hay puntos que convertir: la foto es la calificacion 0-10 de la tabla.
+
+function calificacionesDeLaTabla() {
+  return [...document.querySelectorAll('.input-simple')].map((el) => ({
+    alumnoId: el.dataset.alumno,
+    nombre: alumnos.find((a) => a.id === el.dataset.alumno)?.nombre || '',
+    calificacion: el.value === '' ? null : Math.min(10, Math.max(0, parseFloat(el.value))),
+  }));
+}
+
+document.getElementById('btn-toggle-corte-simple').addEventListener('click', async () => {
+  const cont = document.getElementById('corte-simple-container');
+  if (cont.classList.contains('hidden')) {
+    await abrirCorteSimple();
+    cont.classList.remove('hidden');
+  } else {
+    cont.classList.add('hidden');
+  }
+});
+
+async function abrirCorteSimple() {
+  const lista = calificacionesDeLaTabla().sort((a, b) => (b.calificacion ?? -1) - (a.calificacion ?? -1));
+  document.getElementById('lista-corte-simple').innerHTML = lista.map((r, i) => `
+    <div class="flex items-center justify-between px-4 py-2 rounded-DEFAULT ${i === 0 && r.calificacion !== null ? 'bg-primary-fixed' : 'bg-surface-container-high'}">
+      <span class="font-body-md text-body-md text-on-surface">${escapeHtml(r.nombre)}</span>
+      <span class="font-label-lg text-label-lg text-on-surface">${r.calificacion === null ? 'sin calificación' : r.calificacion}</span>
+    </div>`).join('') || '<p class="text-on-surface-variant">Sin alumnos.</p>';
+
+  // Por defecto el periodo que se esta viendo en la tabla.
+  const sel = document.getElementById('corte-simple-periodo');
+  sel.value = document.getElementById('simple-periodo').value || '';
+  await mostrarUltimoCorteSimple();
+}
+
+async function mostrarUltimoCorteSimple() {
+  const periodoId = document.getElementById('corte-simple-periodo').value || null;
+  let consulta = supabase.from('cortes_participacion').select('id, fecha, created_at').eq('grupo_id', grupoId);
+  consulta = periodoId ? consulta.eq('periodo_id', periodoId) : consulta.is('periodo_id', null);
+  const { data: ultimoCorte } = await consulta.order('created_at', { ascending: false }).limit(1).maybeSingle();
+  ultimoCorteSimpleId = ultimoCorte?.id ?? null;
+  document.getElementById('ultimo-corte-simple-info').textContent = ultimoCorte
+    ? `Último corte de este periodo: ${ultimoCorte.fecha}. Si aplicas otro, el nuevo reemplaza al anterior en Calificaciones finales.`
+    : 'Aún no se ha hecho corte para este periodo.';
+}
+
+document.getElementById('corte-simple-periodo').addEventListener('change', mostrarUltimoCorteSimple);
+
+document.getElementById('btn-aplicar-corte-simple').addEventListener('click', async () => {
+  const periodoId = document.getElementById('corte-simple-periodo').value || null;
+  const lista = calificacionesDeLaTabla();
+  const sinCalif = lista.filter((r) => r.calificacion === null).length;
+  const nombrePeriodo = periodos.find((p) => p.id === periodoId)?.nombre || 'todo el ciclo';
+
+  const confirmado = window.confirm(
+    `¿Aplicar corte para ${nombrePeriodo}? Se guardan las calificaciones de la tabla como una foto fija.` +
+    (sinCalif ? `\n\n${sinCalif} alumno(s) no tienen calificación y quedan sin participación en este corte.` : ''));
+  if (!confirmado) return;
+
+  const btn = document.getElementById('btn-aplicar-corte-simple');
+  btn.disabled = true;
+  try {
+    // Primero se guarda la tabla, para que lo que se corta sea lo que se ve.
+    if (!(await guardarSimple())) return;
+
+    const { data: corte, error: errorCorte } = await supabase
+      .from('cortes_participacion')
+      .insert({ grupo_id: grupoId, media: 10, periodo_id: periodoId })
+      .select()
+      .single();
+    if (errorCorte) throw errorCorte;
+
+    const filas = lista.filter((r) => r.calificacion !== null).map((r) => ({
+      corte_id: corte.id, alumno_id: r.alumnoId, puntos_al_momento: r.calificacion, calificacion: r.calificacion,
+    }));
+    if (filas.length > 0) {
+      const { error: errorFilas } = await supabase.from('calificaciones_corte_participacion').insert(filas);
+      if (errorFilas) throw errorFilas;
+    }
+
+    mostrarOk(`Corte aplicado para ${nombrePeriodo}. Si vas a empezar el siguiente periodo, abajo puedes dejar la tabla en blanco.`);
+    await mostrarUltimoCorteSimple();
+  } catch (err) {
+    mostrarError(err.message || 'No se pudo aplicar el corte');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('btn-limpiar-simple').addEventListener('click', async () => {
+  const periodoId = document.getElementById('simple-periodo').value || null;
+  const ok = window.confirm('¿Dejar en blanco las calificaciones de la tabla? Los cortes que ya aplicaste no se tocan.');
+  if (!ok) return;
+  let q = supabase.from('participacion_simple').update({ calificacion: null }).eq('grupo_id', grupoId);
+  q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
+  const { error } = await q;
+  if (error) { mostrarError(`No se pudo limpiar: ${error.message}`); return; }
+  await cargarModoSimple();
+  await abrirCorteSimple();
+  mostrarOk('Tabla en blanco. Los cortes anteriores se conservan.');
 });
 
 // ================= MODO FICHAS =================
@@ -877,6 +983,12 @@ async function cargarPeriodosParticipacion() {
   if (selectCorte) {
     selectCorte.innerHTML = opciones;
     document.getElementById('campo-periodo-corte').classList.remove('hidden');
+  }
+
+  const selectCorteSimple = document.getElementById('corte-simple-periodo');
+  if (selectCorteSimple) {
+    selectCorteSimple.innerHTML = opciones;
+    document.getElementById('campo-periodo-corte-simple').classList.remove('hidden');
   }
 
   const selectDiario = document.getElementById('diario-periodo');

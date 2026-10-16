@@ -215,8 +215,34 @@
 </tbody>
 </table>
 </div>
-<div class="flex justify-end mt-stack-md">
+<div class="flex justify-between items-center mt-stack-md">
+<button id="btn-toggle-corte-simple" class="text-primary font-label-lg text-label-lg hover:underline flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">leaderboard</span> Hacer corte
+</button>
 <button id="btn-guardar-simple" class="bg-primary-container text-on-primary-container font-button-text text-button-text rounded-full py-3 px-8 hover:bg-primary hover:text-on-primary transition-colors">Guardar calificaciones</button>
+</div>
+
+<!-- Corte (formato tarea) -->
+<div id="corte-simple-container" class="hidden bg-surface-container-lowest border-2 border-primary-fixed rounded-DEFAULT p-6 mt-stack-md">
+<h2 class="font-headline-md text-headline-md text-primary mb-stack-md">Corte de participación</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mb-stack-md">Guarda como foto fija las calificaciones de la tabla y las asigna al periodo que elijas. Calificaciones finales usa el corte para ese periodo, aunque después cambies la tabla.</p>
+<div id="lista-corte-simple" class="flex flex-col gap-2 mb-stack-md"></div>
+<div class="flex flex-col md:flex-row gap-4 items-end">
+<div id="campo-periodo-corte-simple" class="hidden flex-1 flex flex-col">
+<label class="font-label-lg text-label-lg text-on-surface mb-2" for="corte-simple-periodo">Periodo del corte</label>
+<select id="corte-simple-periodo" class="px-4 py-3 rounded-DEFAULT border border-outline-variant bg-surface focus:border-primary focus:ring-2 focus:ring-primary-fixed outline-none font-body-md text-body-md text-on-surface transition-colors">
+<option value="">Sin periodo (todo el ciclo)</option>
+</select>
+</div>
+<button id="btn-aplicar-corte-simple" class="bg-primary text-on-primary font-button-text text-button-text rounded-full py-3 px-8 hover:opacity-90 transition-opacity whitespace-nowrap">Aplicar corte</button>
+</div>
+<p id="ultimo-corte-simple-info" class="font-body-md text-body-md text-on-surface-variant mt-stack-md"></p>
+
+<div class="border-t border-outline-variant mt-stack-md pt-stack-md">
+<h3 class="font-label-lg text-label-lg text-on-surface mb-2">Empezar de nuevo</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-3">Deja en blanco las calificaciones de la tabla para capturar el siguiente periodo. Lo que ya está en un corte no se pierde.</p>
+<button id="btn-limpiar-simple" class="border-2 border-primary text-primary font-button-text text-button-text rounded-full py-3 px-8 hover:bg-primary-fixed transition-colors">Dejar la tabla en blanco</button>
+</div>
 </div>
 </div>
 

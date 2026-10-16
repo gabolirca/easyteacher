@@ -192,12 +192,27 @@ async function calcularParaPeriodo(periodoId) {
   let maxParticipacion = 0;
   let corteVigente = null;
 
+  let corteSimple = false;
   if (modoParticipacion === 'simple') {
-    let q = supabase.from('participacion_simple').select('alumno_id, calificacion').eq('grupo_id', grupoId);
-    q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
-    const { data: califSimple, error: errorSimple } = await q;
-    if (errorSimple) throw new Error(`Participación: ${errorSimple.message}`);
-    (califSimple || []).forEach((c) => { if (c.calificacion !== null) participacionPorAlumno[c.alumno_id] = Number(c.calificacion); });
+    // Formato tarea: si el maestro hizo corte para este periodo, manda el
+    // corte (la foto fija); si no, la tabla tal como esta.
+    let qCorteS = supabase.from('cortes_participacion').select('id').eq('grupo_id', grupoId);
+    qCorteS = periodoId ? qCorteS.eq('periodo_id', periodoId) : qCorteS.is('periodo_id', null);
+    const { data: corteS, error: errorCorteS } = await qCorteS.order('created_at', { ascending: false }).limit(1).maybeSingle();
+    if (errorCorteS) throw new Error(`Corte de participación: ${errorCorteS.message}`);
+    if (corteS) {
+      corteSimple = true;
+      const { data: califCorteS, error: errorCalifS } = await supabase
+        .from('calificaciones_corte_participacion').select('alumno_id, calificacion').eq('corte_id', corteS.id);
+      if (errorCalifS) throw new Error(`Corte: ${errorCalifS.message}`);
+      (califCorteS || []).forEach((c) => { if (c.calificacion !== null) participacionPorAlumno[c.alumno_id] = Number(c.calificacion); });
+    } else {
+      let q = supabase.from('participacion_simple').select('alumno_id, calificacion').eq('grupo_id', grupoId);
+      q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
+      const { data: califSimple, error: errorSimple } = await q;
+      if (errorSimple) throw new Error(`Participación: ${errorSimple.message}`);
+      (califSimple || []).forEach((c) => { if (c.calificacion !== null) participacionPorAlumno[c.alumno_id] = Number(c.calificacion); });
+    }
   } else {
     let qCorte = supabase.from('cortes_participacion').select('id, media').eq('grupo_id', grupoId);
     qCorte = periodoId ? qCorte.eq('periodo_id', periodoId) : qCorte.is('periodo_id', null);
@@ -322,7 +337,7 @@ async function calcularParaPeriodo(periodoId) {
 
     if (modoParticipacion === 'simple') {
       participacionDiez = participacionPorAlumno[a.id] ?? null;
-      etiquetaParticipacion = participacionDiez !== null ? `${num(participacionDiez)}/10` : '—';
+      etiquetaParticipacion = participacionDiez !== null ? `${num(participacionDiez)}/10${corteSimple ? ' (corte)' : ''}` : '—';
     } else if (corteVigente) {
       const c = corteVigente.calificaciones[a.id];
       puntosParticipacion = c?.puntos ?? 0;
