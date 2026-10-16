@@ -52,7 +52,7 @@ async function cargarExamenes() {
 
   const { data: examenes, error } = await supabase
     .from('examenes')
-    .select('id, titulo, estado, link_token, created_at, fecha_apertura, fecha_cierre, periodos(nombre)')
+    .select('id, titulo, estado, modo, link_token, created_at, fecha_apertura, fecha_cierre, periodos(nombre)')
     .eq('grupo_id', grupoId)
     .eq('archivado', false)
     .order('created_at', { ascending: false });
@@ -74,7 +74,7 @@ async function cargarExamenes() {
       <div class="flex items-center justify-between gap-4">
         <div>
           <h3 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">${escapeHtml(ex.titulo)}</h3>
-                    <div class="mt-2 flex items-center gap-2">${badgeEstado(ex.estado, ex.fecha_apertura, ex.fecha_cierre)}${ex.periodos?.nombre ? `<span class="text-sm text-on-surface-variant">· ${escapeHtml(ex.periodos.nombre)}</span>` : ''}</div>
+                    <div class="mt-2 flex items-center gap-2">${ex.modo === 'papel' ? '<span class="px-3 py-1 rounded-full text-sm font-label-lg bg-tertiary-container text-on-tertiary-container">En papel</span>' : badgeEstado(ex.estado, ex.fecha_apertura, ex.fecha_cierre)}${ex.periodos?.nombre ? `<span class="text-sm text-on-surface-variant">· ${escapeHtml(ex.periodos.nombre)}</span>` : ''}</div>
         <div class="flex gap-2 shrink-0">
           <button class="btn-archivar-examen text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" data-examen-id="${ex.id}" aria-label="Archivar">
             <span class="material-symbols-outlined">archive</span>
@@ -82,13 +82,19 @@ async function cargarExamenes() {
           <button class="btn-duplicar-examen text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" data-examen-id="${ex.id}" aria-label="Duplicar">
             <span class="material-symbols-outlined">content_copy</span>
           </button>
+          <a class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" href="hoja-respuestas.html?examen_id=${ex.id}" aria-label="Imprimir hojas de respuestas" title="Imprimir hojas de respuestas">
+            <span class="material-symbols-outlined">print</span>
+          </a>
+          <a class="text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" href="calificar-hojas.html?examen_id=${ex.id}" aria-label="Calificar hojas con foto" title="Calificar hojas con foto">
+            <span class="material-symbols-outlined">photo_camera</span>
+          </a>
           <a class="btn-ver-resultados text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" href="resultados-examen.html?examen_id=${ex.id}" aria-label="Ver resultados">
             <span class="material-symbols-outlined">assessment</span>
           </a>
           <button class="btn-borrar-examen text-error hover:bg-error-container p-2 rounded-full transition-colors" data-examen-id="${ex.id}" data-titulo="${escapeHtml(ex.titulo)}" aria-label="Borrar">
             <span class="material-symbols-outlined">delete_forever</span>
           </button>
-          <a class="border-2 border-primary text-primary font-button-text text-button-text py-2 px-6 rounded-full hover:bg-primary hover:text-on-primary transition-colors" href="constructor-examen.html?examen_id=${ex.id}">
+          <a class="border-2 border-primary text-primary font-button-text text-button-text py-2 px-6 rounded-full hover:bg-primary hover:text-on-primary transition-colors" href="${ex.modo === 'papel' ? 'examen-papel' : 'constructor-examen'}.html?examen_id=${ex.id}">
             Editar
           </a>
         </div>
@@ -114,9 +120,12 @@ async function duplicarExamen(examenId, grupoDestinoId, tituloOriginal) {
 
   if (errorPreguntas) throw errorPreguntas;
 
+  // La copia conserva si es en linea o en papel.
+  const { data: original } = await supabase.from('examenes').select('modo').eq('id', examenId).maybeSingle();
+
   const { data: nuevoExamen, error: errorExamen } = await supabase
     .from('examenes')
-    .insert({ grupo_id: grupoDestinoId, titulo: `${tituloOriginal} (copia)` })
+    .insert({ grupo_id: grupoDestinoId, titulo: `${tituloOriginal} (copia)`, modo: original?.modo || 'en_linea' })
     .select()
     .single();
 
@@ -397,6 +406,10 @@ async function init() {
 
 document.getElementById('btn-nuevo-examen').addEventListener('click', () => {
   window.location.href = `constructor-examen.html?grupo_id=${grupoId}`;
+});
+
+document.getElementById('btn-examen-papel')?.addEventListener('click', () => {
+  window.location.href = `examen-papel.html?grupo_id=${grupoId}`;
 });
 
 init();

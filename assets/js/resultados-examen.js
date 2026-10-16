@@ -137,6 +137,7 @@ function renderLista() {
               <span class="px-3 py-1 rounded-full text-sm font-label-lg ${ESTILOS_ESTADO[estado]}">${ETIQUETAS_ESTADO[estado]}</span>
               <span class="text-sm text-on-surface-variant">${calif}${fecha ? ` · ${fecha}` : ''}</span>
               ${intento?.motivo_bloqueo ? `<span class="text-sm text-error" title="${escapeHtml(intento.motivo_bloqueo)}">· ${escapeHtml(intento.motivo_bloqueo)}</span>` : ''}
+              ${intento?.origen === 'hoja' ? '<span class="px-2 py-1 rounded-full text-xs font-label-lg bg-surface-container-high text-on-surface-variant" title="Capturado de la foto de su hoja de respuestas">hoja</span>' : ''}
               ${etiquetasVigilancia(intento)}
             </div>
           </div>
@@ -254,7 +255,7 @@ async function cargarResultados() {
 
   const { data: intentos, error: errorIntentos } = await supabase
     .from('intentos')
-    .select('id, alumno_id, estado, motivo_bloqueo, calificacion, fecha_inicio, fecha_fin, advertencias, eventos_salida')
+    .select('id, alumno_id, estado, origen, motivo_bloqueo, calificacion, fecha_inicio, fecha_fin, advertencias, eventos_salida')
     .eq('examen_id', examenId);
 
   if (errorIntentos) {
@@ -297,6 +298,7 @@ async function init() {
   document.getElementById('examen-titulo').textContent = examen.titulo;
   document.getElementById('examen-info').textContent = examen.grupos?.nombre || '';
   document.getElementById('link-volver').href = `grupo.html?id=${grupoId}`;
+  document.getElementById('link-calificar-hojas').href = `calificar-hojas.html?examen_id=${examenId}`;
   const tituloEl = document.getElementById('page-title');
   if (tituloEl) tituloEl.textContent = `AulaFácil - Resultados - ${examen.titulo}`;
 

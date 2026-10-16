@@ -61,7 +61,7 @@ if (totalPuntos <= 0) morir('El examen no tiene puntos: no hay nada que recalcul
 
 const { data: intentos, error: errInt } = await db
   .from('intentos')
-  .select('id, alumno_id, calificacion, mapeo_relacionar, estado, alumnos(nombre)')
+  .select('id, alumno_id, calificacion, mapeo_relacionar, estado, origen, alumnos(nombre)')
   .eq('examen_id', examen.id)
   .in('estado', ['entregado', 'bloqueado']);
 if (errInt) morir(`No se pudieron leer los intentos: ${errInt.message}`);
@@ -85,7 +85,10 @@ for (const intento of intentos) {
 
   for (const p of preguntas) {
     const guardada = porPregunta.get(p.id);
-    const nuevos = Math.round(
+    // En una hoja de papel, las preguntas que no son de opcion multiple ni
+    // V/F las califico el maestro a mano: esos puntos no se recalculan.
+    const aMano = intento.origen === "hoja" && !["opcion_multiple", "verdadero_falso"].includes(p.tipo);
+    const nuevos = aMano ? Number(guardada?.puntos_obtenidos ?? 0) : Math.round(
       puntosDePregunta(p, guardada?.respuesta_json ?? null, intento.mapeo_relacionar || {}) * 100) / 100;
     obtenidos += nuevos;
     const antes = Number(guardada?.puntos_obtenidos ?? 0);

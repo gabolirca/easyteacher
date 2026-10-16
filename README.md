@@ -111,6 +111,7 @@ El código vive en `supabase/functions/`. Para bajar una versión desplegada:
 | Función | Qué hace |
 |---|---|
 | `crear-alumnos` | Alta en lote; la matrícula es única por maestro, y negocia un correo libre |
+| `registrar-hoja` | Guarda la hoja de respuestas en papel que el maestro revisó desde la foto; califica en el servidor con la misma lógica que el examen en línea |
 | `recalificar-examen` | Botón *Recalificar* en resultados: vuelve a calificar los intentos entregados con la clave actual. Primero muestra qué cambiaría; guarda solo al confirmar |
 | `egresar-alumnos` | Marca el egreso y libera la matrícula para reciclarla |
 | `iniciar-examen` | Entrega el examen sin respuestas correctas, ancla el cronómetro |

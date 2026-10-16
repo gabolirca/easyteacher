@@ -19,10 +19,13 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import readline from 'node:readline/promises';
 import { stdin as entrada, stdout as salida } from 'node:process';
 
-const RAIZ = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+// fileURLToPath y no .pathname: en Windows .pathname da "/C:/Users/..." y
+// path.resolve lo vuelve "C:\\C:\\Users\\...", una ruta que no existe.
+const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // Lo que NO se copia: ademas de lo obvio, 'documentos' se queda fuera a
 // proposito. Ahi viven el convenio con las tarifas y los manuales del

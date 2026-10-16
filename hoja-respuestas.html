@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AulaFácil - Hojas de respuestas</title>
+<link rel="icon" href="favicon.ico"/>
+<style>
+  /* Pagina autonoma: no usa Tailwind para que lo impreso no dependa de un CDN
+     ni de la paleta; la hoja siempre sale en blanco y negro. */
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9e9ee; font-family: Inter, -apple-system, "Segoe UI", Roboto, sans-serif; color: #111; }
+  .barra { position: sticky; top: 0; z-index: 5; background: #fff; border-bottom: 1px solid #ddd;
+           display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 16px; }
+  .barra a, .barra button, .barra select { font: inherit; font-size: 15px; }
+  .barra a { color: #333; text-decoration: none; }
+  .barra button { background: #111; color: #fff; border: 0; border-radius: 999px; padding: 9px 18px; cursor: pointer; }
+  .barra select { padding: 8px; border-radius: 8px; border: 1px solid #ccc; }
+  .barra .sec { background: #fff; color: #111; border: 1px solid #ccc; }
+  #contador, #nota-mano { font-size: 13px; color: #555; }
+  #aviso { margin: 16px; padding: 12px 14px; border-radius: 10px; background: #fff4e5; border: 1px solid #f1d39a; }
+  #hojas { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 18px 0 40px; }
+
+  .hoja { position: relative; width: 215.9mm; height: 279.4mm; background: #fff; overflow: hidden;
+          box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+  .hoja > * { position: absolute; }
+  .marca { background: #000; }
+  .logo { width: 14mm; height: 14mm; object-fit: contain; }
+  .encabezado { font-size: 3.4mm; line-height: 1.45; }
+  .encabezado .titulo { font-size: 4.6mm; font-weight: 700; margin-bottom: 1mm; }
+  .linea { display: inline-block; width: 70mm; border-bottom: .25mm solid #444; height: 3.6mm; vertical-align: bottom; }
+  .linea.corta { width: 28mm; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .instrucciones { font-size: 3mm; color: #333; border-top: .2mm solid #bbb; padding-top: 1.5mm; }
+  .num { width: 7mm; text-align: right; font-size: 3.4mm; font-weight: 700; line-height: 4.4mm; }
+  .burbuja { border: .3mm solid #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .burbuja span { font-size: 2.6mm; color: #b5b5b5; font-weight: 600; }
+  .mano { font-size: 3mm; color: #888; font-style: italic; }
+
+  @page { size: letter portrait; margin: 0; }
+  @media print {
+    body { background: #fff; }
+    .barra, #aviso, .nota-impresion { display: none !important; }
+    #hojas { padding: 0; gap: 0; display: block; }
+    .hoja { box-shadow: none; break-after: page; page-break-after: always; }
+    .hoja:last-child { break-after: auto; page-break-after: auto; }
+  }
+</style>
+</head>
+<body>
+<div class="barra">
+  <a id="link-volver" href="dashboard.html">← Volver</a>
+  <select id="para-quien" aria-label="Para quién">
+    <option value="todos">Una hoja por alumno (con su nombre y QR)</option>
+    <option value="blanco">Hoja sin nombre</option>
+  </select>
+  <button id="btn-imprimir">Imprimir</button>
+  <a id="link-calificar" class="sec" href="#" style="padding:8px 16px;border:1px solid #ccc;border-radius:999px">Calificar con foto</a>
+  <span id="contador"></span>
+  <span id="nota-mano"></span>
+</div>
+<div id="aviso" style="display:none"></div>
+<p class="nota-impresion" style="margin:12px 16px 0;font-size:13px;color:#555">
+  Al imprimir: tamaño <b>Carta</b>, sin márgenes o márgenes mínimos. Si tu impresora reduce la hoja no pasa nada:
+  el lector se guía por los cuadros negros.
+</p>
+<div id="hojas"></div>
+<script type="module" src="assets/js/hoja-respuestas.js"></script>
+</body>
+</html>

@@ -23,9 +23,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 
-const RAIZ = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+// fileURLToPath y no .pathname: en Windows .pathname da "/C:/Users/..." y
+// path.resolve lo vuelve "C:\\C:\\Users\\...", una ruta que no existe.
+const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const leer = (rel) => { try { return fs.readFileSync(path.join(RAIZ, rel), 'utf8'); } catch { return null; } };
 
 function escuela() {
