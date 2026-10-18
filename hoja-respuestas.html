@@ -24,7 +24,13 @@
   .hoja { position: relative; width: 215.9mm; height: 279.4mm; background: #fff; overflow: hidden;
           box-shadow: 0 2px 10px rgba(0,0,0,.15); }
   .hoja > * { position: absolute; }
-  .marca { background: #000; }
+  /* Las marcas se dibujan con BORDE y no solo con fondo: los navegadores no
+     imprimen colores de fondo a menos que se active "Graficos de fondo", y
+     sin estas marcas el lector no puede enderezar la foto. El borde siempre
+     se imprime. */
+  .marca { background: #000; border: 3.5mm solid #000; box-sizing: border-box;
+           -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .hoja { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .logo { width: 14mm; height: 14mm; object-fit: contain; }
   .encabezado { font-size: 3.4mm; line-height: 1.45; }
   .encabezado .titulo { font-size: 4.6mm; font-weight: 700; margin-bottom: 1mm; }
