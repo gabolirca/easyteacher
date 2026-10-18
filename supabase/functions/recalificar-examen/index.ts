@@ -107,9 +107,12 @@ Deno.serve(async (req: Request) => {
 
       for (const p of preguntas || []) {
         const guardada = guardadas.get(p.id);
-        // En una hoja de papel, las preguntas que no son de opcion multiple ni
-        // V/F las califico el maestro a mano: esos puntos no se recalculan.
-        const aMano = intento.origen === "hoja" && !["opcion_multiple", "verdadero_falso"].includes(p.tipo);
+        // En una hoja de papel, las preguntas sin burbujas las califico el
+        // maestro a mano: esos puntos no se recalculan. Relacionar con burbujas
+        // si se recalcula (trae su respuesta y su mapa como en linea).
+        const conBurbujas = ["opcion_multiple", "verdadero_falso"].includes(p.tipo)
+          || (p.tipo === "relacionar" && guardada?.respuesta_json && typeof guardada.respuesta_json === "object");
+        const aMano = intento.origen === "hoja" && !conBurbujas;
         const nuevos = aMano ? Number(guardada?.puntos_obtenidos ?? 0) : Math.round(
           puntosDePregunta(p, guardada?.respuesta_json ?? null, intento.mapeo_relacionar || {}) * 100) / 100;
         obtenidos += nuevos;

@@ -37,8 +37,9 @@
   .linea { display: inline-block; width: 70mm; border-bottom: .25mm solid #444; height: 3.6mm; vertical-align: bottom; }
   .linea.corta { width: 28mm; }
   .qr svg { width: 100%; height: 100%; display: block; }
-  .instrucciones { font-size: 3mm; color: #333; border-top: .2mm solid #bbb; padding-top: 1.5mm; }
-  .num { width: 7mm; text-align: right; font-size: 3.4mm; font-weight: 700; line-height: 4.4mm; }
+  .instrucciones { font-size: 2.8mm; line-height: 1.3; color: #333; border-top: .2mm solid #bbb; padding-top: 1.5mm; }
+  .num { width: 9mm; text-align: right; font-size: 3.4mm; font-weight: 700; line-height: 4.4mm; white-space: nowrap; }
+  .num.sub { font-size: 2.9mm; }
   .burbuja { border: .3mm solid #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
   .burbuja span { font-size: 2.6mm; color: #b5b5b5; font-weight: 600; }
   .mano { font-size: 3mm; color: #888; font-style: italic; }
@@ -61,6 +62,7 @@
     <option value="blanco">Hoja sin nombre</option>
   </select>
   <button id="btn-imprimir">Imprimir</button>
+  <a id="link-examen" class="sec" href="#" style="padding:8px 16px;border:1px solid #ccc;border-radius:999px">Imprimir el examen</a>
   <a id="link-calificar" class="sec" href="#" style="padding:8px 16px;border:1px solid #ccc;border-radius:999px">Calificar con foto</a>
   <span id="contador"></span>
   <span id="nota-mano"></span>

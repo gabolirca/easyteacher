@@ -5,7 +5,7 @@ name: Compilar CSS
 
 on:
   push:
-    branches: [main]
+    branches: [main, desarrollo]
     paths:
       - '**.html'
       - 'assets/js/**'

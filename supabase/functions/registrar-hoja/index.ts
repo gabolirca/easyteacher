@@ -8,6 +8,7 @@ import { puntosDePregunta } from "../_compartido/calificar.js";
 // Entrada:
 //   examen_id, alumno_id
 //   marcas:          { pregunta_id: opcion_id | null }   (opcion multiple y V/F)
+//                    { pregunta_id: { i_izquierda: i_par | null } }  (relacionar)
 //   puntos_manuales: { pregunta_id: numero }              (las que dicen "a mano")
 //   reemplazar:      true para sobrescribir un intento que ya existe
 //
@@ -88,6 +89,10 @@ Deno.serve(async (req: Request) => {
     let total = 0;
     let obtenidos = 0;
     const filas = [];
+    // Relacionar en papel: la respuesta se guarda igual que en linea
+    // ({ i_izquierda: id }) con ids "d<j>" y su mapa { "d<j>": j }, para que
+    // ver-respuestas y recalificar la entiendan sin casos especiales.
+    const mapeo: Record<string, Record<string, number>> = {};
     for (const p of preguntas) {
       const vale = Number(p.puntos) || 0;
       total += vale;
@@ -98,6 +103,19 @@ Deno.serve(async (req: Request) => {
         // Solo se acepta una opcion que de verdad sea de esa pregunta.
         respuesta = (p.opciones || []).some((o: { id: string }) => o.id === elegida) ? elegida : null;
         puntos = puntosDePregunta(p, respuesta, {});
+      } else if (p.tipo === "relacionar" && marcas[p.id] && typeof marcas[p.id] === "object") {
+        const n = (p.contenido_json?.pares || []).length;
+        const mapa: Record<string, number> = {};
+        for (let j = 0; j < n; j++) mapa[`d${j}`] = j;
+        const sel: Record<string, string> = {};
+        for (const [izq, der] of Object.entries(marcas[p.id] as Record<string, unknown>)) {
+          const i = Number(izq), j = Number(der);
+          if (der === null || !Number.isInteger(i) || !Number.isInteger(j) || i < 0 || i >= n || j < 0 || j >= n) continue;
+          sel[String(i)] = `d${j}`;
+        }
+        mapeo[p.id] = mapa;
+        respuesta = sel;
+        puntos = puntosDePregunta(p, respuesta, mapeo);
       } else {
         const manual = Number((puntos_manuales || {})[p.id]);
         puntos = Number.isFinite(manual) ? Math.min(vale, Math.max(0, manual)) : 0;
@@ -116,14 +134,14 @@ Deno.serve(async (req: Request) => {
       if (errBorrar) return json({ error: errBorrar.message }, 500);
       const { error } = await admin.from("intentos").update({
         estado: "entregado", calificacion, origen: "hoja", capturado_por: user.id,
-        fecha_fin: ahora, motivo_bloqueo: null,
+        fecha_fin: ahora, motivo_bloqueo: null, mapeo_relacionar: mapeo,
       }).eq("id", previo.id);
       if (error) return json({ error: error.message }, 500);
       intentoId = previo.id;
     } else {
       const { data, error } = await admin.from("intentos").insert({
         examen_id, alumno_id, estado: "entregado", calificacion, origen: "hoja",
-        capturado_por: user.id, fecha_inicio: ahora, fecha_fin: ahora,
+        capturado_por: user.id, fecha_inicio: ahora, fecha_fin: ahora, mapeo_relacionar: mapeo,
       }).select("id").single();
       if (error) return json({ error: error.message }, 500);
       intentoId = data.id;

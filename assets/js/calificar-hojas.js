@@ -1,7 +1,7 @@
 import { supabase, SUPABASE_URL } from './supabase-client.js';
 import { requireProfesor } from './auth-guard.js';
 import { leerHoja, aRGBA, PX_MM } from './omr.js';
-import { burbujasDePregunta, centroBurbuja, leerTextoQr, RETICULA } from './hoja-geometria.js';
+import { filasDeExamen, centroBurbuja, leerTextoQr, RETICULA } from './hoja-geometria.js';
 
 // Calificar hojas de respuestas con la camara.
 //
@@ -14,7 +14,8 @@ const examenId = params.get('examen_id');
 const LADO_MAX = 2000; // px; mas no mejora la lectura y si la hace lenta
 
 let examen = null;
-let preguntas = [];      // con opciones ordenadas y su lista de burbujas
+let preguntas = [];
+let filas = [];          // renglones de la hoja: {pi, sub, etiqueta, burbujas} (relacionar usa uno por par)
 let alumnos = [];        // [{id, nombre}]
 let intentoPorAlumno = {};
 let cola = [];           // archivos pendientes de leer
@@ -46,6 +47,17 @@ function ocultarAvisos() {
 }
 
 const mostrar = (id, si) => { $(id).style.display = si ? '' : 'none'; };
+
+// Puntos de un renglon con la burbuja k elegida (null = en blanco).
+function puntosDeFila(fila, k) {
+  if (k === null || k === undefined) return 0;
+  const p = preguntas[fila.pi];
+  const vale = Number(p.puntos) || 0;
+  const b = fila.burbujas[k];
+  if (!b) return 0;
+  if (fila.sub !== null) return b.derecha === fila.sub ? vale / p.contenido_json.pares.length : 0;
+  return b.opcion?.es_correcta ? vale : 0;
+}
 
 // ---------- lectura del QR ----------
 // BarcodeDetector cuando el navegador lo trae (Chrome en Android); si no
@@ -117,7 +129,7 @@ async function procesarSiguiente() {
   $('leyendo-texto').textContent = cola.length ? `Leyendo hoja… (quedan ${cola.length} más)` : 'Leyendo hoja…';
   try {
     const img = await imagenDeArchivo(archivo);
-    const lectura = await leerHoja(img, preguntas.map((p) => p.burbujas.length), leerQr);
+    const lectura = await leerHoja(img, filas.map((f) => f.burbujas.length), leerQr);
     mostrar('leyendo', false);
     if (!lectura.ok) {
       mostrarError(lectura.error);
@@ -191,7 +203,7 @@ function dibujarHoja() {
   ctx.putImageData(new ImageData(rgba.data, width, height), 0, 0);
   const r = (RETICULA.diametro / 2 + 0.6) * PX_MM;
   ctx.lineWidth = 3;
-  preguntas.forEach((p, i) => {
+  filas.forEach((p, i) => {
     const res = lectura.respuestas[i];
     if (!p.burbujas.length) return;
     const elegida = actual.eleccion[i];
@@ -211,14 +223,13 @@ function dibujarHoja() {
 }
 
 function puntajeEstimado() {
-  let total = 0, obtenidos = 0;
-  preguntas.forEach((p, i) => {
-    const vale = Number(p.puntos) || 0;
-    total += vale;
-    if (p.burbujas.length) {
-      const k = actual.eleccion[i];
-      if (k !== null && k !== undefined && p.burbujas[k]?.opcion.es_correcta) obtenidos += vale;
+  let obtenidos = 0;
+  const total = preguntas.reduce((t, p) => t + (Number(p.puntos) || 0), 0);
+  filas.forEach((f, i) => {
+    if (f.burbujas.length) {
+      obtenidos += puntosDeFila(f, actual.eleccion[i]);
     } else {
+      const vale = Number(preguntas[f.pi].puntos) || 0;
       const m = Number(actual.manual[i]);
       if (Number.isFinite(m)) obtenidos += Math.min(vale, Math.max(0, m));
     }
@@ -228,14 +239,15 @@ function puntajeEstimado() {
 
 function renderPreguntas() {
   const { lectura } = actual;
-  $('lista-preguntas').innerHTML = preguntas.map((p, i) => {
+  $('lista-preguntas').innerHTML = filas.map((p, i) => {
     const res = lectura.respuestas[i];
+    const vale = preguntas[p.pi].puntos;
     const revisar = res.estado === 'dudosa' || res.estado === 'doble';
     const fondo = revisar ? 'background:rgba(224,138,0,.12)' : '';
     let controles;
     if (!p.burbujas.length) {
-      controles = `<label class="text-sm text-on-surface-variant flex items-center gap-2">Puntos (de ${p.puntos})
-        <input type="number" min="0" max="${p.puntos}" step="0.5" class="input-manual w-20 px-2 py-1 rounded-DEFAULT border border-outline-variant" data-i="${i}" value="${actual.manual[i]}"></label>`;
+      controles = `<label class="text-sm text-on-surface-variant flex items-center gap-2">Puntos (de ${vale})
+        <input type="number" min="0" max="${vale}" step="0.5" class="input-manual w-20 px-2 py-1 rounded-DEFAULT border border-outline-variant" data-i="${i}" value="${actual.manual[i]}"></label>`;
     } else {
       controles = p.burbujas.map((b, k) => {
         const sel = actual.eleccion[i] === k;
@@ -245,7 +257,7 @@ function renderPreguntas() {
     }
     const nota = { dudosa: 'revisar', doble: 'dos marcadas', vacia: 'en blanco', ok: '', mano: '' }[res.estado];
     return `<div class="flex items-center gap-3 py-2 px-2 border-b border-outline-variant flex-wrap" style="${fondo}" ${revisar ? 'data-revisar="1"' : ''}>
-      <span class="w-8 text-right font-label-lg">${i + 1}</span>
+      <span class="w-10 text-right font-label-lg">${p.etiqueta}</span>
       <div class="flex items-center gap-2 flex-wrap">${controles}</div>
       ${nota ? `<span class="text-xs" style="color:${COLOR[res.estado] || '#666'}">${nota}</span>` : ''}
     </div>`;
@@ -274,10 +286,16 @@ async function guardar(reemplazar = false) {
 
   const marcas = {};
   const puntosManuales = {};
-  preguntas.forEach((p, i) => {
-    if (p.burbujas.length) {
-      const k = actual.eleccion[i];
-      marcas[p.id] = k === null || k === undefined ? null : p.burbujas[k].opcion.id;
+  filas.forEach((f, i) => {
+    const p = preguntas[f.pi];
+    const k = actual.eleccion[i];
+    const nada = k === null || k === undefined;
+    if (f.sub !== null) {
+      // Relacionar: { indice de la izquierda: indice del par elegido }.
+      marcas[p.id] ||= {};
+      marcas[p.id][f.sub] = nada ? null : f.burbujas[k].derecha;
+    } else if (f.burbujas.length) {
+      marcas[p.id] = nada ? null : f.burbujas[k].opcion.id;
     } else if (actual.manual[i] !== '' && actual.manual[i] !== undefined) {
       puntosManuales[p.id] = Number(actual.manual[i]);
     }
@@ -354,11 +372,12 @@ async function init() {
   document.title = `AulaFácil - Calificar hojas - ${examen.titulo}`;
 
   const [{ data: pregs }, { data: inscritos }] = await Promise.all([
-    supabase.from('preguntas').select('id, tipo, orden, puntos, opciones(id, texto, orden, es_correcta)')
+    supabase.from('preguntas').select('id, tipo, orden, puntos, contenido_json, opciones(id, texto, orden, es_correcta)')
       .eq('examen_id', examenId).order('orden', { ascending: true }),
     supabase.from('grupo_alumnos').select('alumnos(id, nombre)').eq('grupo_id', examen.grupo_id),
   ]);
-  preguntas = (pregs || []).map((p) => ({ ...p, burbujas: burbujasDePregunta(p) }));
+  preguntas = pregs || [];
+  filas = filasDeExamen(preguntas);
   alumnos = (inscritos || []).map((r) => r.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   if (!preguntas.length) { mostrarError('El examen no tiene preguntas.'); return; }

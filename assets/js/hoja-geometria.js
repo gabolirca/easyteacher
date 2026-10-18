@@ -39,6 +39,7 @@ export const RETICULA = {
 export const MAX_PREGUNTAS = RETICULA.filasPorColumna * RETICULA.columnas.length; // 78
 export const LETRAS = ['A', 'B', 'C', 'D', 'E'];
 
+// Cuantos renglones caben (no preguntas: una de relacionar usa uno por par).
 // Posicion de la fila i (0..77): {x del numero, y del centro}.
 export function posicionFila(i) {
   const col = Math.floor(i / RETICULA.filasPorColumna);
@@ -67,6 +68,66 @@ export function burbujasDePregunta(p) {
     return opciones.slice(0, LETRAS.length).map((o, k) => ({ etiqueta: LETRAS[k], opcion: o }));
   }
   return [];
+}
+
+// ---------- Relacionar columnas ----------
+//
+// En papel la columna derecha va con letras (A, B, C...) en un orden fijo que
+// sale del id de la pregunta: siempre el mismo para todos los alumnos y para
+// el examen impreso, la hoja y el lector, pero sin quedar en el mismo orden
+// que la izquierda (si no, la respuesta seria "A, B, C..." de arriba abajo).
+// Con mas de MAX_DERECHA pares no caben las burbujas en un renglon: esa
+// pregunta se califica a mano.
+export const MAX_DERECHA = LETRAS.length;
+
+function semilla(texto) {
+  let h = 2166136261;
+  for (const ch of String(texto || '')) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+// Indices de los pares en el orden en que se imprime la columna derecha:
+// la letra k corresponde a pares[orden[k]].derecha.
+export function ordenDerecha(p) {
+  const n = (p.contenido_json?.pares || []).length;
+  const orden = [...Array(n).keys()];
+  let h = semilla(p.id) || 1;
+  for (let i = n - 1; i > 0; i--) {
+    h = (Math.imul(h, 1103515245) + 12345) >>> 0;
+    const j = h % (i + 1);
+    [orden[i], orden[j]] = [orden[j], orden[i]];
+  }
+  if (n > 1 && orden.every((v, i) => v === i)) orden.push(orden.shift());
+  return orden;
+}
+
+export function relacionarConBurbujas(p) {
+  const n = (p.contenido_json?.pares || []).length;
+  return p.tipo === 'relacionar' && n > 0 && n <= MAX_DERECHA;
+}
+
+// Renglones de la hoja para un examen. Casi todas las preguntas ocupan uno;
+// una de relacionar con burbujas ocupa uno por cada elemento de la izquierda
+// ("4.1", "4.2"...). Cada renglon:
+//   { pi: indice de la pregunta, sub: indice del par o null, etiqueta, burbujas }
+// burbujas: [{ etiqueta, opcion }] en opcion multiple y V/F,
+//           [{ etiqueta, derecha: indice del par }] en relacionar,
+//           [] = se califica a mano.
+export function filasDeExamen(preguntas) {
+  const filas = [];
+  preguntas.forEach((p, pi) => {
+    const num = String(pi + 1);
+    if (relacionarConBurbujas(p)) {
+      const orden = ordenDerecha(p);
+      const letras = orden.map((derecha, k) => ({ etiqueta: LETRAS[k], derecha }));
+      p.contenido_json.pares.forEach((_, sub) => {
+        filas.push({ pi, sub, etiqueta: `${num}.${sub + 1}`, burbujas: letras });
+      });
+      return;
+    }
+    filas.push({ pi, sub: null, etiqueta: num, burbujas: burbujasDePregunta(p) });
+  });
+  return filas;
 }
 
 export function textoQr(examenId, alumnoId) {

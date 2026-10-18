@@ -13,7 +13,7 @@
  * versión nueva.
  */
 
-const VERSION = 'v35';
+const VERSION = 'v36';
 const CACHE_APP = `aulafacil-app-${VERSION}`;
 const CACHE_FUENTES = 'aulafacil-fuentes';
 
@@ -67,10 +67,10 @@ self.addEventListener('install', (event) => {
   // siguiente vez que abra la app.
 });
 
-// El boton "Actualizar" de recargar.js manda esto cuando el usuario acepta
-// pasarse a la version nueva. Es la unica forma de que un service worker en
-// espera tome el control: a proposito no se llama skipWaiting solo, para no
-// cambiarle el codigo a un alumno con el examen abierto.
+// recargar.js manda esto para pasarse a la version nueva: solo, si nadie ha
+// tocado la pantalla y no hay examen en curso, o con el boton "Actualizar".
+// Aqui no se llama skipWaiting por cuenta propia, para no cambiarle el codigo
+// a un alumno con el examen abierto.
 self.addEventListener('message', (event) => {
   if (event.data === 'actualizar') self.skipWaiting();
 });
@@ -146,8 +146,11 @@ self.addEventListener('fetch', (event) => {
     }
 
     try {
+      // no-cache: pregunta al servidor si el archivo cambio (si no, responde
+      // 304 y no se baja de nuevo). Sin esto el navegador podia seguir
+      // usando una copia de hasta 10 minutos despues de publicar.
       const resp = await Promise.race([
-        fetch(req),
+        fetch(req, { cache: 'no-cache' }),
         new Promise((_, rechazar) => setTimeout(() => rechazar(new Error('lento')), LIMITE_MS)),
       ]);
       if (resp && resp.ok && resp.type === 'basic') {

@@ -8,9 +8,14 @@
 //                    color y dice "Actualizar". Al tocarlo le da permiso de
 //                    entrar y recarga con el código nuevo.
 //
-// Lo segundo es lo que evita andar borrando datos del sitio a mano: el
-// service worker nuevo no se activa solo a propósito (para no cambiarle el
-// código a un alumno a media prueba), así que hace falta un gesto explícito.
+// Actualización automática: cuando se publica una versión nueva (se sube a
+// main), cada quien la recibe sola la próxima vez que abra o recargue una
+// pantalla, sin tocar nada. Para no tirarle trabajo a nadie, NO se aplica
+// sola si:
+//   - hay un alumno a media prueba (window.__examenEnCurso), o
+//   - la persona ya empezó a escribir o a hacer clic en esta pantalla.
+// En esos casos el botón cambia a "Actualizar" y la versión nueva entra al
+// tocarlo o la siguiente vez que abra la app.
 
 const EN_EXAMEN = () => window.__examenEnCurso === true;
 
@@ -44,6 +49,9 @@ const ICONO = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" strok
 
 let registro = null;
 let hayVersionNueva = false;
+let yaInteractuo = false;
+['pointerdown', 'keydown', 'input'].forEach((ev) =>
+  window.addEventListener(ev, () => { yaInteractuo = true; }, { capture: true, passive: true }));
 
 function pintar() {
   if (hayVersionNueva) {
@@ -76,6 +84,12 @@ function marcarNueva() {
   // al alumno con el examen abierto.
   if (EN_EXAMEN()) return;
   hayVersionNueva = true;
+  if (!yaInteractuo && registro?.waiting) {
+    // Nadie ha tocado la pantalla: se pasa solo a la versión nueva. La página
+    // se recarga desde 'controllerchange'.
+    registro.waiting.postMessage('actualizar');
+    return;
+  }
   pintar();
 }
 
