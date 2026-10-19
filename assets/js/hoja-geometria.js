@@ -73,9 +73,12 @@ export function burbujasDePregunta(p) {
 // ---------- Relacionar columnas ----------
 //
 // En papel la columna derecha va con letras (A, B, C...) en un orden fijo que
-// sale del id de la pregunta: siempre el mismo para todos los alumnos y para
-// el examen impreso, la hoja y el lector, pero sin quedar en el mismo orden
-// que la izquierda (si no, la respuesta seria "A, B, C..." de arriba abajo).
+// sale del CONTENIDO de los pares: siempre el mismo para todos los alumnos y
+// para el examen impreso, la hoja y el lector, pero sin quedar en el mismo
+// orden que la izquierda (si no, la respuesta seria "A, B, C..." de arriba
+// abajo). Antes salia del id de la pregunta, y una copia del examen (otro id)
+// quedaba con otras letras que el original: si se imprimia el examen de uno y
+// la hoja del otro, relacionar se calificaba mal.
 // Con mas de MAX_DERECHA pares no caben las burbujas en un renglon: esa
 // pregunta se califica a mano.
 export const MAX_DERECHA = LETRAS.length;
@@ -91,7 +94,8 @@ function semilla(texto) {
 export function ordenDerecha(p) {
   const n = (p.contenido_json?.pares || []).length;
   const orden = [...Array(n).keys()];
-  let h = semilla(p.id) || 1;
+  const pares = p.contenido_json?.pares || [];
+  let h = semilla(pares.map((x) => `${x.izquierda}\u0001${x.derecha}`).join('\u0002')) || 1;
   for (let i = n - 1; i > 0; i--) {
     h = (Math.imul(h, 1103515245) + 12345) >>> 0;
     const j = h % (i + 1);
