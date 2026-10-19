@@ -138,6 +138,10 @@ async function duplicarExamen(examenId, grupoDestinoId, tituloOriginal) {
         examen_id: nuevoExamen.id,
         tipo: p.tipo,
         texto: p.texto,
+        // Todo campo nuevo de preguntas hay que copiarlo aqui tambien, o la
+        // copia sale sin el (asi se perdian las instrucciones).
+        instrucciones: p.instrucciones ?? null,
+        pide_procedimiento: !!p.pide_procedimiento,
         imagen_url: p.imagen_url,
         contenido_json: p.contenido_json,
         puntos: p.puntos,

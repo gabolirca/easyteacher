@@ -53,6 +53,24 @@ const ETIQUETAS_TIPO = {
 
 // ---------- Render de la lista de preguntas ya agregadas ----------
 
+// La respuesta correcta en una linea, para revisar la clave de un vistazo
+// sin abrir cada pregunta.
+function resumenClave(p) {
+  if (p.tipo === 'opcion_multiple' || p.tipo === 'verdadero_falso') {
+    const k = (p.opciones || []).findIndex((o) => o.es_correcta);
+    if (k < 0) return '<span class="text-error">Sin respuesta correcta marcada</span>';
+    const letra = p.tipo === 'opcion_multiple' ? `${'ABCDEFGHIJ'[k]}) ` : '';
+    return `${letra}${escapeHtml(p.opciones[k].texto)}`;
+  }
+  if (p.tipo === 'relacionar') {
+    return (p.contenido_json?.pares || []).map((par) => `${escapeHtml(par.izquierda)} → <b>${escapeHtml(par.derecha)}</b>`).join('<br>');
+  }
+  if (p.tipo === 'completar') {
+    return (p.contenido_json?.respuestas || []).map(escapeHtml).join(' · ');
+  }
+  return '';
+}
+
 function renderPreguntas() {
   const lista = document.getElementById('preguntas-lista');
   document.getElementById('contador-preguntas').textContent = preguntas.length;
@@ -64,10 +82,12 @@ function renderPreguntas() {
 
   lista.innerHTML = preguntas.map((p, i) => `
     <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-4 flex items-start justify-between gap-4">
-      <div>
+      <div class="shrink-0 w-9 h-9 rounded-full bg-primary text-on-primary flex items-center justify-center font-label-lg text-label-lg" title="Pregunta ${i + 1}">${i + 1}</div>
+      <div class="flex-1 min-w-0">
         <span class="inline-block bg-surface-container-high text-on-surface-variant text-sm px-3 py-1 rounded-full mb-2">${ETIQUETAS_TIPO[p.tipo]} · ${p.puntos} pts</span>
-        ${p.instrucciones ? `<p class="font-body-md text-on-surface-variant mb-1" style="font-size:13px;">${escapeHtml(p.instrucciones)}</p>` : ''}
-        <p class="font-body-md text-body-md text-on-surface">${escapeHtml(p.texto)}</p>
+        ${p.instrucciones ? `<p class="font-body-md text-on-surface-variant mb-1" style="font-size:13px;white-space:pre-line;">${escapeHtml(p.instrucciones)}</p>` : ''}
+        <p class="font-body-md text-body-md text-on-surface" style="white-space:pre-line;">${escapeHtml(p.texto)}</p>
+        ${resumenClave(p) ? `<p class="font-body-md text-on-surface-variant mt-1" style="font-size:13px;"><span class="font-label-lg">Respuesta:</span> ${resumenClave(p)}</p>` : ''}
       </div>
       <div class="flex gap-1 shrink-0">
         <button class="btn-editar-pregunta text-on-surface-variant hover:bg-surface-container-high p-2 rounded-full transition-colors" data-idx="${i}" aria-label="Editar">
@@ -158,6 +178,11 @@ function abrirPanel(tipo, existente = null, idx = null) {
           <b>0.5</b>, <b>.5</b> y <b>1/2</b> ya cuentan como iguales sin que hagas nada.
         </p>
       </div>
+      <div class="flex flex-col mb-4">
+        <label class="font-label-lg text-label-lg text-on-surface mb-2" for="completar-renglones">Renglones para escribir (al imprimir)</label>
+        <input id="completar-renglones" class="${inputBase()} w-32" type="number" min="0" max="30" step="1" value="${Number(existente?.contenido_json?.renglones) || 0}"/>
+        <p class="font-body-md text-body-md text-on-surface-variant mt-2">Solo para el examen en papel: deja ese número de renglones debajo de la pregunta para que el alumno escriba (una biografía, un dictado…). 0 = sin renglones.</p>
+      </div>
       <label class="flex items-start gap-3 mb-4 cursor-pointer">
         <input type="checkbox" id="completar-procedimiento" class="mt-1" ${existente?.pide_procedimiento ? 'checked' : ''}/>
         <span>
@@ -177,9 +202,9 @@ function abrirPanel(tipo, existente = null, idx = null) {
     <h3 class="font-headline-md text-headline-md text-primary mb-stack-md">${existente ? 'Editar' : 'Nueva'} pregunta — ${ETIQUETAS_TIPO[tipo]}</h3>
     <div class="flex flex-col mb-4">
       <label class="font-label-lg text-label-lg text-on-surface mb-2" for="pregunta-instrucciones">Instrucciones (opcional)</label>
-      <input id="pregunta-instrucciones" class="${inputBase()}" type="text" maxlength="300"
-             placeholder="Ej: Lee y elige la respuesta correcta" value="${escapeHtml(instruccionesIniciales)}"/>
-      <p class="font-body-md text-body-md text-on-surface-variant mt-2">Se muestra arriba del enunciado, mas chica. Sirve para no repetir la misma indicacion dentro de cada pregunta.</p>
+      <textarea id="pregunta-instrucciones" class="${inputBase()}" rows="2" maxlength="5000"
+             placeholder="Ej: Lee y elige la respuesta correcta">${escapeHtml(instruccionesIniciales)}</textarea>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-2">Se muestra arriba del enunciado. Sirve para no repetir la misma indicacion en cada pregunta, y tambien para un texto de lectura o una tabla de datos (respeta los saltos de linea).</p>
     </div>
     <div class="flex flex-col mb-4">
       <label class="font-label-lg text-label-lg text-on-surface mb-2">${tipo === 'relacionar' ? 'Enunciado' : 'Pregunta'}</label>
@@ -352,7 +377,8 @@ function guardarPreguntaDelPanel(tipo) {
       alert(`Escribiste ${numBlancos} espacio(s) (___) pero diste ${respuestas.length} respuesta(s). Deben coincidir.`);
       return;
     }
-    nuevaPregunta.contenido_json = { plantilla, respuestas };
+    const renglones = Math.max(0, Math.min(30, Math.round(Number(document.getElementById('completar-renglones')?.value) || 0)));
+    nuevaPregunta.contenido_json = renglones ? { plantilla, respuestas, renglones } : { plantilla, respuestas };
     nuevaPregunta.pide_procedimiento = !!document.getElementById('completar-procedimiento')?.checked;
   }
 

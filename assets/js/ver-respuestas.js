@@ -174,7 +174,7 @@ async function cargarYRenderizar() {
       <div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-6" style="animation: fadeIn 0.4s ease-out ${i * 0.04}s both;">
         <div class="flex items-start justify-between gap-4 mb-stack-md">
           <div>
-            ${p.instrucciones ? `<p class="font-body-md text-on-surface-variant" style="font-size:13px;">${escapeHtml(p.instrucciones)}</p>` : ''}
+            ${p.instrucciones ? `<p class="font-body-md text-on-surface-variant" style="font-size:13px;white-space:pre-line;">${escapeHtml(p.instrucciones)}</p>` : ''}
             <h3 class="font-body-lg text-body-lg text-on-surface">${i + 1}. ${escapeHtml(p.texto)}</h3>
           </div>
           ${badgePuntos(r?.puntos_obtenidos ?? 0, p.puntos)}
