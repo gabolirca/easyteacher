@@ -44,7 +44,60 @@ function hoyLocal() {
   return new Date(d.getTime() - offset * 60000).toISOString().slice(0, 10);
 }
 
-// ================= MODO SIMPLE =================
+// ================= MODO SIMPLE (formato tarea) =================
+//
+// Se califica POR DIA, como las fichas: se elige la fecha, se pone la
+// calificacion 0-10 de ese dia y se guarda. La calificacion del periodo es el
+// PROMEDIO de los dias calificados en ese periodo (un dia sin calificacion no
+// cuenta, ni a favor ni en contra). El corte guarda ese promedio como foto fija.
+//
+// Los dias van en participacion_simple_dias. Las calificaciones de antes (una
+// sola por periodo, en participacion_simple) se siguen respetando: si un
+// alumno no tiene ningun dia en el periodo, cuenta esa.
+
+let simpleFilas = [];      // filas del periodo elegido: {alumno_id, fecha, calificacion}
+let simpleDelDia = {};     // { alumno_id: calificacion } de la fecha elegida
+
+function fechaCorta(f) {
+  return new Date(`${f}T12:00:00`).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+// Promedio del periodo por alumno: { alumno_id: { promedio, dias } }
+function promediosSimple(filas) {
+  const porAlumno = {};
+  filas.forEach((f) => {
+    if (f.calificacion === null || f.calificacion === undefined) return;
+    const a = (porAlumno[f.alumno_id] ||= { dias: [], anterior: null });
+    if (f.fecha) a.dias.push(Number(f.calificacion));
+    else a.anterior = Number(f.calificacion);
+  });
+  const salida = {};
+  Object.entries(porAlumno).forEach(([id, a]) => {
+    if (a.dias.length) {
+      salida[id] = { promedio: Math.round((a.dias.reduce((s, v) => s + v, 0) / a.dias.length) * 10) / 10, dias: a.dias.length };
+    } else if (a.anterior !== null) {
+      salida[id] = { promedio: a.anterior, dias: 0 };
+    }
+  });
+  return salida;
+}
+
+// Renglones del periodo: los dias (con fecha) y la calificacion de antes
+// (fecha null), en una sola lista.
+async function filasSimple(periodoId) {
+  let qDias = supabase.from('participacion_simple_dias').select('alumno_id, fecha, calificacion').eq('grupo_id', grupoId);
+  qDias = periodoId ? qDias.eq('periodo_id', periodoId) : qDias.is('periodo_id', null);
+  let qAntes = supabase.from('participacion_simple').select('alumno_id, calificacion').eq('grupo_id', grupoId);
+  qAntes = periodoId ? qAntes.eq('periodo_id', periodoId) : qAntes.is('periodo_id', null);
+  const [{ data: dias, error: e1 }, { data: antes, error: e2 }] = await Promise.all([qDias, qAntes]);
+  if (e1 || e2) throw (e1 || e2);
+  return [...(dias || []), ...(antes || []).map((a) => ({ ...a, fecha: null }))];
+}
+
+// Al cambiar la fecha, se pasa solo al periodo en el que cae (si tiene fechas).
+function periodoDeFecha(fecha) {
+  return periodos.find((p) => p.fecha_inicio && p.fecha_fin && p.fecha_inicio <= fecha && fecha <= p.fecha_fin) || null;
+}
 
 async function cargarModoSimple() {
   const { data: alumnosData, error: errorAlumnos } = await supabase
@@ -59,46 +112,79 @@ async function cargarModoSimple() {
 
   alumnos = (alumnosData || []).map((row) => row.alumnos).filter(Boolean).sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-  const periodoId = document.getElementById('simple-periodo').value || null;
-  let consulta = supabase.from('participacion_simple').select('alumno_id, calificacion').eq('grupo_id', grupoId);
-  consulta = periodoId ? consulta.eq('periodo_id', periodoId) : consulta.is('periodo_id', null);
-  const { data: calificaciones, error: errorCalif } = await consulta;
+  const campoFecha = document.getElementById('simple-fecha');
+  if (!campoFecha.value) campoFecha.value = hoyLocal();
+  const fecha = campoFecha.value;
 
-  if (errorCalif) {
+  const periodoId = document.getElementById('simple-periodo').value || null;
+  try {
+    simpleFilas = await filasSimple(periodoId);
+  } catch (errorCalif) {
     mostrarError(`No se pudieron cargar las calificaciones: ${errorCalif.message}`);
     return;
   }
 
-  const calificacionPorAlumno = {};
-  (calificaciones || []).forEach((c) => { calificacionPorAlumno[c.alumno_id] = c.calificacion ?? ''; });
+  simpleDelDia = {};
+  simpleFilas.filter((f) => f.fecha === fecha).forEach((f) => { simpleDelDia[f.alumno_id] = f.calificacion; });
+  const promedios = promediosSimple(simpleFilas);
+
+  // Dias ya calificados en el periodo, para saltar a uno con un clic.
+  const dias = [...new Set(simpleFilas.filter((f) => f.fecha && f.calificacion !== null).map((f) => f.fecha))].sort();
+  const cajaDias = document.getElementById('simple-dias');
+  cajaDias.innerHTML = dias.length
+    ? `<span class="font-label-lg text-label-lg text-on-surface-variant mr-1">Días calificados (${dias.length}):</span>` + dias.map((d) =>
+      `<button type="button" class="btn-dia-simple px-3 py-1 rounded-full text-sm border ${d === fecha ? 'bg-primary text-on-primary border-primary' : 'border-outline-variant text-on-surface hover:bg-surface-container-high'}" data-fecha="${d}">${fechaCorta(d)}</button>`).join('')
+    : '<span class="text-on-surface-variant">Todavía no hay días calificados en este periodo.</span>';
+  cajaDias.querySelectorAll('.btn-dia-simple').forEach((b) => b.addEventListener('click', () => {
+    document.getElementById('simple-fecha').value = b.dataset.fecha;
+    cargarModoSimple();
+  }));
 
   const tbody = document.getElementById('tabla-simple-body');
   if (alumnos.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="2" class="py-6 px-6 text-center text-on-surface-variant">Este grupo todavía no tiene alumnos inscritos.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="3" class="py-6 px-6 text-center text-on-surface-variant">Este grupo todavía no tiene alumnos inscritos.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = alumnos.map((a, i) => `
+  tbody.innerHTML = alumnos.map((a, i) => {
+    const pr = promedios[a.id];
+    const promedioTxt = pr
+      ? `<span class="font-label-lg text-label-lg text-on-surface">${pr.promedio}</span> <span class="text-sm text-on-surface-variant">${pr.dias ? `(${pr.dias} día${pr.dias === 1 ? '' : 's'})` : '(calificación anterior)'}</span>`
+      : '<span class="text-on-surface-variant">—</span>';
+    return `
     <tr class="border-t border-outline-variant hover:bg-surface-bright transition-colors" style="animation: fadeIn 0.4s ease-out ${i * 0.03}s both;">
       <td class="py-3 px-6 font-body-md text-body-md text-on-surface">${escapeHtml(a.nombre)}</td>
       <td class="py-3 px-6">
-        <input type="number" min="0" max="10" step="0.1" class="input-simple w-24 px-3 py-2 rounded-DEFAULT border border-outline-variant focus:border-2 transition-colors" style="border-color:#c2c6d4;" onfocus="this.style.borderColor='#d02b2f'" onblur="this.style.borderColor='#c2c6d4'" data-alumno="${a.id}" value="${calificacionPorAlumno[a.id] ?? ''}" placeholder="—"/>
+        <input type="number" min="0" max="10" step="0.1" class="input-simple w-24 px-3 py-2 rounded-DEFAULT border border-outline-variant focus:border-2 transition-colors" style="border-color:#c2c6d4;" onfocus="this.style.borderColor='#d02b2f'" onblur="this.style.borderColor='#c2c6d4'" data-alumno="${a.id}" value="${simpleDelDia[a.id] ?? ''}" placeholder="—"/>
       </td>
-    </tr>`).join('');
+      <td class="py-3 px-6">${promedioTxt}</td>
+    </tr>`;
+  }).join('');
 }
 
 document.getElementById('simple-periodo').addEventListener('change', cargarModoSimple);
+document.getElementById('simple-fecha').addEventListener('change', (e) => {
+  const p = periodoDeFecha(e.target.value);
+  if (p) document.getElementById('simple-periodo').value = p.id;
+  cargarModoSimple();
+});
 
 async function guardarSimple() {
   const periodoId = document.getElementById('simple-periodo').value || null;
-  const filas = [...document.querySelectorAll('.input-simple')].map((el) => ({
-    grupo_id: grupoId,
-    alumno_id: el.dataset.alumno,
-    periodo_id: periodoId,
-    calificacion: el.value === '' ? null : parseFloat(el.value),
-  }));
+  const fecha = document.getElementById('simple-fecha').value || hoyLocal();
+  // Solo se mandan los alumnos con calificacion ese dia, o a los que se les
+  // borro: asi un dia sin calificar no llena la tabla de renglones vacios.
+  const filas = [...document.querySelectorAll('.input-simple')]
+    .filter((el) => el.value !== '' || simpleDelDia[el.dataset.alumno] !== undefined)
+    .map((el) => ({
+      grupo_id: grupoId,
+      alumno_id: el.dataset.alumno,
+      periodo_id: periodoId,
+      fecha,
+      calificacion: el.value === '' ? null : Math.min(10, Math.max(0, parseFloat(el.value))),
+    }));
   if (!filas.length) return true;
-  const { error } = await supabase.from('participacion_simple').upsert(filas, { onConflict: 'grupo_id,alumno_id,periodo_id' });
+  const { error } = await supabase.from('participacion_simple_dias').upsert(filas, { onConflict: 'grupo_id,alumno_id,periodo_id,fecha' });
   if (error) {
     mostrarError(`No se pudo guardar: ${error.message}`);
     return false;
@@ -111,19 +197,24 @@ document.getElementById('btn-guardar-simple').addEventListener('click', async ()
   btn.disabled = true;
   const ok = await guardarSimple();
   btn.disabled = false;
-  if (ok) mostrarOk('Calificaciones de participación guardadas.');
+  if (ok) {
+    mostrarOk(`Participación del ${fechaCorta(document.getElementById('simple-fecha').value)} guardada.`);
+    await cargarModoSimple();
+  }
 });
 
 // -------- Corte (formato tarea) --------
 // Igual que en fichas y clase en vivo: un corte es una foto fija que queda
 // ligada a un periodo, y Calificaciones finales lo usa para ese periodo. Aqui
-// no hay puntos que convertir: la foto es la calificacion 0-10 de la tabla.
+// la foto es el PROMEDIO de los dias calificados en ese periodo.
 
-function calificacionesDeLaTabla() {
-  return [...document.querySelectorAll('.input-simple')].map((el) => ({
-    alumnoId: el.dataset.alumno,
-    nombre: alumnos.find((a) => a.id === el.dataset.alumno)?.nombre || '',
-    calificacion: el.value === '' ? null : Math.min(10, Math.max(0, parseFloat(el.value))),
+async function promediosDelPeriodo(periodoId) {
+  const promedios = promediosSimple(await filasSimple(periodoId));
+  return alumnos.map((a) => ({
+    alumnoId: a.id,
+    nombre: a.nombre,
+    calificacion: promedios[a.id]?.promedio ?? null,
+    dias: promedios[a.id]?.dias ?? 0,
   }));
 }
 
@@ -137,17 +228,24 @@ document.getElementById('btn-toggle-corte-simple').addEventListener('click', asy
   }
 });
 
-async function abrirCorteSimple() {
-  const lista = calificacionesDeLaTabla().sort((a, b) => (b.calificacion ?? -1) - (a.calificacion ?? -1));
+async function pintarListaCorteSimple() {
+  const periodoId = document.getElementById('corte-simple-periodo').value || null;
+  let lista;
+  try { lista = await promediosDelPeriodo(periodoId); } catch (e) { mostrarError(e.message); return []; }
+  lista.sort((a, b) => (b.calificacion ?? -1) - (a.calificacion ?? -1));
   document.getElementById('lista-corte-simple').innerHTML = lista.map((r, i) => `
     <div class="flex items-center justify-between px-4 py-2 rounded-DEFAULT ${i === 0 && r.calificacion !== null ? 'bg-primary-fixed' : 'bg-surface-container-high'}">
       <span class="font-body-md text-body-md text-on-surface">${escapeHtml(r.nombre)}</span>
-      <span class="font-label-lg text-label-lg text-on-surface">${r.calificacion === null ? 'sin calificación' : r.calificacion}</span>
+      <span class="font-label-lg text-label-lg text-on-surface">${r.calificacion === null ? 'sin calificación' : `${r.calificacion} <span class="text-sm font-normal text-on-surface-variant">${r.dias ? `(${r.dias} día${r.dias === 1 ? '' : 's'})` : ''}</span>`}</span>
     </div>`).join('') || '<p class="text-on-surface-variant">Sin alumnos.</p>';
+  return lista;
+}
 
+async function abrirCorteSimple() {
   // Por defecto el periodo que se esta viendo en la tabla.
   const sel = document.getElementById('corte-simple-periodo');
   sel.value = document.getElementById('simple-periodo').value || '';
+  await pintarListaCorteSimple();
   await mostrarUltimoCorteSimple();
 }
 
@@ -162,24 +260,27 @@ async function mostrarUltimoCorteSimple() {
     : 'Aún no se ha hecho corte para este periodo.';
 }
 
-document.getElementById('corte-simple-periodo').addEventListener('change', mostrarUltimoCorteSimple);
+document.getElementById('corte-simple-periodo').addEventListener('change', async () => {
+  await pintarListaCorteSimple();
+  await mostrarUltimoCorteSimple();
+});
 
 document.getElementById('btn-aplicar-corte-simple').addEventListener('click', async () => {
   const periodoId = document.getElementById('corte-simple-periodo').value || null;
-  const lista = calificacionesDeLaTabla();
-  const sinCalif = lista.filter((r) => r.calificacion === null).length;
   const nombrePeriodo = periodos.find((p) => p.id === periodoId)?.nombre || 'todo el ciclo';
-
-  const confirmado = window.confirm(
-    `¿Aplicar corte para ${nombrePeriodo}? Se guardan las calificaciones de la tabla como una foto fija.` +
-    (sinCalif ? `\n\n${sinCalif} alumno(s) no tienen calificación y quedan sin participación en este corte.` : ''));
-  if (!confirmado) return;
 
   const btn = document.getElementById('btn-aplicar-corte-simple');
   btn.disabled = true;
   try {
-    // Primero se guarda la tabla, para que lo que se corta sea lo que se ve.
+    // Primero se guarda lo que haya en la tabla del dia, para no dejarlo fuera.
     if (!(await guardarSimple())) return;
+    const lista = await pintarListaCorteSimple();
+    const sinCalif = lista.filter((r) => r.calificacion === null).length;
+
+    const confirmado = window.confirm(
+      `¿Aplicar corte para ${nombrePeriodo}? Se guarda el promedio de los días calificados como una foto fija.` +
+      (sinCalif ? `\n\n${sinCalif} alumno(s) no tienen ningún día calificado y quedan sin participación en este corte.` : ''));
+    if (!confirmado) return;
 
     const { data: corte, error: errorCorte } = await supabase
       .from('cortes_participacion')
@@ -196,8 +297,9 @@ document.getElementById('btn-aplicar-corte-simple').addEventListener('click', as
       if (errorFilas) throw errorFilas;
     }
 
-    mostrarOk(`Corte aplicado para ${nombrePeriodo}. Si vas a empezar el siguiente periodo, abajo puedes dejar la tabla en blanco.`);
+    mostrarOk(`Corte aplicado para ${nombrePeriodo} con el promedio de los días calificados.`);
     await mostrarUltimoCorteSimple();
+    await cargarModoSimple();
   } catch (err) {
     mostrarError(err.message || 'No se pudo aplicar el corte');
   } finally {
@@ -207,15 +309,16 @@ document.getElementById('btn-aplicar-corte-simple').addEventListener('click', as
 
 document.getElementById('btn-limpiar-simple').addEventListener('click', async () => {
   const periodoId = document.getElementById('simple-periodo').value || null;
-  const ok = window.confirm('¿Dejar en blanco las calificaciones de la tabla? Los cortes que ya aplicaste no se tocan.');
+  const fecha = document.getElementById('simple-fecha').value;
+  const ok = window.confirm(`¿Borrar las calificaciones del ${fechaCorta(fecha)}? Los demás días y los cortes que ya aplicaste no se tocan.`);
   if (!ok) return;
-  let q = supabase.from('participacion_simple').update({ calificacion: null }).eq('grupo_id', grupoId);
+  let q = supabase.from('participacion_simple_dias').delete().eq('grupo_id', grupoId).eq('fecha', fecha);
   q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
   const { error } = await q;
-  if (error) { mostrarError(`No se pudo limpiar: ${error.message}`); return; }
+  if (error) { mostrarError(`No se pudo borrar: ${error.message}`); return; }
   await cargarModoSimple();
-  await abrirCorteSimple();
-  mostrarOk('Tabla en blanco. Los cortes anteriores se conservan.');
+  if (!document.getElementById('corte-simple-container').classList.contains('hidden')) await pintarListaCorteSimple();
+  mostrarOk('Calificaciones de ese día borradas.');
 });
 
 // ================= MODO FICHAS =================
@@ -977,6 +1080,9 @@ async function cargarPeriodosParticipacion() {
   if (selectSimple) {
     selectSimple.innerHTML = opciones;
     document.getElementById('campo-periodo-simple').classList.remove('hidden');
+    // Por defecto, el periodo en el que cae la fecha de hoy.
+    const actualSimple = periodoDeFecha(hoyLocal());
+    if (actualSimple) selectSimple.value = actualSimple.id;
   }
 
   const selectCorte = document.getElementById('corte-periodo');

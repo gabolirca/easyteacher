@@ -207,11 +207,23 @@ async function calcularParaPeriodo(periodoId) {
       if (errorCalifS) throw new Error(`Corte: ${errorCalifS.message}`);
       (califCorteS || []).forEach((c) => { if (c.calificacion !== null) participacionPorAlumno[c.alumno_id] = Number(c.calificacion); });
     } else {
+      // Sin corte: promedio de los dias calificados en el periodo. Si un
+      // alumno no tiene dias, cuenta la calificacion de antes (sin fecha).
+      let qDias = supabase.from('participacion_simple_dias').select('alumno_id, calificacion').eq('grupo_id', grupoId);
+      qDias = periodoId ? qDias.eq('periodo_id', periodoId) : qDias.is('periodo_id', null);
       let q = supabase.from('participacion_simple').select('alumno_id, calificacion').eq('grupo_id', grupoId);
       q = periodoId ? q.eq('periodo_id', periodoId) : q.is('periodo_id', null);
-      const { data: califSimple, error: errorSimple } = await q;
-      if (errorSimple) throw new Error(`Participación: ${errorSimple.message}`);
-      (califSimple || []).forEach((c) => { if (c.calificacion !== null) participacionPorAlumno[c.alumno_id] = Number(c.calificacion); });
+      const [{ data: califDias, error: errorDias }, { data: califSimple, error: errorSimple }] = await Promise.all([qDias, q]);
+      if (errorDias || errorSimple) throw new Error(`Participación: ${(errorDias || errorSimple).message}`);
+      const dias = {};
+      const anterior = {};
+      (califDias || []).forEach((c) => { if (c.calificacion !== null) (dias[c.alumno_id] ||= []).push(Number(c.calificacion)); });
+      (califSimple || []).forEach((c) => { if (c.calificacion !== null) anterior[c.alumno_id] = Number(c.calificacion); });
+      new Set([...Object.keys(dias), ...Object.keys(anterior)]).forEach((id) => {
+        participacionPorAlumno[id] = dias[id]
+          ? Math.round((dias[id].reduce((s, v) => s + v, 0) / dias[id].length) * 10) / 10
+          : anterior[id];
+      });
     }
   } else {
     let qCorte = supabase.from('cortes_participacion').select('id, media').eq('grupo_id', grupoId);
